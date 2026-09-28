@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <canvas id="mandala" aria-label="Interactive geometric mandala with coordinate axes and a fourth-dimensional slice plane"></canvas>
+  <canvas id="mandala" aria-label="Interactive geometric mandala with X, Y and Z axes and a fourth-dimensional slice coordinate"></canvas>
 
   <header class="brand">
     <div class="brand__name">Hypermandala</div>
@@ -21,10 +21,20 @@
     <span id="dimensionStatus">plan</span>
   </div>
 
-  <div class="slice-readout" id="sliceReadout" aria-live="polite">
-    <span>W slice</span>
-    <strong id="sliceValue">0.00</strong>
-  </div>
+  <aside class="w-coordinate" id="sliceReadout" aria-live="polite" aria-hidden="true">
+    <div class="w-coordinate__head">
+      <span>Fourth coordinate</span>
+      <strong>W = <span id="sliceValue">0.00</span></strong>
+    </div>
+    <div class="w-coordinate__scale" aria-hidden="true">
+      <span>−1</span>
+      <div class="w-coordinate__rail">
+        <i id="wMarker"></i>
+      </div>
+      <span>+1</span>
+    </div>
+    <small>3D slice position · W is not drawn as a 3D axis</small>
+  </aside>
 
   <nav class="dimension-switcher" aria-label="Choose dimension">
     <button type="button" data-dimension="2" class="is-active">2D</button>
