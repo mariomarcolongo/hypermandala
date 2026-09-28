@@ -1,20 +1,50 @@
 # Hypermandala
 
-**One mandala, continuously unfolding from 2D to 3D to 4D.**
+**A geometric mandala explored as a 2D plan, a 3D temple, and a 4D hyperstructure.**
 
-Hypermandala is a dependency-free interactive visualization built with HTML, CSS, and the Canvas 2D API. The same procedural mandala is used in every state: the slider gradually introduces a latent `z` coordinate and then a latent `w` coordinate, so the transition feels like one object gaining dimensions rather than three unrelated scenes.
+Hypermandala is a dependency-free interactive visualization built with HTML, CSS, and the Canvas 2D API. The project is inspired by the way mandala geometry can become architecture: the same symmetric plan rises into terraces, gateways, subsidiary shrines, and a central tower.
 
 ## Interaction
 
-- Drag the **2D → 3D → 4D** slider for the main transition.
-- Click **2D**, **3D**, or **4D** to glide to that dimension.
-- Press **Play** for an automatic dimensional cycle.
-- **Drag** the mandala to rotate it. In 4D, dragging also rotates through planes involving the fourth coordinate.
-- **Scroll / trackpad** to zoom.
-- Double-click the canvas or use the reset button to reset the view.
-- Keyboard: `2`, `3`, `4`, arrow keys, `Space`, and `R`.
+Dimensions are discrete states rather than a user-controlled fractional slider:
 
-The values between 2D, 3D, and 4D are a visual interpolation parameter, not a claim that the rendered geometry has a mathematically fractional topological dimension.
+- **2D** — the geometric ground plan.
+- **3D** — the plan automatically rises into a temple-like stepped structure.
+- **4D** — the 3D structure automatically extrudes through a fourth spatial coordinate, **W**.
+
+Clicking 2D, 3D, or 4D triggers a smooth automatic transformation. The interpolation exists only during the transition.
+
+### Axes
+
+The coordinate axes are visible in the scene and the mandala can be translated relative to them.
+
+- 2D: **X, Y**
+- 3D: **X, Y, Z**
+- 4D: **X, Y, Z, W**
+
+Use the axis controls to move the mandala along each available coordinate. Moving along W changes the 4D projection rather than acting like an ordinary screen-space pan.
+
+Other controls:
+
+- Drag to rotate the view.
+- In 4D, **Shift + drag** rotates through planes involving W.
+- Scroll / trackpad to zoom.
+- Double-click or choose **reset view** to restore the camera.
+- **center** resets all axis positions.
+- Keyboard: `2`, `3`, `4`, `C` to center, and `R` to reset the view.
+
+## Geometry
+
+The current procedural form uses:
+
+- nested square terraces, alternating between cardinal and diagonal orientation;
+- cardinal gateways;
+- concentric octagons and radial construction lines;
+- a central stepped shrine/tower;
+- four subsidiary shrines;
+- a 4D extrusion of the complete 3D structure across multiple W layers, with corresponding vertices connected through W.
+
+The 2D, 3D, and 4D views therefore come from one related geometric construction rather than three unrelated drawings.
 
 ## Run locally
 
@@ -30,31 +60,14 @@ Then open `http://localhost:8080`.
 
 ### Cloudflare Pages
 
-This repository is ready for a no-build static deployment:
-
 - Production branch: `main`
 - Framework preset: none
 - Build command: leave blank (or use `exit 0`)
 - Build output directory: `public`
 
-Cloudflare Pages supports GitHub-connected private repositories and will automatically deploy new pushes to `main` once the repository is connected.
-
 ### GitHub Pages
 
-A GitHub Pages workflow is included at `.github/workflows/pages.yml`. It publishes the `public` directory whenever `main` changes.
-
-GitHub Pages supports public repositories on GitHub Free and private repositories on plans that include Pages for private repositories. The repository owner must enable GitHub Pages / GitHub Actions as the publishing source if it is not already enabled.
-
-## Architecture
-
-The renderer deliberately avoids a 3D framework. Every sampled point begins with `(x, y)` and latent `z₀` / `w₀` values derived from the mandala's radial structure.
-
-- `2 → 3`: `z = ease(d - 2) · z₀`
-- `3 → 4`: `w = ease(d - 3) · w₀`
-- 4D rotations are applied in `XW`, `YW`, and `ZW` planes.
-- The result is projected from 4D → 3D, then from 3D → the 2D canvas.
-
-This keeps the transition continuous while still allowing genuinely 4D rotations once `w` is active.
+The workflow at `.github/workflows/pages.yml` publishes `public` when Pages is enabled for the repository and configured to use GitHub Actions.
 
 ## License
 
