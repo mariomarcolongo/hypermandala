@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#060711" />
+  <meta name="description" content="A mandala that unfolds continuously from 2D to 3D to 4D." />
+  <title>Hypermandala</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <canvas id="mandala" aria-label="Interactive dimensional mandala"></canvas>
+
+  <header class="brand" aria-label="Hypermandala">
+    <div class="brand__name">Hypermandala</div>
+    <div class="brand__tagline">one form · more dimensions</div>
+  </header>
+
+  <div class="readout" aria-live="polite">
+    <span id="dimensionValue">2.00D</span>
+    <span id="dimensionName">plane</span>
+  </div>
+
+  <div class="hint" id="hint">drag to explore · scroll to zoom</div>
+
+  <main class="controls" aria-label="Dimension controls">
+    <button class="play" id="playButton" type="button" aria-label="Play dimensional transition" aria-pressed="false">
+      <svg class="play__icon play__icon--play" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M8.2 5.5v13l10-6.5-10-6.5Z" />
+      </svg>
+      <svg class="play__icon play__icon--pause" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M7 5h3.7v14H7V5Zm6.3 0H17v14h-3.7V5Z" />
+      </svg>
+    </button>
+
+    <div class="dimension-control">
+      <label class="sr-only" for="dimensionSlider">Dimension</label>
+      <input id="dimensionSlider" type="range" min="2" max="4" step="0.001" value="2" />
+      <div class="dimension-labels" aria-label="Jump to dimension">
+        <button type="button" data-dimension="2">2D</button>
+        <button type="button" data-dimension="3">3D</button>
+        <button type="button" data-dimension="4">4D</button>
+      </div>
+    </div>
+  </main>
+
+  <button class="reset" id="resetButton" type="button" aria-label="Reset view" title="Reset view">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M19.3 7.1A8 8 0 1 0 20 16h-2.2a6 6 0 1 1-.4-7.3L14 12h7V5l-1.7 2.1Z" />
+    </svg>
+  </button>
+
+  <a class="source" href="https://github.com/jnton/hypermandala" target="_blank" rel="noreferrer">source</a>
+
+  <noscript>
+    <div class="noscript">Hypermandala needs JavaScript to render the interactive geometry.</div>
+  </noscript>
+
+  <script src="./app.js" defer></script>
+</body>
+</html>
