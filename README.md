@@ -1,50 +1,41 @@
 # Hypermandala
 
-**A geometric mandala explored as a 2D plan, a 3D temple, and a 4D hyperstructure.**
+**One geometric rule explored as a 2D mandala, a 3D temple, and a 4D structure through W-slices.**
 
-Hypermandala is a dependency-free interactive visualization built with HTML, CSS, and the Canvas 2D API. The project is inspired by the way mandala geometry can become architecture: the same symmetric plan rises into terraces, gateways, subsidiary shrines, and a central tower.
+Hypermandala is a dependency-free Canvas visualization inspired by the relationship between mandala plans and temple architecture.
 
-## Interaction
+## Dimensional model
 
-Dimensions are discrete states rather than a user-controlled fractional slider:
+The dimensions are discrete states:
 
-- **2D** — the geometric ground plan.
-- **3D** — the plan automatically rises into a temple-like stepped structure.
-- **4D** — the 3D structure automatically extrudes through a fourth spatial coordinate, **W**.
+- **2D — plan:** a clean nested square/diamond mandala.
+- **3D — temple:** the same rings rise into a stepped shrine.
+- **4D — W slices:** the temple becomes a family of related 3D cross-sections distributed along a fourth spatial coordinate.
 
-Clicking 2D, 3D, or 4D triggers a smooth automatic transformation. The interpolation exists only during the transition.
-
-### Axes
-
-The coordinate axes are visible in the scene and the mandala can be translated relative to them.
-
-- 2D: **X, Y**
-- 3D: **X, Y, Z**
-- 4D: **X, Y, Z, W**
-
-Use the axis controls to move the mandala along each available coordinate. Moving along W changes the 4D projection rather than acting like an ordinary screen-space pan.
-
-Other controls:
-
-- Drag to rotate the view.
-- In 4D, **Shift + drag** rotates through planes involving W.
-- Scroll / trackpad to zoom.
-- Double-click or choose **reset view** to restore the camera.
-- **center** resets all axis positions.
-- Keyboard: `2`, `3`, `4`, `C` to center, and `R` to reset the view.
+Clicking 2D, 3D, or 4D triggers an automatic transition. There is no user-controlled fractional-dimension slider.
 
 ## Geometry
 
-The current procedural form uses:
+The construction deliberately uses one repeated rule:
 
-- nested square terraces, alternating between cardinal and diagonal orientation;
-- cardinal gateways;
-- concentric octagons and radial construction lines;
-- a central stepped shrine/tower;
-- four subsidiary shrines;
-- a 4D extrusion of the complete 3D structure across multiple W layers, with corresponding vertices connected through W.
+`square → diamond → square → diamond → … → apex`
 
-The 2D, 3D, and 4D views therefore come from one related geometric construction rather than three unrelated drawings.
+Adjacent levels are connected corner-to-corner, and four cardinal ground axes pass through the plan. This keeps the object visually coherent in both plan and elevation.
+
+In 4D, the 3D temple varies continuously with `w`: its scale, twist, and height change smoothly. Several faint reference slices show the larger 4D structure while the selected slice remains bright.
+
+## Controls
+
+- **X / Y:** translate the mandala in 2D, 3D, or 4D.
+- **Z:** translate it vertically in 3D or 4D.
+- **W slice:** in 4D, move the slice hyperplane through the fourth coordinate. This does not translate the whole object; it selects a different 3D cross-section of the 4D structure.
+- **Drag:** rotate the visible 2D/3D view.
+- **Shift + drag in 4D:** rotate through planes involving W.
+- **Scroll / trackpad:** zoom.
+- **center:** reset X/Y/Z and the W slice to zero.
+- **reset view:** restore the camera.
+
+The scene also renders X, Y, Z, and W axes. In 4D a marker on the W axis shows the current slice coordinate.
 
 ## Run locally
 
@@ -67,7 +58,7 @@ Then open `http://localhost:8080`.
 
 ### GitHub Pages
 
-The workflow at `.github/workflows/pages.yml` publishes `public` when Pages is enabled for the repository and configured to use GitHub Actions.
+The workflow at `.github/workflows/pages.yml` publishes `public` once GitHub Pages is enabled for the repository and configured to use GitHub Actions.
 
 ## License
 
