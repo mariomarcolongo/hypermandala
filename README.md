@@ -35,7 +35,7 @@ In 4D, the 3D temple varies continuously with `w`: its scale, twist, and height 
 - **center:** reset X/Y/Z and the W slice to zero.
 - **reset view:** restore the camera.
 
-The scene also renders X, Y, Z, and W axes. In 4D a marker on the W axis shows the current slice coordinate.
+The scene renders only the spatial axes that can be shown directly in the current view: X and Y in 2D, then X/Y/Z in 3D and 4D. W is deliberately not drawn as another in-scene axis, because that would falsely make it look like an ordinary 3D direction. Instead, W is shown in a separate coordinate rail outside the projected scene; its marker selects the active 3D slice.
 
 ## Run locally
 
