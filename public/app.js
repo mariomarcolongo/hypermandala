@@ -13,6 +13,7 @@
   const dimensionStatus = document.getElementById('dimensionStatus');
   const sliceReadout = document.getElementById('sliceReadout');
   const sliceValue = document.getElementById('sliceValue');
+  const wMarker = document.getElementById('wMarker');
   const axisRows = document.getElementById('axisRows');
   const resetPosition = document.getElementById('resetPosition');
   const resetView = document.getElementById('resetView');
@@ -234,7 +235,6 @@
       ['X', '#ff6d6d', v(-1.32, 0, 0, 0), v(1.32, 0, 0, 0), true],
       ['Y', '#65d98b', v(0, -1.32, 0, 0), v(0, 1.32, 0, 0), true],
       ['Z', '#69a8ff', v(0, 0, -0.35, 0), v(0, 0, 1.55, 0), act.z > 0.02],
-      ['W', '#d995ff', v(0, 0, 0, -1.18), v(0, 0, 0, 1.18), act.w > 0.02],
     ];
 
     ctx.save();
@@ -249,16 +249,6 @@
       ctx.globalAlpha = 0.88;
       ctx.font = '700 11px Inter, ui-sans-serif, sans-serif';
       ctx.fillText(label, b.x + 6, b.y - 5);
-      ctx.globalAlpha = 1;
-    }
-
-    if (act.w > 0.15) {
-      const marker = project(v(0, 0, 0, state.wSlice), false);
-      ctx.beginPath();
-      ctx.arc(marker.x, marker.y, 4.2, 0, TAU);
-      ctx.fillStyle = '#d995ff';
-      ctx.globalAlpha = 0.95 * act.w;
-      ctx.fill();
       ctx.globalAlpha = 1;
     }
 
@@ -373,6 +363,7 @@
         if (axis.slice) {
           state.wSlice = next;
           sliceValue.textContent = next.toFixed(2);
+          wMarker.style.left = (((next + 1) / 2) * 100).toFixed(2) + '%';
         } else {
           state.position[axis.key] = next;
         }
@@ -407,6 +398,7 @@
     state.position.z = 0;
     state.wSlice = 0;
     sliceValue.textContent = '0.00';
+    wMarker.style.left = '50%';
 
     for (const axis of AXES) {
       axis.input.value = '0';
@@ -426,6 +418,7 @@
         wAxis.valueEl.textContent = '0.00';
       }
       sliceValue.textContent = '0.00';
+      wMarker.style.left = '50%';
     }
 
     state.transition = {
@@ -467,7 +460,7 @@
     });
 
     if (state.dimension === 4 && !state.transition) {
-      hint.textContent = 'move the W slice plane · drag to orbit · Shift+drag rotates through W';
+      hint.textContent = 'move the W slice coordinate · drag to orbit · Shift+drag changes the 4D projection';
     } else if (state.dimension === 3 && !state.transition) {
       hint.textContent = 'move X/Y/Z · drag to orbit · scroll to zoom';
     } else if (!state.transition) {
