@@ -1372,6 +1372,267 @@
     );
   }
 
+  function castelSpec() {
+    return state.complexity === 'complex'
+      ? {
+          outerRadius: 1.46,
+          innerRadius: 0.78,
+          innerWallRadius: 0.65,
+          towerRadius: 0.29,
+        }
+      : {
+          outerRadius: 1.40,
+          innerRadius: 0.76,
+          innerWallRadius: null,
+          towerRadius: 0.27,
+        };
+  }
+
+  function buildCastelPlan() {
+    clearPlan();
+    const spec = castelSpec();
+    const rotation = Math.PI / 8;
+
+    for (const sector of polygonRingSectors(
+      spec.outerRadius,
+      spec.innerRadius,
+      8,
+      rotation,
+    )) {
+      addPlanLoop(sector, true, 'castel-wall', 0);
+    }
+
+    const towerCenters = polygonFootprint(
+      0,
+      0,
+      spec.outerRadius,
+      8,
+      rotation,
+    );
+
+    for (const [cx, cy] of towerCenters) {
+      addPlanRegularPolygon(
+        cx,
+        cy,
+        spec.towerRadius,
+        8,
+        rotation,
+        true,
+        'castel-tower',
+        10,
+      );
+    }
+
+    if (spec.innerWallRadius) {
+      for (const sector of polygonRingSectors(
+        spec.innerRadius,
+        spec.innerWallRadius,
+        8,
+        rotation,
+      )) {
+        addPlanLoop(sector, true, 'castel-inner', 20);
+      }
+    }
+
+    addPlanRegularPolygon(
+      0,
+      0,
+      spec.innerWallRadius || spec.innerRadius,
+      8,
+      rotation,
+      false,
+      'castel-accent',
+      100,
+    );
+  }
+
+  function kukulkanSpec() {
+    const complex = state.complexity === 'complex';
+    return {
+      sizes: complex
+        ? [2.82,2.58,2.34,2.10,1.86,1.62,1.38,1.14,0.90]
+        : [2.62,2.18,1.74,1.30,0.88],
+      stairWidth: complex ? 0.24 : 0.27,
+      templeSize: complex ? 0.62 : 0.58,
+    };
+  }
+
+  function kukulkanStairPieces(spec) {
+    const pieces = [];
+
+    for (let i = 0; i < spec.sizes.length - 1; i += 1) {
+      const outer = spec.sizes[i];
+      const inner = spec.sizes[i + 1];
+      const band = (outer - inner) / 2;
+      const center = (outer + inner) / 4;
+      const order = 20 + i;
+
+      pieces.push(
+        {
+          points: rectFootprint(
+            0,
+            center,
+            spec.stairWidth,
+            band,
+            0,
+          ),
+          level: i,
+          paintOrder: order,
+        },
+        {
+          points: rectFootprint(
+            0,
+            -center,
+            spec.stairWidth,
+            band,
+            0,
+          ),
+          level: i,
+          paintOrder: order,
+        },
+        {
+          points: rectFootprint(
+            center,
+            0,
+            band,
+            spec.stairWidth,
+            0,
+          ),
+          level: i,
+          paintOrder: order,
+        },
+        {
+          points: rectFootprint(
+            -center,
+            0,
+            band,
+            spec.stairWidth,
+            0,
+          ),
+          level: i,
+          paintOrder: order,
+        },
+      );
+    }
+
+    return pieces;
+  }
+
+  function buildKukulkanPlan() {
+    clearPlan();
+    const spec = kukulkanSpec();
+
+    spec.sizes.forEach((size, index) => {
+      addPlanSquareCell(
+        0,
+        0,
+        size,
+        0,
+        true,
+        'kukulkan-level-' + index,
+        index,
+      );
+    });
+
+    for (const piece of kukulkanStairPieces(spec)) {
+      addPlanLoop(
+        piece.points,
+        true,
+        'kukulkan-stair',
+        piece.paintOrder,
+      );
+    }
+
+    addPlanSquareCell(
+      0,
+      0,
+      spec.templeSize,
+      0,
+      true,
+      'kukulkan-temple',
+      100,
+    );
+  }
+
+  function lalibelaCrossCells(size, spacing, regionId, order) {
+    return [
+      [0,0],
+      [spacing,0],
+      [-spacing,0],
+      [0,spacing],
+      [0,-spacing],
+    ].map(([cx, cy]) => ({
+      points: rectFootprint(cx, cy, size, size, 0),
+      regionId,
+      paintOrder: order,
+    }));
+  }
+
+  function lalibelaCourtPieces(size, thickness) {
+    const side = size - thickness;
+    return [
+      rectFootprint(0, side / 2, size, thickness, 0),
+      rectFootprint(0, -side / 2, size, thickness, 0),
+      rectFootprint(-side / 2, 0, thickness, size - 2 * thickness, 0),
+      rectFootprint(side / 2, 0, thickness, size - 2 * thickness, 0),
+    ];
+  }
+
+  function buildLalibelaPlan() {
+    clearPlan();
+    const complex = state.complexity === 'complex';
+
+    for (const points of lalibelaCourtPieces(
+      complex ? 2.72 : 2.56,
+      0.12,
+    )) {
+      addPlanLoop(points, true, 'lalibela-court', 0);
+    }
+
+    const bodySize = complex ? 0.66 : 0.70;
+    const bodySpacing = bodySize;
+
+    for (const cell of lalibelaCrossCells(
+      bodySize,
+      bodySpacing,
+      'lalibela-body',
+      10,
+    )) {
+      addPlanLoop(
+        cell.points,
+        true,
+        cell.regionId,
+        cell.paintOrder,
+      );
+    }
+
+    if (complex) {
+      for (const cell of lalibelaCrossCells(
+        0.42,
+        bodySpacing,
+        'lalibela-roof',
+        20,
+      )) {
+        addPlanLoop(
+          cell.points,
+          true,
+          cell.regionId,
+          cell.paintOrder,
+        );
+      }
+    }
+
+    addPlanSquareCell(
+      0,
+      0,
+      complex ? 0.30 : 0.34,
+      0,
+      true,
+      'lalibela-center',
+      100,
+    );
+  }
+
   function addSquarePrismCentered(
     centerZ,
     size,
