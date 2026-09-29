@@ -3151,7 +3151,11 @@
         ];
   }
 
-  function addHexSatelliteRing(centerZ, liftMeta = null) {
+  function addHexSatelliteRing(
+    centerZ,
+    height = 0.18,
+    liftMeta = null,
+  ) {
     const ringRadius = 1.58;
     for (let i = 0; i < 6; i += 1) {
       const angle = (i / 6) * TAU;
@@ -3161,7 +3165,7 @@
         centerZ,
         0.22,
         6,
-        0.18,
+        height,
         Math.PI / 6,
         'hex-satellite',
         liftMeta,
@@ -3199,7 +3203,11 @@
 
     const lastIndex = thicknesses.length - 1;
     const satelliteMeta = { hierarchyT: 0, polarity: 0 };
-    addHexSatelliteRing(centers[0], satelliteMeta);
+    addHexSatelliteRing(
+      centers[0],
+      satelliteThickness,
+      satelliteMeta,
+    );
 
     if (state.complexity === 'complex') {
       const outerRadius = 2.02;
