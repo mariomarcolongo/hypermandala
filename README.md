@@ -15,7 +15,7 @@ The common source is the **2D geometric plan**: a centered, hierarchical, radial
 Families then divide naturally:
 
 - **Symmetric forms** — Square, Yantra and Hex remain balanced through the added Z dimension. Their 3D construction is reflected through ±Z rather than forced into an architectural “up” direction.
-- **Architecture** — Stupa and Borobudur rise in +Z because vertical hierarchy is intrinsic to the object itself.
+- **Architecture** — Stupa, Borobudur, Castel del Monte, Kukulcán and Bete Giyorgis rise in +Z because vertical hierarchy is intrinsic to the object itself.
 
 In every case:
 
@@ -79,13 +79,11 @@ Hypermandala uses multiple geometry generators. Every family shares the same dim
 
 ### Square Mandala
 
-A square/palace symmetric family:
+A square/palace symmetric family.
 
-- modular square cells and central guides in 2D;
-- a balanced ±Z construction in 3D;
-- the same region identities extruded through W in 4D.
+**Simple** retains the compact modular square construction. **Complex** is no longer a filled 5×5 lattice: it uses two nested square enclosures, four cardinal gates, four diagonal satellite diamonds, and an alternating square/diamond central hierarchy. The complex plan is therefore a genuine centered mandala-like composition rather than simply “more blocks.”
 
-Its plan uses a centered diamond arrangement with four cardinal extensions and a hierarchical central region.
+Both variants remain balanced through ±Z and preserve exact 2D↔3D↔4D region identity.
 
 ### Triangle Yantra
 
@@ -109,15 +107,14 @@ The complex version adds a twelve-module outer ring while preserving exact dimen
 
 ### Stupa
 
-An architectural family:
+A more specific chorten-like architectural abstraction rather than a generic stack of terraces:
 
-- nested square terraces transition into polygonal upper rings;
-- the 2D plan is still centered, concentric and mandala-like;
-- the 3D object rises upward because vertical hierarchy is intrinsic to a stupa;
-- the central stupa footprint becomes the architectural crown;
-- 4D is the W extrusion of that one intrinsic 3D form.
+- stepped square base;
+- round drum and widening/narrowing dome sequence;
+- square harmika;
+- tapering multi-stage spire and finial.
 
-Its Classic palette uses warm earth, saffron, ivory and gold tones. It is a geometric stupa-inspired family rather than a reconstruction of one specific historic monument.
+The 2D plan records every footprint used by those stages, so the concentric top view remains the exact source for the 3D object. The proportions are reference-driven but still procedural rather than a literal mesh reconstruction of one specific monument.
 
 ### Borobudur-inspired
 
@@ -128,7 +125,41 @@ https://whc.unesco.org/en/list/592
 
 **Complex** preserves that 5 + 3 structure and uses the documented 32 + 24 + 16 distribution of satellite stupas (72 total). **Simple** reduces the count to keep interaction and 4D projection readable.
 
-The model is explicitly **Borobudur-inspired**, not an archaeological reconstruction: reliefs, balustrades, openwork lattice detail and sculptural ornament are abstracted into clean geometric regions.
+The model is explicitly **Borobudur-inspired**, not an archaeological reconstruction: reliefs, balustrades and sculptural ornament are abstracted into clean geometric regions. The upper stupas are now multi-part bell-like forms rather than single peg-like prisms, and the central stupa is built from a broader stepped profile.
+
+
+### Castel del Monte
+
+An architectural family grounded in Castel del Monte's octagonal plan:
+
+- an octagonal building ring around an open octagonal court;
+- eight octagonal towers at the eight corners;
+- Complex adds the inner court-wall band;
+- the 3D form keeps the towers slightly higher than the main wall body.
+
+This family is especially compatible with isometric projection because its eightfold plan remains legible from both top and oblique views.
+
+### Kukulcán
+
+A step-pyramid family based on El Castillo / the Temple of Kukulcán at Chichén Itzá:
+
+- nested square platforms;
+- four axial stair systems represented as terrace-by-terrace steps;
+- a summit temple;
+- Complex uses nine stepped bodies, while Simple keeps a reduced five-level abstraction.
+
+The 2D plan therefore reads as a strong square mandala-like hierarchy while the 3D form remains intrinsically architectural.
+
+### Bete Giyorgis
+
+A cruciform family based on the isolated rock-hewn Church of Saint George at Lalibela:
+
+- a centered Greek-cross body assembled from five square cells;
+- a surrounding square excavated-court boundary;
+- Complex adds the smaller nested roof cross;
+- a distinct central roof element completes the hierarchy.
+
+The geometry is intentionally a clean procedural abstraction of Bete Giyorgis rather than a full archaeological reconstruction.
 
 ### Family design rule
 
@@ -213,8 +244,9 @@ Classic 2D regions are painted **opaquely** in deterministic outer→inner order
 
 ## Controls
 
-- **Geometric forms** — choose Square, Yantra, Hex, Stupa, or Borobudur.
-- **Persistent 2D previews** — all five families are shown at the same time, using the current complexity and Classic palette, so the previews help you choose rather than only confirming the current choice.
+- **Geometric forms** — choose Square, Yantra, Hex, Stupa, Borobudur, Castel del Monte, Kukulcán, or Bete Giyorgis.
+- **Persistent 2D previews** — all eight families are shown in a centered four-column grid using the current complexity and Classic palette.
+- **Collapsible library** — the entire Geometric Forms panel can collapse to a compact header and expand again without changing the current form.
 - **Complexity** — choose Simple or Complex generated geometry.
 - **Spacing** — **Compact** by default, where neighboring Z layers touch; **Separated** preserves the airy exploded-layer look.
 - **Rendering** — Solid (default: visible black edges only), Solid + wireframe (full structural overlay), or Wire.
@@ -277,6 +309,9 @@ Current intrinsic mapping:
 - Hex → symmetric form.
 - Stupa → architectural form.
 - Borobudur → architectural form.
+- Castel del Monte → architectural form.
+- Kukulcán → architectural form.
+- Bete Giyorgis → architectural form.
 
 The Yantra and Hex center marks are promoted into culminating ±Z elements. Stupa and Borobudur instead use their central footprints as the top architectural crown.
 
