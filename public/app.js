@@ -67,18 +67,6 @@
     north: '#31906a',
   };
 
-  const YANTRA_COLORS_OUTER_TO_INNER = [
-    '#d7ad39',
-    '#4968aa',
-    '#c94b40',
-    '#355aa0',
-    '#bd4136',
-    '#315aa5',
-    '#c7473d',
-    '#f3efe5',
-    '#b92f2f',
-  ];
-
   const HEX_COLORS_OUTER_TO_INNER = [
     '#3f52a3',
     '#168c80',
@@ -259,11 +247,27 @@
     };
   }
 
-  function sampleDiscretePalette(palette, index, count) {
-    if (count <= 1) return hexToRgb(palette[palette.length - 1]);
-    const t = clamp(index / (count - 1), 0, 1);
-    const paletteIndex = Math.round(t * (palette.length - 1));
-    return hexToRgb(palette[paletteIndex]);
+  function yantraLayerRgb(index, count) {
+    if (index === 0) return hexToRgb('#d7ad39');
+    if (index === count - 1) return hexToRgb('#f3efe5');
+
+    const blueShades = ['#4968aa', '#355aa0', '#315aa5'];
+    const redShades = ['#c94b40', '#bd4136', '#c7473d'];
+    const circuitIndex = Math.floor((index - 1) / 2);
+
+    return hexToRgb(
+      index % 2 === 1
+        ? blueShades[circuitIndex % blueShades.length]
+        : redShades[circuitIndex % redShades.length],
+    );
+  }
+
+  function hexLayerRgb(index) {
+    return hexToRgb(
+      HEX_COLORS_OUTER_TO_INNER[
+        Math.min(index, HEX_COLORS_OUTER_TO_INNER.length - 1)
+      ],
+    );
   }
 
   function squareRegionId(x, y) {
@@ -288,11 +292,7 @@
       const parts = regionId.split('-');
       const index = Number(parts[2]);
       const count = Number(parts[4]);
-      return sampleDiscretePalette(
-        YANTRA_COLORS_OUTER_TO_INNER,
-        index,
-        count,
-      );
+      return yantraLayerRgb(index, count);
     }
 
     if (regionId === 'hex-center') return hexToRgb(HEX_CENTER);
@@ -304,11 +304,7 @@
       const parts = regionId.split('-');
       const index = Number(parts[2]);
       const count = Number(parts[4]);
-      return sampleDiscretePalette(
-        HEX_COLORS_OUTER_TO_INNER,
-        index,
-        count,
-      );
+      return hexLayerRgb(index);
     }
 
     // Fallback is only for legacy/unclassified geometry.
