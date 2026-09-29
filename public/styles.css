@@ -552,3 +552,14 @@ a:focus-visible {
     margin-top: 5px;
   }
 }
+
+
+.symmetry-status {
+  margin-top: 7px;
+  color: rgba(225,227,230,.30);
+  font-size: 7px;
+  letter-spacing: .04em;
+}
+.symmetry-status.is-ok { color: rgba(128,220,164,.55); }
+.symmetry-status.is-directional { color: rgba(240,196,92,.50); }
+.symmetry-status.is-warning { color: rgba(255,107,107,.62); }
