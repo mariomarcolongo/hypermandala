@@ -1340,30 +1340,317 @@
     );
   }
 
-  function buildYantraPlan() {
-    clearPlan();
-    const layers = yantraLayerSpecs();
+  function lotusPetalFootprint(
+    radius,
+    radialLength,
+    tangentialWidth,
+    angle,
+  ) {
+    const local = [
+      [-radialLength * 0.50, 0],
+      [-radialLength * 0.18, -tangentialWidth * 0.50],
+      [ radialLength * 0.20, -tangentialWidth * 0.38],
+      [ radialLength * 0.50, 0],
+      [ radialLength * 0.20,  tangentialWidth * 0.38],
+      [-radialLength * 0.18,  tangentialWidth * 0.50],
+    ];
 
-    layers.forEach(([radius, rotation], index) => {
-      addPlanRegularPolygon(
+    const cx = Math.cos(angle) * radius;
+    const cy = Math.sin(angle) * radius;
+
+    return local.map(([x, y]) => {
+      const p = rotateXYPoint(x, y, angle);
+      return [cx + p[0], cy + p[1]];
+    });
+  }
+
+  function bhupuraPieces(
+    size,
+    thickness,
+    gateWidth,
+    regionId,
+    level = 0,
+    paintOrder = 0,
+  ) {
+    const pieces = [];
+    const half = size / 2;
+    const segment = (size - gateWidth) / 2;
+    const offset = gateWidth / 2 + segment / 2;
+    const wallCenter = half - thickness / 2;
+    const gateCapOffset = half + thickness * 0.65;
+
+    const push = (points, order = paintOrder) => {
+      pieces.push({ points, regionId, level, paintOrder: order });
+    };
+
+    for (const sx of [-1, 1]) {
+      push(rectFootprint(sx * offset,  wallCenter, segment, thickness, 0));
+      push(rectFootprint(sx * offset, -wallCenter, segment, thickness, 0));
+    }
+
+    for (const sy of [-1, 1]) {
+      push(rectFootprint( wallCenter, sy * offset, thickness, segment, 0));
+      push(rectFootprint(-wallCenter, sy * offset, thickness, segment, 0));
+    }
+
+    push(rectFootprint(0,  gateCapOffset, gateWidth, thickness, 0), paintOrder + 1);
+    push(rectFootprint(0, -gateCapOffset, gateWidth, thickness, 0), paintOrder + 1);
+    push(rectFootprint( gateCapOffset, 0, thickness, gateWidth, 0), paintOrder + 1);
+    push(rectFootprint(-gateCapOffset, 0, thickness, gateWidth, 0), paintOrder + 1);
+
+    return pieces;
+  }
+
+  function lotusRingPieces(
+    count,
+    radius,
+    radialLength,
+    tangentialWidth,
+    regionId,
+    level,
+    paintOrder,
+  ) {
+    return Array.from({ length: count }, (_, index) => {
+      const angle = (index / count) * TAU - Math.PI / 2;
+      return {
+        points: lotusPetalFootprint(
+          radius,
+          radialLength,
+          tangentialWidth,
+          angle,
+        ),
+        regionId,
+        level,
+        paintOrder,
+      };
+    });
+  }
+
+  function sriTriangleSpecs() {
+    // Normalized from a published computational coordinate set:
+    // original frame center (150,150), circumradius 100.
+    const raw = [
+      ['D1', 53.65669559977147, 123.20508075688774, 250, 246.34330440022853, 'shakti'],
+      ['U1', 52.984011026495736, 174.24660560764943, 50, 247.01598897350425, 'shiva'],
+      ['U3', 98.71823312733801, 220.03828947357886, 123.20508075688774, 201.281766872662, 'shiva'],
+      ['U2', 78.26467997914015, 197.92315674002487, 78.10499177949904, 221.73532002085986, 'shiva'],
+      ['D3', 90.4856922951427, 78.10499177949904, 160.66014976539617, 209.51430770485734, 'shakti'],
+      ['D2', 80.98384838952128, 103.12199145016105, 220.03828947357886, 219.0161516104787, 'shakti'],
+      ['U4', 114.9488500600036, 160.66014976539617, 103.12199145016105, 185.0511499399964, 'shiva'],
+      ['D4', 116.35142605010424, 134.30757626706648, 197.92315674002487, 183.64857394989576, 'shakti'],
+      ['D5', 124.61190803072795, 144.79777263138968, 174.24660560764943, 175.38809196927207, 'shakti'],
+    ];
+
+    return raw.map(([name, leftX, baseY, apexY, rightX, family], index) => ({
+      name,
+      family,
+      points: [
+        [(leftX - 150) / 100, (150 - baseY) / 100],
+        [0, (150 - apexY) / 100],
+        [(rightX - 150) / 100, (150 - baseY) / 100],
+      ],
+      level: 4 + index,
+      paintOrder: 40 + index,
+      regionId: 'sri-' + family + '-' + index,
+    }));
+  }
+
+  function sriYantraPieces() {
+    const complex = state.complexity === 'complex';
+    const pieces = [];
+
+    const frameSpecs = complex
+      ? [
+          [3.92, 0.10, 0],
+          [3.70, 0.09, 1],
+          [3.50, 0.08, 2],
+        ]
+      : [[3.82, 0.12, 0]];
+
+    frameSpecs.forEach(([size, thickness, order]) => {
+      pieces.push(...bhupuraPieces(
+        size,
+        thickness,
+        0.58,
+        'sri-bhupura',
         0,
-        0,
-        radius,
-        3,
-        rotation,
-        true,
-        'yantra-layer-' + index + '-of-' + layers.length,
-        index,
-      );
+        order,
+      ));
     });
 
-    addPlanPoint(
-      0,
-      0,
-      0.028,
-      'yantra-center',
-      100,
-    );
+    pieces.push(...lotusRingPieces(
+      16, 1.58, 0.34, 0.22,
+      'sri-lotus16', 1, 10,
+    ));
+    pieces.push(...lotusRingPieces(
+      8, 1.28, 0.42, 0.36,
+      'sri-lotus8', 2, 20,
+    ));
+
+    if (complex) {
+      for (const [outer, inner, order] of [
+        [1.115, 1.080, 27],
+        [1.075, 1.040, 28],
+        [1.035, 1.000, 29],
+      ]) {
+        for (const sector of polygonRingSectors(
+          outer, inner, 48, Math.PI / 48,
+        )) {
+          pieces.push({
+            points: sector,
+            regionId: 'sri-lotus8',
+            level: 3,
+            paintOrder: order,
+          });
+        }
+      }
+    }
+
+    pieces.push(...sriTriangleSpecs());
+    pieces.push({
+      points: polygonFootprint(0, 0, 0.035, 16, 0),
+      regionId: 'sri-bindu',
+      level: 14,
+      paintOrder: 100,
+    });
+
+    return pieces;
+  }
+
+  function kaliYantraPieces() {
+    const complex = state.complexity === 'complex';
+    const pieces = [];
+
+    const frameSpecs = complex
+      ? [[3.44,0.10,0],[3.26,0.08,1],[3.10,0.07,2]]
+      : [[3.34,0.11,0]];
+
+    frameSpecs.forEach(([size, thickness, order]) => {
+      pieces.push(...bhupuraPieces(
+        size, thickness, 0.54,
+        'kali-bhupura', 0, order,
+      ));
+    });
+
+    pieces.push(...lotusRingPieces(
+      8, 1.23, 0.46, 0.39,
+      'kali-lotus', 1, 10,
+    ));
+
+    const radii = [0.98, 0.81, 0.65, 0.49, 0.34];
+    radii.forEach((radius, index) => {
+      pieces.push({
+        points: polygonFootprint(
+          0, 0, radius, 3, Math.PI / 2,
+        ),
+        regionId: 'kali-triangle-' + index,
+        level: 2 + index,
+        paintOrder: 30 + index,
+      });
+    });
+
+    pieces.push({
+      points: polygonFootprint(0, 0, 0.038, 16, 0),
+      regionId: 'kali-bindu',
+      level: 7,
+      paintOrder: 100,
+    });
+
+    return pieces;
+  }
+
+  function matangiYantraPieces() {
+    const complex = state.complexity === 'complex';
+    const pieces = [];
+
+    const frameSpecs = complex
+      ? [[4.02,0.10,0],[3.82,0.08,1]]
+      : [[3.36,0.11,0]];
+
+    frameSpecs.forEach(([size, thickness, order]) => {
+      pieces.push(...bhupuraPieces(
+        size, thickness, complex ? 0.62 : 0.54,
+        'matangi-bhupura', 0, order,
+      ));
+    });
+
+    if (complex) {
+      pieces.push(...lotusRingPieces(
+        16, 1.68, 0.34, 0.20,
+        'matangi-lotus', 1, 8,
+      ));
+      pieces.push(...lotusRingPieces(
+        8, 1.39, 0.38, 0.32,
+        'matangi-lotus', 2, 12,
+      ));
+    }
+
+    pieces.push(...lotusRingPieces(
+      8, complex ? 1.10 : 1.20,
+      0.43, 0.36,
+      'matangi-lotus', complex ? 3 : 1, 20,
+    ));
+
+    if (complex) {
+      pieces.push({
+        points: polygonFootprint(
+          0, 0, 0.86, 3, Math.PI / 2,
+        ),
+        regionId: 'matangi-shakti',
+        level: 4,
+        paintOrder: 28,
+      });
+    }
+
+    pieces.push({
+      points: polygonFootprint(
+        0, 0, 0.72, 3, -Math.PI / 2,
+      ),
+      regionId: 'matangi-shiva',
+      level: complex ? 5 : 2,
+      paintOrder: 30,
+    });
+    pieces.push({
+      points: polygonFootprint(
+        0, 0, 0.72, 3, Math.PI / 2,
+      ),
+      regionId: 'matangi-shakti',
+      level: complex ? 6 : 3,
+      paintOrder: 31,
+    });
+
+    pieces.push({
+      points: polygonFootprint(0, 0, 0.040, 16, 0),
+      regionId: 'matangi-bindu',
+      level: complex ? 7 : 4,
+      paintOrder: 100,
+    });
+
+    return pieces;
+  }
+
+  function buildPlanFromPieces(pieces) {
+    clearPlan();
+    for (const piece of pieces) {
+      addPlanLoop(
+        piece.points,
+        true,
+        piece.regionId,
+        piece.paintOrder,
+      );
+    }
+  }
+
+  function buildSriYantraPlan() {
+    buildPlanFromPieces(sriYantraPieces());
+  }
+
+  function buildKaliYantraPlan() {
+    buildPlanFromPieces(kaliYantraPieces());
+  }
+
+  function buildMatangiYantraPlan() {
+    buildPlanFromPieces(matangiYantraPieces());
   }
 
   function buildHexPlan() {
@@ -2059,7 +2346,9 @@
   }
 
   function buildPlanForPreset() {
-    if (state.preset === 'yantra') buildYantraPlan();
+    if (state.preset === 'sriyantra') buildSriYantraPlan();
+    else if (state.preset === 'kaliyantra') buildKaliYantraPlan();
+    else if (state.preset === 'matangiyantra') buildMatangiYantraPlan();
     else if (state.preset === 'hex') buildHexPlan();
     else if (state.preset === 'stupa') buildStupaPlan();
     else if (state.preset === 'borobudur') buildBorobudurPlan();
@@ -2178,100 +2467,53 @@
 
   
 
-  function yantraLayerSpecs() {
-    return state.complexity === 'complex'
-      ? [
-          [1.46, -Math.PI / 2],
-          [1.30,  Math.PI / 2],
-          [1.15, -Math.PI / 2],
-          [1.00,  Math.PI / 2],
-          [0.85, -Math.PI / 2],
-          [0.70,  Math.PI / 2],
-          [0.56, -Math.PI / 2],
-          [0.43,  Math.PI / 2],
-          [0.31, -Math.PI / 2],
-        ]
-      : [
-          [1.40, -Math.PI / 2],
-          [1.10,  Math.PI / 2],
-          [0.82, -Math.PI / 2],
-          [0.58,  Math.PI / 2],
-          [0.36, -Math.PI / 2],
-        ];
-  }
-
-  function buildYantraMandala() {
+  function buildSymmetricYantraForm(pieces) {
     resetGeometry();
 
-    const layers = yantraLayerSpecs();
     const separated = state.spacingStyle === 'separated';
-    const thickness = 0.10;
-    const centerHeight = 0.12;
-    const zStep = separated
-      ? (state.complexity === 'complex' ? 0.24 : 0.31)
-      : thickness;
+    const step = separated ? 0.22 : 0.105;
+    const height = 0.085;
 
-    layers.forEach(([radius, rotation], index) => {
-      const regionId =
-        'yantra-layer-' + index + '-of-' + layers.length;
-
-      if (index === 0) {
-        addCenteredPrism(
+    for (const piece of pieces) {
+      if (piece.level === 0) {
+        addFootprintPrismCentered(
+          piece.points,
           0,
-          0,
-          0,
-          radius,
-          3,
-          thickness,
-          rotation,
-          regionId,
+          height,
+          piece.regionId,
         );
-        return;
+        continue;
       }
 
-      const z = index * zStep;
-      addCenteredPrism(
-        0,
-        0,
+      const z = piece.level * step;
+      addFootprintPrismCentered(
+        piece.points,
         z,
-        radius,
-        3,
-        thickness,
-        rotation,
-        regionId,
+        height,
+        piece.regionId,
       );
-      addCenteredPrism(
-        0,
-        0,
+      addFootprintPrismCentered(
+        piece.points,
         -z,
-        radius,
-        3,
-        thickness,
-        rotation,
-        regionId,
-      );
-    });
-
-    // The bindu becomes the culminating central element while retaining the
-    // exact same 2D footprint. Mandala mode mirrors it below to preserve ±Z.
-    const lastZ = (layers.length - 1) * zStep;
-    const crownGap = separated ? 0.10 : 0;
-    const crownZ =
-      lastZ + thickness * 0.5 + centerHeight * 0.5 + crownGap;
-
-    for (const sign of [-1, 1]) {
-      addCenteredPrism(
-        0,
-        0,
-        sign * crownZ,
-        0.028,
-        12,
-        centerHeight,
-        0,
-        'yantra-center',
+        height,
+        piece.regionId,
       );
     }
   }
+
+  function buildSriYantraForm() {
+    buildSymmetricYantraForm(sriYantraPieces());
+  }
+
+  function buildKaliYantraForm() {
+    buildSymmetricYantraForm(kaliYantraPieces());
+  }
+
+  function buildMatangiYantraForm() {
+    buildSymmetricYantraForm(matangiYantraPieces());
+  }
+
+  
 
   
 
@@ -2571,7 +2813,9 @@
   }
 
   function buildGeometryForCurrentChoice() {
-    if (state.preset === 'yantra') buildYantraMandala();
+    if (state.preset === 'sriyantra') buildSriYantraForm();
+    else if (state.preset === 'kaliyantra') buildKaliYantraForm();
+    else if (state.preset === 'matangiyantra') buildMatangiYantraForm();
     else if (state.preset === 'hex') buildHexMandala();
     else if (state.preset === 'stupa') buildStupaTemple();
     else if (state.preset === 'borobudur') buildBorobudurTemple();
@@ -3422,7 +3666,9 @@
 
     for (const preset of [
       'square',
-      'yantra',
+      'sriyantra',
+      'kaliyantra',
+      'matangiyantra',
       'hex',
       'stupa',
       'borobudur',
