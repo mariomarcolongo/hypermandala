@@ -8,11 +8,26 @@ No source code from Tesseract Explorer is required by Hypermandala; the implemen
 
 ## Dimensional model
 
-The same primitive architecture is used across all dimensions:
+Hypermandala now distinguishes the mathematical dimensional form from the architectural interpretation.
 
-- **2D** — a mandala plan built from square cells and triangular roof lines.
-- **3D** — the square cells extrude into cubes and the roof lines become square pyramids, forming a stepped temple.
-- **4D** — every cube is extruded along W into a tesseract-like module, and every pyramid becomes a 4D prism.
+### Symmetric form — default
+
+The default obeys a collapse / expansion rule:
+
+- **2D** — only X/Y are expressed. Geometry that exists at +Z and -Z collapses onto the same plan.
+- **3D** — latent ±Z structure separates symmetrically. The default form is therefore not an upward-only temple.
+- **4D** — every 3D primitive has a symmetric ±W extrusion. When W is collapsed, its two sides coincide with the 3D object; when W expands, the hidden 4D structure separates.
+
+This allows higher-dimensional geometry to emerge during dimensional expansion even when its lower-dimensional collapse looks simple.
+
+For the symmetric presets the generator audits:
+- the expected rotational symmetry in the XY plane;
+- reflection symmetry across Z;
+- reflection symmetry across W.
+
+### Temple form — optional
+
+**Temple** is an explicit 3D-form option. It keeps the same mandala plan and 4D W extrusion, but intentionally gives Z a preferred upward direction to create a stepped architectural interpretation.
 
 The transition is automatic. There is no fractional-dimension slider:
 
@@ -98,15 +113,30 @@ Each family has **Simple** and **Complex** variants. Complexity changes the gene
 
 The primitive vocabulary deliberately remains limited—polygons, prisms, pyramids, cubes and their W-extrusions—so even the complex mandalas remain readable under 4D rotation.
 
+## Rendering
+
+Three render modes are available:
+
+- **Wire** — structural edges only.
+- **Solid** — projected polygon faces without edge overlay.
+- **Solid + edges** — opaque faces plus the structural wireframe.
+
+The 4D prism construction explicitly generates its 2D boundary faces: the faces of the two W-separated 3D copies plus the W-connected faces between corresponding edges. After 4D → 3D and 3D → 2D projection, faces are depth-sorted so nearer faces cover farther faces.
+
+The current Canvas renderer uses painter-style face sorting rather than a per-pixel depth buffer. It handles ordinary occlusion well, but intersecting projected faces can still be imperfect in extreme views.
+
 ## Color
 
-- **Form** — mostly neutral geometry, with W edges highlighted.
+- **Form** — mostly neutral geometry, with W geometry warmer.
 - **Axis** — X red, Y green, Z blue, W gold.
 
 ## Controls
 
-- **Mandala** — switch between Square Temple, Triangle Yantra, and Hexagonal Mandala.
+- **Mandala dock** — choose Square, Yantra, or Hex using the compact library at lower left.
+- **2D preview** — the library always shows the selected plan without changing the main dimension.
 - **Complexity** — choose Simple or Complex generated geometry.
+- **3D form** — Symmetric by default, or Temple for an upward architectural interpretation.
+- **Rendering** — Wire, Solid, or Solid + edges.
 - **2D / 3D / 4D** — automatic dimensional transitions.
 - **Drag** — rotate the 2D plan or orbit the 3D projection.
 - **Wheel / trackpad** — zoom.

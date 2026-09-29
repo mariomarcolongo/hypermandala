@@ -34,26 +34,19 @@
     </div>
 
     <section class="control-section">
-      <div class="control-section__label">Mandala</div>
-      <div class="preset-grid" id="presetControl">
-        <button type="button" data-preset="square" class="is-active">Square Temple</button>
-        <button type="button" data-preset="yantra">Triangle Yantra</button>
-        <button type="button" data-preset="hex">Hexagonal</button>
-      </div>
-      <div class="complexity-row" id="complexityControl">
-        <span>Complexity</span>
-        <div class="segmented">
-          <button type="button" data-complexity="simple" class="is-active">Simple</button>
-          <button type="button" data-complexity="complex">Complex</button>
-        </div>
-      </div>
-    </section>
-
-    <section class="control-section">
       <div class="control-section__label">Projection</div>
       <div class="segmented" id="projectionControl">
         <button type="button" data-projection="perspective" class="is-active">Perspective</button>
         <button type="button" data-projection="orthographic">Orthographic</button>
+      </div>
+    </section>
+
+    <section class="control-section">
+      <div class="control-section__label">Rendering</div>
+      <div class="segmented segmented--three" id="renderControl">
+        <button type="button" data-render="wire">Wire</button>
+        <button type="button" data-render="solid">Solid</button>
+        <button type="button" data-render="solid-edges" class="is-active">Solid + edges</button>
       </div>
     </section>
 
@@ -77,6 +70,36 @@
       <div class="control-section__label">Axis scale</div>
       <div id="scaleRows" class="control-rows"></div>
     </section>
+  </aside>
+
+  <aside class="mandala-dock" aria-label="Mandala library">
+    <div class="mandala-dock__preview">
+      <canvas id="previewCanvas" width="150" height="150" aria-label="2D preview of selected mandala"></canvas>
+      <span>2D preview</span>
+    </div>
+    <div class="mandala-dock__controls">
+      <div class="mandala-dock__title">Mandala</div>
+      <div class="preset-grid preset-grid--dock" id="presetControl">
+        <button type="button" data-preset="square" class="is-active">Square</button>
+        <button type="button" data-preset="yantra">Yantra</button>
+        <button type="button" data-preset="hex">Hex</button>
+      </div>
+      <div class="dock-option">
+        <span>Complexity</span>
+        <div class="segmented" id="complexityControl">
+          <button type="button" data-complexity="simple" class="is-active">Simple</button>
+          <button type="button" data-complexity="complex">Complex</button>
+        </div>
+      </div>
+      <div class="dock-option">
+        <span>3D form</span>
+        <div class="segmented" id="formControl">
+          <button type="button" data-form="symmetric" class="is-active">Symmetric</button>
+          <button type="button" data-form="temple">Temple</button>
+        </div>
+      </div>
+      <div class="symmetry-status" id="symmetryStatus">symmetry checking…</div>
+    </div>
   </aside>
 
   <div class="basis-gizmo" id="basisGizmo" aria-label="Projected coordinate basis">
