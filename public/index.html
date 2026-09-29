@@ -36,27 +36,28 @@
 
     <section class="control-section">
       <div class="control-section__label">Projection</div>
-      <div class="segmented" id="projectionControl">
+      <div class="segmented segmented--three" id="projectionControl">
         <button type="button" data-projection="perspective" class="is-active">Perspective</button>
-        <button type="button" data-projection="orthographic">Orthographic</button>
+        <button type="button" data-projection="orthographic">Ortho</button>
+        <button type="button" data-projection="isometric" title="Orthographic 3D view with equal X/Y/Z foreshortening">Isometric</button>
       </div>
     </section>
 
     <section class="control-section">
       <div class="control-section__label">Rendering</div>
       <div class="segmented segmented--three" id="renderControl">
-        <button type="button" data-render="wire" class="is-active">Wire</button>
+        <button type="button" data-render="wire">Wire</button>
         <button type="button" data-render="solid">Solid</button>
-        <button type="button" data-render="solid-edges">Solid + edges</button>
+        <button type="button" data-render="solid-edges" class="is-active">Solid + edges</button>
       </div>
     </section>
 
     <section class="control-section">
       <div class="control-section__label">Color</div>
       <div class="segmented segmented--three" id="colorControl">
-        <button type="button" data-color="form" class="is-active">Form</button>
+        <button type="button" data-color="form">Form</button>
         <button type="button" data-color="axis">Axis</button>
-        <button type="button" data-color="classic" title="Tradition-aware colors for each mandala family">Classic</button>
+        <button type="button" data-color="classic" class="is-active" title="Family-specific classic colors">Classic</button>
       </div>
     </section>
 
@@ -91,6 +92,14 @@
       <button type="button" class="mandala-card" data-preset="hex">
         <canvas id="previewHex" width="120" height="120" aria-hidden="true"></canvas>
         <span>Hex</span>
+      </button>
+      <button type="button" class="mandala-card" data-preset="stupa">
+        <canvas id="previewStupa" width="120" height="120" aria-hidden="true"></canvas>
+        <span>Stupa</span>
+      </button>
+      <button type="button" class="mandala-card" data-preset="borobudur">
+        <canvas id="previewBorobudur" width="120" height="120" aria-hidden="true"></canvas>
+        <span>Borobudur</span>
       </button>
     </div>
     <div class="mandala-dock__options">

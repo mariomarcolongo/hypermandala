@@ -455,7 +455,7 @@ a:focus-visible {
   display: grid;
   grid-template-columns: 104px minmax(210px, 260px);
   gap: 10px;
-  width: min(380px, calc(100vw - 36px));
+  width: min(560px, calc(100vw - 36px));
   padding: 10px;
   border: 1px solid var(--panel-border);
   border-radius: 16px;
@@ -588,7 +588,7 @@ a:focus-visible {
 }
 .mandala-library {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 6px;
 }
 .mandala-card {
@@ -634,7 +634,7 @@ a:focus-visible {
 
 @media (max-width: 960px) {
   .mandala-dock {
-    width: min(360px, calc(100vw - 300px));
+    width: min(500px, calc(100vw - 300px));
     grid-template-columns: 1fr;
   }
 }
@@ -644,7 +644,10 @@ a:focus-visible {
   }
 }
 @media (max-width: 600px) {
-  .mandala-library { gap: 4px; }
+  .mandala-library {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 4px;
+  }
   .mandala-card {
     grid-template-rows: 52px auto;
     padding: 4px;

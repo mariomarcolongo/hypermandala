@@ -27,6 +27,8 @@
     square: document.getElementById('previewSquare'),
     yantra: document.getElementById('previewYantra'),
     hex: document.getElementById('previewHex'),
+    stupa: document.getElementById('previewStupa'),
+    borobudur: document.getElementById('previewBorobudur'),
   };
 
   const dimensionValue = document.getElementById('dimensionValue');
@@ -78,6 +80,37 @@
   const HEX_SATELLITE = '#2f8b6f';
   const HEX_OUTER_SATELLITE = '#9f405b';
 
+  const STUPA_COLORS_OUTER_TO_INNER = [
+    '#9b6a42',
+    '#c58a3e',
+    '#d9aa4b',
+    '#e5c676',
+    '#eee1b5',
+    '#d2a642',
+  ];
+
+  const BOROBUDUR_SQUARE_COLORS = [
+    '#5d605d',
+    '#696c68',
+    '#767873',
+    '#85857d',
+    '#96938a',
+  ];
+
+  const BOROBUDUR_CIRCLE_COLORS = [
+    '#a39e93',
+    '#b1aa9c',
+    '#c0b7a5',
+  ];
+
+  const BOROBUDUR_STUPA_COLORS = [
+    '#b8b09f',
+    '#c5bcaa',
+    '#d2c7b1',
+  ];
+
+  const BOROBUDUR_CENTER = '#d7bd78';
+
   const CLASSIC_SHADE = {
     x: 0.93,
     y: 0.98,
@@ -118,8 +151,8 @@
     spacingStyle: 'compact',
 
     projection: 'perspective',
-    colorMode: 'form',
-    renderMode: 'wire',
+    colorMode: 'classic',
+    renderMode: 'solid-edges',
 
     rotations: { xw: 0, yw: 0, zw: 0, xy: 0, xz: 0, yz: 0 },
     auto: { xw: false, yw: false, zw: false, xy: false, xz: false, yz: false },
@@ -303,8 +336,48 @@
     if (regionId?.startsWith('hex-layer-')) {
       const parts = regionId.split('-');
       const index = Number(parts[2]);
-      const count = Number(parts[4]);
       return hexLayerRgb(index);
+    }
+
+    if (regionId === 'stupa-center') {
+      return hexToRgb(STUPA_COLORS_OUTER_TO_INNER[
+        STUPA_COLORS_OUTER_TO_INNER.length - 1
+      ]);
+    }
+    if (regionId?.startsWith('stupa-layer-')) {
+      const parts = regionId.split('-');
+      const index = Number(parts[2]);
+      return hexToRgb(
+        STUPA_COLORS_OUTER_TO_INNER[
+          Math.min(index, STUPA_COLORS_OUTER_TO_INNER.length - 2)
+        ],
+      );
+    }
+
+    if (regionId === 'borobudur-center') return hexToRgb(BOROBUDUR_CENTER);
+    if (regionId?.startsWith('borobudur-square-')) {
+      const index = Number(regionId.split('-')[2]);
+      return hexToRgb(
+        BOROBUDUR_SQUARE_COLORS[
+          Math.min(index, BOROBUDUR_SQUARE_COLORS.length - 1)
+        ],
+      );
+    }
+    if (regionId?.startsWith('borobudur-circle-')) {
+      const index = Number(regionId.split('-')[2]);
+      return hexToRgb(
+        BOROBUDUR_CIRCLE_COLORS[
+          Math.min(index, BOROBUDUR_CIRCLE_COLORS.length - 1)
+        ],
+      );
+    }
+    if (regionId?.startsWith('borobudur-stupa-')) {
+      const index = Number(regionId.split('-')[2]);
+      return hexToRgb(
+        BOROBUDUR_STUPA_COLORS[
+          Math.min(index, BOROBUDUR_STUPA_COLORS.length - 1)
+        ],
+      );
     }
 
     // Fallback is only for legacy/unclassified geometry.
@@ -941,9 +1014,442 @@
     );
   }
 
+  function addSquarePrismCentered(
+    centerZ,
+    size,
+    height,
+    regionId,
+  ) {
+    addCenteredPrism(
+      0,
+      0,
+      centerZ,
+      size / Math.sqrt(2),
+      4,
+      height,
+      Math.PI / 4,
+      regionId,
+    );
+  }
+
+  function addSquarePrismBase(
+    baseZ,
+    size,
+    height,
+    regionId,
+  ) {
+    addPrism(
+      0,
+      0,
+      baseZ,
+      size / Math.sqrt(2),
+      4,
+      height,
+      Math.PI / 4,
+      regionId,
+    );
+  }
+
+  function stupaLayerSpecs() {
+    const complex = state.complexity === 'complex';
+    const layers = complex
+      ? [
+          { kind: 'square', size: 2.50 },
+          { kind: 'square', size: 2.02 },
+          { kind: 'square', size: 1.58 },
+          { kind: 'polygon', radius: 0.64, sides: 16 },
+          { kind: 'polygon', radius: 0.48, sides: 16 },
+        ]
+      : [
+          { kind: 'square', size: 2.30 },
+          { kind: 'square', size: 1.72 },
+          { kind: 'polygon', radius: 0.58, sides: 16 },
+          { kind: 'polygon', radius: 0.42, sides: 16 },
+        ];
+
+    return layers.map((layer, index) => ({
+      ...layer,
+      regionId: 'stupa-layer-' + index + '-of-' + layers.length,
+    }));
+  }
+
+  function buildStupaPlan() {
+    clearPlan();
+    const layers = stupaLayerSpecs();
+
+    layers.forEach((layer, index) => {
+      if (layer.kind === 'square') {
+        addPlanSquareCell(
+          0,
+          0,
+          layer.size,
+          0,
+          true,
+          layer.regionId,
+          index,
+        );
+      } else {
+        addPlanRegularPolygon(
+          0,
+          0,
+          layer.radius,
+          layer.sides,
+          0,
+          true,
+          layer.regionId,
+          index,
+        );
+      }
+    });
+
+    addPlanRegularPolygon(
+      0,
+      0,
+      state.complexity === 'complex' ? 0.20 : 0.18,
+      20,
+      0,
+      true,
+      'stupa-center',
+      100,
+    );
+  }
+
+  function borobudurSpec() {
+    const complex = state.complexity === 'complex';
+
+    return complex
+      ? {
+          squares: [2.80, 2.45, 2.10, 1.75, 1.40],
+          circles: [0.78, 0.61, 0.45],
+          satelliteCounts: [32, 24, 16],
+          satelliteRadii: [0.70, 0.54, 0.39],
+          satelliteSizes: [0.035, 0.034, 0.032],
+          centerRadius: 0.20,
+        }
+      : {
+          squares: [2.55, 2.05, 1.55],
+          circles: [0.72, 0.50],
+          satelliteCounts: [16, 8],
+          satelliteRadii: [0.65, 0.43],
+          satelliteSizes: [0.045, 0.040],
+          centerRadius: 0.19,
+        };
+  }
+
+  function addBorobudurSatellitePlanRing(spec, ringIndex) {
+    const count = spec.satelliteCounts[ringIndex];
+    const ringRadius = spec.satelliteRadii[ringIndex];
+    const radius = spec.satelliteSizes[ringIndex];
+
+    for (let i = 0; i < count; i += 1) {
+      const angle = (i / count) * TAU;
+      addPlanRegularPolygon(
+        Math.cos(angle) * ringRadius,
+        Math.sin(angle) * ringRadius,
+        radius,
+        8,
+        Math.PI / 8,
+        true,
+        'borobudur-stupa-' + ringIndex,
+        60 + ringIndex,
+      );
+    }
+  }
+
+  function buildBorobudurPlan() {
+    clearPlan();
+    const spec = borobudurSpec();
+
+    spec.squares.forEach((size, index) => {
+      addPlanSquareCell(
+        0,
+        0,
+        size,
+        0,
+        true,
+        'borobudur-square-' + index,
+        index,
+      );
+    });
+
+    spec.circles.forEach((radius, index) => {
+      addPlanRegularPolygon(
+        0,
+        0,
+        radius,
+        24,
+        Math.PI / 24,
+        true,
+        'borobudur-circle-' + index,
+        20 + index,
+      );
+      addBorobudurSatellitePlanRing(spec, index);
+    });
+
+    addPlanRegularPolygon(
+      0,
+      0,
+      spec.centerRadius,
+      24,
+      Math.PI / 24,
+      true,
+      'borobudur-center',
+      100,
+    );
+  }
+
+  function addLayerCentered(layer, centerZ, height, regionId = layer.regionId) {
+    if (layer.kind === 'square') {
+      addSquarePrismCentered(centerZ, layer.size, height, regionId);
+    } else {
+      addCenteredPrism(
+        0,
+        0,
+        centerZ,
+        layer.radius,
+        layer.sides,
+        height,
+        layer.rotation || 0,
+        regionId,
+      );
+    }
+  }
+
+  function addLayerBase(layer, baseZ, height, regionId = layer.regionId) {
+    if (layer.kind === 'square') {
+      addSquarePrismBase(baseZ, layer.size, height, regionId);
+    } else {
+      addPrism(
+        0,
+        0,
+        baseZ,
+        layer.radius,
+        layer.sides,
+        height,
+        layer.rotation || 0,
+        regionId,
+      );
+    }
+  }
+
+  function buildStupaMandala() {
+    resetGeometry();
+    const layers = stupaLayerSpecs();
+    const separated = state.spacingStyle === 'separated';
+    const height = 0.12;
+    const step = separated ? 0.28 : height;
+    let lastZ = 0;
+
+    layers.forEach((layer, index) => {
+      if (index === 0) {
+        addLayerCentered(layer, 0, height);
+        return;
+      }
+
+      const z = index * step;
+      lastZ = z;
+      addLayerCentered(layer, z, height);
+      addLayerCentered(layer, -z, height);
+    });
+
+    const centerHeight = 0.18;
+    const crownGap = separated ? 0.10 : 0;
+    const crownZ = lastZ + height * 0.5 + centerHeight * 0.5 + crownGap;
+    const center = {
+      kind: 'polygon',
+      radius: state.complexity === 'complex' ? 0.20 : 0.18,
+      sides: 20,
+      regionId: 'stupa-center',
+    };
+
+    addLayerCentered(center, crownZ, centerHeight);
+    addLayerCentered(center, -crownZ, centerHeight);
+  }
+
+  function buildStupaTemple() {
+    resetGeometry();
+    const layers = stupaLayerSpecs();
+    const gap = state.spacingStyle === 'separated' ? 0.06 : 0;
+    const height = 0.14;
+    let z = 0;
+
+    for (const layer of layers) {
+      addLayerBase(layer, z, height);
+      z += height + gap;
+    }
+
+    const center = {
+      kind: 'polygon',
+      radius: state.complexity === 'complex' ? 0.20 : 0.18,
+      sides: 20,
+      regionId: 'stupa-center',
+    };
+    addLayerBase(center, z, 0.24);
+  }
+
+  function addBorobudurSatelliteModules(
+    spec,
+    ringIndex,
+    centerZ,
+    height,
+  ) {
+    const count = spec.satelliteCounts[ringIndex];
+    const ringRadius = spec.satelliteRadii[ringIndex];
+    const radius = spec.satelliteSizes[ringIndex];
+
+    for (let i = 0; i < count; i += 1) {
+      const angle = (i / count) * TAU;
+      addCenteredPrism(
+        Math.cos(angle) * ringRadius,
+        Math.sin(angle) * ringRadius,
+        centerZ,
+        radius,
+        8,
+        height,
+        Math.PI / 8,
+        'borobudur-stupa-' + ringIndex,
+      );
+    }
+  }
+
+  function buildBorobudurMandala() {
+    resetGeometry();
+    const spec = borobudurSpec();
+    const separated = state.spacingStyle === 'separated';
+    const layerHeight = 0.10;
+    const satelliteHeight = 0.09;
+    const stepGap = separated ? 0.11 : 0;
+    let z = 0;
+    let stage = 0;
+
+    const placeSymmetric = (callback, height) => {
+      if (stage === 0) {
+        callback(0);
+      } else {
+        callback(z);
+        callback(-z);
+      }
+      z += height + stepGap;
+      stage += 1;
+    };
+
+    spec.squares.forEach((size, index) => {
+      placeSymmetric((centerZ) => {
+        addSquarePrismCentered(
+          centerZ,
+          size,
+          layerHeight,
+          'borobudur-square-' + index,
+        );
+      }, layerHeight);
+    });
+
+    spec.circles.forEach((radius, index) => {
+      placeSymmetric((centerZ) => {
+        addCenteredPrism(
+          0,
+          0,
+          centerZ,
+          radius,
+          24,
+          layerHeight,
+          Math.PI / 24,
+          'borobudur-circle-' + index,
+        );
+      }, layerHeight);
+
+      placeSymmetric((centerZ) => {
+        addBorobudurSatelliteModules(
+          spec,
+          index,
+          centerZ,
+          satelliteHeight,
+        );
+      }, satelliteHeight);
+    });
+
+    const centerHeight = 0.22;
+    const centerZ = z + centerHeight * 0.5;
+    addCenteredPrism(
+      0,
+      0,
+      centerZ,
+      spec.centerRadius,
+      24,
+      centerHeight,
+      Math.PI / 24,
+      'borobudur-center',
+    );
+    addCenteredPrism(
+      0,
+      0,
+      -centerZ,
+      spec.centerRadius,
+      24,
+      centerHeight,
+      Math.PI / 24,
+      'borobudur-center',
+    );
+  }
+
+  function buildBorobudurTemple() {
+    resetGeometry();
+    const spec = borobudurSpec();
+    const gap = state.spacingStyle === 'separated' ? 0.045 : 0;
+    const squareHeight = 0.13;
+    const circleHeight = 0.11;
+    const satelliteHeight = 0.10;
+    let z = 0;
+
+    spec.squares.forEach((size, index) => {
+      addSquarePrismBase(
+        z,
+        size,
+        squareHeight,
+        'borobudur-square-' + index,
+      );
+      z += squareHeight + gap;
+    });
+
+    spec.circles.forEach((radius, index) => {
+      addPrism(
+        0,
+        0,
+        z,
+        radius,
+        24,
+        circleHeight,
+        Math.PI / 24,
+        'borobudur-circle-' + index,
+      );
+
+      addBorobudurSatelliteModules(
+        spec,
+        index,
+        z + circleHeight + satelliteHeight * 0.5,
+        satelliteHeight,
+      );
+
+      z += circleHeight + satelliteHeight + gap;
+    });
+
+    addPrism(
+      0,
+      0,
+      z,
+      spec.centerRadius,
+      24,
+      0.30,
+      Math.PI / 24,
+      'borobudur-center',
+    );
+  }
+
   function buildPlanForPreset() {
     if (state.preset === 'yantra') buildYantraPlan();
     else if (state.preset === 'hex') buildHexPlan();
+    else if (state.preset === 'stupa') buildStupaPlan();
+    else if (state.preset === 'borobudur') buildBorobudurPlan();
     else buildSquarePlan();
   }
 
@@ -1439,12 +1945,16 @@
     if (state.formStyle === 'temple') {
       if (state.preset === 'yantra') buildYantraTemple();
       else if (state.preset === 'hex') buildHexTemple();
+      else if (state.preset === 'stupa') buildStupaTemple();
+      else if (state.preset === 'borobudur') buildBorobudurTemple();
       else buildSquareTemple();
       return;
     }
 
     if (state.preset === 'yantra') buildYantraMandala();
     else if (state.preset === 'hex') buildHexMandala();
+    else if (state.preset === 'stupa') buildStupaMandala();
+    else if (state.preset === 'borobudur') buildBorobudurMandala();
     else buildSquareMandala();
   }
 
@@ -1496,6 +2006,7 @@
   function project4Dto3D(p) {
     if (
       state.projection === 'orthographic'
+      || state.projection === 'isometric'
       || state.wMix * state.formMorph < 0.001
     ) {
       return [p[0], p[1], p[2]];
@@ -1521,7 +2032,11 @@
     const visibleZ = state.zMix * state.formMorph;
     const viewMix = smoother(clamp((visibleZ - 0.62) / 0.38, 0, 1));
 
-    const yaw = state.cameraYaw * viewMix;
+    const isometric = state.projection === 'isometric';
+    const yaw = (
+      isometric ? -Math.PI / 4 : state.cameraYaw
+    ) * viewMix;
+
     let c = Math.cos(yaw);
     let s = Math.sin(yaw);
     let nx = c * x - s * z;
@@ -1529,7 +2044,12 @@
     x = nx;
     z = nz;
 
-    const pitch = state.cameraPitch * viewMix;
+    const pitch = (
+      isometric
+        ? Math.atan(1 / Math.sqrt(2))
+        : state.cameraPitch
+    ) * viewMix;
+
     c = Math.cos(pitch);
     s = Math.sin(pitch);
     const ny = c * y - s * z;
@@ -1545,7 +2065,9 @@
     const p3 = cameraTransform(project4Dto3D(p4));
 
     const cameraZ = 5.8;
-    const factor = cameraZ / Math.max(2.6, cameraZ - p3[2]);
+    const factor = state.projection === 'isometric'
+      ? 1
+      : cameraZ / Math.max(2.6, cameraZ - p3[2]);
     const scale = Math.min(state.width, state.height) * 0.245 * state.zoom;
 
     return {
@@ -2111,8 +2633,12 @@
         else previewCtx.lineTo(p.x, p.y);
       });
       previewCtx.closePath();
-      previewCtx.fillStyle = 'rgba(225,218,201,.055)';
+      previewCtx.fillStyle = state.colorMode === 'classic'
+        ? classicPlanColor(face)
+        : 'rgba(225,218,201,.055)';
+      previewCtx.globalAlpha = state.colorMode === 'classic' ? 0.82 : 1;
       previewCtx.fill();
+      previewCtx.globalAlpha = 1;
     }
 
     previewCtx.lineCap = 'round';
@@ -2133,7 +2659,7 @@
   function drawAllPreviews() {
     const selectedPreset = state.preset;
 
-    for (const preset of ['square', 'yantra', 'hex']) {
+    for (const preset of ['square', 'yantra', 'hex', 'stupa', 'borobudur']) {
       state.preset = preset;
       buildPlanForPreset();
       drawPreviewToCanvas(previewCanvases[preset]);
@@ -2329,7 +2855,7 @@
   }
 
   function setProjection(mode) {
-    if (mode !== 'perspective' && mode !== 'orthographic') return;
+    if (!['perspective', 'orthographic', 'isometric'].includes(mode)) return;
     state.projection = mode;
     projectionButtons.forEach((button) => {
       button.classList.toggle('is-active', button.dataset.projection === mode);
@@ -2567,8 +3093,8 @@
     state.zoom = 1;
 
     setProjection('perspective');
-    setColorMode('form');
-    setRenderMode('wire');
+    setColorMode('classic');
+    setRenderMode('solid-edges');
 
     for (const config of ROTATION_CONFIG) {
       const ui = rotationUI[config.key];
