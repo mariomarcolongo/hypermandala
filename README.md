@@ -116,7 +116,7 @@ Three render modes are available:
 
 - **Wire** — structural edges only; this remains the default because it makes dimensional emergence easiest to follow.
 - **Solid** — projected polygon faces without edge overlay.
-- **Solid + edges** — opaque faces plus the structural wireframe.
+- **Solid + edges** — opaque faces plus dark, non-transparent structural edges. The edges remain fully opaque once a dimension has emerged, while new Z/W edges still fade in during dimensional transitions.
 
 The 4D prism construction explicitly generates its 2D boundary faces: the faces of the two W-separated 3D copies plus the W-connected faces between corresponding edges. After 4D → 3D and 3D → 2D projection, faces are depth-sorted so nearer faces cover farther faces.
 
@@ -126,8 +126,11 @@ The current Canvas renderer uses painter-style face sorting rather than a per-pi
 
 ## Color
 
-- **Form** — mostly neutral geometry, with W geometry warmer.
+- **Form** — restrained neutral material for the geometry.
 - **Axis** — X red, Y green, Z blue, W gold.
+- **Classic** — a colorful mandala palette organized by concentric radial bands: ivory/gold at the center, then vermilion, saffron, teal, and lapis toward the outside. Face orientation adds only a subtle tint so the radial mandala hierarchy remains dominant while 3D/4D sides stay distinguishable.
+
+Choosing **Classic** from Wire automatically switches to **Solid + edges** so the palette is immediately visible.
 
 ## Controls
 
@@ -143,7 +146,7 @@ The current Canvas renderer uses painter-style face sorting rather than a per-pi
 - **A** — autorotate an individual plane.
 - **Axis scale** — scale X/Y/Z/W.
 - **Projection** — perspective or orthographic.
-- **Color** — form or axis.
+- **Color** — Form, Axis, or Classic Mandala.
 - **Reset** — restore rotations, scale, camera, projection, and color.
 
 Keyboard: `2`, `3`, `4` switch dimensions; `R` resets.

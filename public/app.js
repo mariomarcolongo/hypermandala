@@ -52,6 +52,22 @@
     w: '#f0c45c',
   };
 
+  const CLASSIC_PALETTE = [
+    '#efe2b3', // ivory / gold center
+    '#b83d32', // vermilion
+    '#dda633', // saffron
+    '#168c80', // teal
+    '#3452a3', // lapis / indigo outer
+  ];
+
+  const CLASSIC_ORIENTATION = {
+    x: '#b84c3d',
+    y: '#2f9b82',
+    z: '#e8c660',
+    w: '#7253a8',
+    n: '#d9a33d',
+  };
+
   const ROTATION_CONFIG = [
     { key: 'xw', label: 'XW', a: 0, b: 3, minDim: 4, color: COLORS.w },
     { key: 'yw', label: 'YW', a: 1, b: 3, minDim: 4, color: COLORS.w },
@@ -110,6 +126,7 @@
   const planFaceKeys = new Set();
   const rotationUI = {};
   const scaleUI = {};
+  const geometryStats = { maxPlanRadius: 1 };
 
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
   const mix = (a, b, t) => a + (b - a) * t;
@@ -117,6 +134,57 @@
     t = clamp(t, 0, 1);
     return t * t * t * (t * (t * 6 - 15) + 10);
   };
+
+  function hexToRgb(hex) {
+    const clean = hex.replace('#', '');
+    const value = Number.parseInt(clean, 16);
+    return {
+      r: (value >> 16) & 255,
+      g: (value >> 8) & 255,
+      b: value & 255,
+    };
+  }
+
+  function rgbCss(rgb) {
+    return 'rgb('
+      + Math.round(rgb.r) + ' '
+      + Math.round(rgb.g) + ' '
+      + Math.round(rgb.b) + ')';
+  }
+
+  function mixRgb(a, b, t) {
+    return {
+      r: a.r + (b.r - a.r) * t,
+      g: a.g + (b.g - a.g) * t,
+      b: a.b + (b.b - a.b) * t,
+    };
+  }
+
+  function shadeRgb(rgb, factor) {
+    return {
+      r: clamp(rgb.r * factor, 0, 255),
+      g: clamp(rgb.g * factor, 0, 255),
+      b: clamp(rgb.b * factor, 0, 255),
+    };
+  }
+
+  function classicBandColor(radiusNorm) {
+    const band = Math.min(
+      CLASSIC_PALETTE.length - 1,
+      Math.floor(clamp(radiusNorm, 0, 0.9999) * CLASSIC_PALETTE.length),
+    );
+    return hexToRgb(CLASSIC_PALETTE[band]);
+  }
+
+  function updateGeometryStats() {
+    let maxRadius = 0.001;
+    for (const module of modules) {
+      for (const point of module.vertices) {
+        maxRadius = Math.max(maxRadius, Math.hypot(point[0], point[1]));
+      }
+    }
+    geometryStats.maxPlanRadius = maxRadius;
+  }
 
   function rotateXYPoint(x, y, angle) {
     const c = Math.cos(angle);
@@ -885,7 +953,9 @@
 
   function buildActiveMandala() {
     buildGeometryForCurrentChoice();
+    updateGeometryStats();
     drawAllPreviews();
+    updateGeometryStats();
   }
 
   function rotatePlane(point, a, b, angle) {
@@ -1044,14 +1114,71 @@
     return 1;
   }
 
-  function faceFillColor(axis, depth) {
-    if (state.colorMode === 'axis') return axisColor(axis);
+  function faceCentroid(face, module) {
+    const centroid = [0, 0, 0, 0];
+    for (const index of face.indices) {
+      const point = module.vertices[index];
+      centroid[0] += point[0];
+      centroid[1] += point[1];
+      centroid[2] += point[2];
+      centroid[3] += point[3];
+    }
+    const n = face.indices.length;
+    return centroid.map((value) => value / n);
+  }
 
-    // One neutral material across X/Y/Z/W. A very small depth shift helps
-    // shape perception without inventing different materials for W faces.
+  function classicFaceColor(face, module, depth) {
+    const centroid = faceCentroid(face, module);
+    const radiusNorm = clamp(
+      Math.hypot(centroid[0], centroid[1]) / geometryStats.maxPlanRadius,
+      0,
+      1,
+    );
+
+    const base = classicBandColor(radiusNorm);
+    const orientation = hexToRgb(
+      CLASSIC_ORIENTATION[face.axis] || CLASSIC_ORIENTATION.n,
+    );
+
+    // Orientation should clarify form without overriding radial mandala bands.
+    const tintStrength = face.axis === 'w' ? 0.18 : 0.10;
+    const tinted = mixRgb(base, orientation, tintStrength);
+
+    const depthNorm = clamp((depth + 1.8) / 3.8, 0, 1);
+    const shaded = shadeRgb(tinted, 0.90 + depthNorm * 0.17);
+    return rgbCss(shaded);
+  }
+
+  function faceFillColor(face, module, depth) {
+    if (state.colorMode === 'axis') return axisColor(face.axis);
+    if (state.colorMode === 'classic') {
+      return classicFaceColor(face, module, depth);
+    }
+
+    // One neutral material across X/Y/Z/W.
     const normalized = clamp((depth + 1.8) / 3.8, 0, 1);
     const light = 45 + normalized * 9;
     return 'hsl(39 18% ' + light + '%)';
+  }
+
+  function classicPlanColor(face) {
+    const cx = face.reduce((sum, p) => sum + p[0], 0) / face.length;
+    const cy = face.reduce((sum, p) => sum + p[1], 0) / face.length;
+    const radiusNorm = clamp(
+      Math.hypot(cx, cy) / geometryStats.maxPlanRadius,
+      0,
+      1,
+    );
+    return rgbCss(classicBandColor(radiusNorm));
+  }
+
+  function edgeStrokeColor(axis) {
+    if (state.renderMode === 'solid-edges') {
+      if (state.colorMode === 'classic') return '#1d1714';
+      if (state.colorMode === 'form') return '#241f19';
+      return axisColor(axis);
+    }
+    return axisColor(axis);
   }
 
   function drawPlanFaces(alpha) {
@@ -1068,8 +1195,12 @@
         else ctx.lineTo(p.x, p.y);
       });
       ctx.closePath();
-      ctx.fillStyle = state.colorMode === 'axis' ? '#d9dde4' : '#c9b995';
-      ctx.globalAlpha = alpha * 0.16;
+      ctx.fillStyle = state.colorMode === 'axis'
+        ? '#d9dde4'
+        : state.colorMode === 'classic'
+          ? classicPlanColor(face)
+          : '#c9b995';
+      ctx.globalAlpha = alpha * (state.colorMode === 'classic' ? 0.62 : 0.16);
       ctx.fill();
       ctx.globalAlpha = 1;
     }
@@ -1099,7 +1230,7 @@
         if (Math.abs(polygonArea2D(points)) < 0.45) continue;
 
         const depth = points.reduce((sum, p) => sum + p.depth, 0) / points.length;
-        rendered.push({ face, points, depth, visibility });
+        rendered.push({ face, module, points, depth, visibility });
       }
     }
 
@@ -1113,7 +1244,7 @@
       });
       ctx.closePath();
 
-      ctx.fillStyle = faceFillColor(item.face.axis, item.depth);
+      ctx.fillStyle = faceFillColor(item.face, item.module, item.depth);
       // Solid means solid: avoid cumulative translucent overdraw, which made
       // 4D face projections create false bands and strange colors.
       ctx.globalAlpha = item.visibility >= 0.995
@@ -1154,10 +1285,22 @@
 
     for (const item of rendered) {
       const depth = clamp((item.depth + 1.6) / 3.5, 0, 1);
+
+      if (state.renderMode === 'solid-edges') {
+        drawLine(
+          item.a,
+          item.b,
+          edgeStrokeColor(item.edge.axis),
+          1.28 + depth * 0.34,
+          clamp(item.visibility, 0, 1),
+        );
+        continue;
+      }
+
       const width = 0.72 + depth * 0.52 + (item.edge.axis === 'w' ? 0.14 : 0);
       const lineAlpha = alpha
         * item.visibility
-        * (state.renderMode === 'wire' ? 0.82 : 0.72)
+        * 0.82
         * (0.55 + depth * 0.42);
 
       drawLine(
@@ -1468,11 +1611,17 @@
   }
 
   function setColorMode(mode) {
-    if (mode !== 'form' && mode !== 'axis') return;
+    if (!['form', 'axis', 'classic'].includes(mode)) return;
     state.colorMode = mode;
+
     colorButtons.forEach((button) => {
       button.classList.toggle('is-active', button.dataset.color === mode);
     });
+
+    // Classic is a showcase palette: reveal the colored faces immediately.
+    if (mode === 'classic' && state.renderMode === 'wire') {
+      setRenderMode('solid-edges');
+    }
   }
 
   function setRenderMode(mode) {
