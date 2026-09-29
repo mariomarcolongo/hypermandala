@@ -1,6 +1,6 @@
 # Hypermandala
 
-**Structured 2D plans unfolding into their intrinsic 3D forms and 4D projections.**
+**Geometric 2D plans unfolding into their intrinsic 3D forms and 4D projections.**
 
 Hypermandala is a dependency-free Canvas visualization. Its interaction model is inspired by [Tarek Sherif's Tesseract Explorer](https://github.com/tsherif/tesseract-explorer): the 4D object is manipulated in 4D space, projected into 3D, and then viewed with an ordinary 3D camera.
 
@@ -10,16 +10,16 @@ No source code from Tesseract Explorer is required by Hypermandala; the implemen
 
 Hypermandala no longer treats **Mandala** and **Temple** as interchangeable modes. Each family has one intrinsic 3D identity.
 
-The common source is the **2D structured plan**: a centered, hierarchical, radially or axially organized figure with mandala-like structure. The 2D view is not a disposable footprint; it is the geometric source of truth.
+The common source is the **2D geometric plan**: a centered, hierarchical, radially or axially organized figure with mandala-like structure. The 2D view is not a disposable footprint; it is the geometric source of truth.
 
 Families then divide naturally:
 
-- **Symmetric symmetric geometry** — Square, Yantra and Hex remain balanced through the added Z dimension. Their 3D construction is reflected through ±Z rather than forced into an architectural “up” direction.
+- **Symmetric forms** — Square, Yantra and Hex remain balanced through the added Z dimension. Their 3D construction is reflected through ±Z rather than forced into an architectural “up” direction.
 - **Architecture** — Stupa and Borobudur rise in +Z because vertical hierarchy is intrinsic to the object itself.
 
 In every case:
 
-- **2D → 3D:** every non-zero XY edge in the 3D object must already exist in the 2D structured plan, and every 2D plan edge must be represented by the collapsed 3D object.
+- **2D → 3D:** every non-zero XY edge in the 3D object must already exist in the 2D geometric plan, and every 2D plan edge must be represented by the collapsed 3D object.
 - **3D → 4D:** the intrinsic 3D object is extruded symmetrically through W, so W=0 returns the same 3D object.
 
 The project therefore preserves identity instead of manufacturing a second interpretation of every object.
@@ -27,7 +27,7 @@ The project therefore preserves identity instead of manufacturing a second inter
 Dimensional transitions remain staged:
 
 ```
-structured plan → intrinsic form → hyperform
+geometric plan → intrinsic form → hyperform
 2D            3D             4D
 ```
 
@@ -79,7 +79,7 @@ Hypermandala uses multiple geometry generators. Every family shares the same dim
 
 ### Square Mandala
 
-A square/palace symmetric-geometric family:
+A square/palace symmetric family:
 
 - modular square cells and central guides in 2D;
 - a balanced ±Z construction in 3D;
@@ -89,7 +89,7 @@ Its plan uses a centered diamond arrangement with four cardinal extensions and a
 
 ### Triangle Yantra
 
-A yantra-inspired symmetric-geometric family built from alternating upward/downward equilateral triangles:
+A yantra-inspired symmetric family built from alternating upward/downward equilateral triangles:
 
 - nested triangular circuits plus the central bindu;
 - symmetric ±Z triangular-prism structure in 3D;
@@ -98,7 +98,7 @@ A yantra-inspired symmetric-geometric family built from alternating upward/downw
 
 ### Hexagonal Mandala
 
-A sixfold symmetric-geometric family:
+A sixfold symmetric family:
 
 - concentric and satellite hexagons in 2D;
 - symmetric stepped hexagonal structure through ±Z;
@@ -109,7 +109,7 @@ The complex version adds a twelve-module outer ring while preserving exact dimen
 
 ### Stupa
 
-A architectural family:
+An architectural family:
 
 - nested square terraces transition into polygonal upper rings;
 - the 2D plan is still centered, concentric and mandala-like;
@@ -144,7 +144,7 @@ That is why architecture can belong in Hypermandala: the plan itself carries the
 
 ### Complexity
 
-Each family has **Simple** and **Complex** variants. “Simple” is relative: both versions must remain structurally meaningful structured plans. Complexity changes the generated geometry itself rather than merely adding decoration, so the extra structure participates in 3D and 4D transformations.
+Each family has **Simple** and **Complex** variants. “Simple” is relative: both versions must remain structurally meaningful geometric plans. Complexity changes the generated geometry itself rather than merely adding decoration, so the extra structure participates in 3D and 4D transformations.
 
 ## Rendering
 
@@ -256,25 +256,25 @@ The workflow at `.github/workflows/pages.yml` publishes `public` once GitHub Pag
 GNU Affero General Public License v3.0 or later. See [`LICENSE`](./LICENSE).
 
 
-## Structured-plan construction rules
+## Geometric-plan construction rules
 
-The 2D structured plan is the source of truth for every family.
+The 2D geometric plan is the source of truth for every family.
 
 - Every non-zero XY edge in 3D must exist in the 2D plan.
 - Every 2D plan edge must be represented by the collapsed 3D form.
 - 4D is a symmetric W extrusion of the intrinsic 3D object, so W collapse returns that object exactly.
-- Symmetric families may mirror geometry through ±Z.
-- Architectural families may privilege +Z when upward hierarchy is intrinsic to the architecture.
-- An architectural family does **not** receive a fake symmetric “Mandala mode”, and a symmetric-geometric family does **not** receive a fake architectural “Temple mode”.
+- Symmetric forms may mirror geometry through ±Z.
+- Architectural forms may privilege +Z when upward hierarchy is intrinsic to the architecture.
+- An architectural family does **not** receive a fake symmetric counterpart, and a symmetric family does **not** receive a fake architectural counterpart.
 - The 2D source must remain a rich centered/hierarchical composition rather than a trivial silhouette.
 
 Current intrinsic mapping:
 
-- Square → symmetric symmetric geometry.
-- Yantra → symmetric symmetric geometry.
-- Hex → symmetric symmetric geometry.
-- Stupa → architecture.
-- Borobudur → architecture.
+- Square → symmetric form.
+- Yantra → symmetric form.
+- Hex → symmetric form.
+- Stupa → architectural form.
+- Borobudur → architectural form.
 
 The Yantra and Hex center marks are promoted into culminating ±Z elements. Stupa and Borobudur instead use their central footprints as the top architectural crown.
 
@@ -283,6 +283,6 @@ The Yantra and Hex center marks are promoted into culminating ±Z elements. Stup
 Spacing is a real geometric control again:
 
 - **Compact** is the default. Symmetric families keep mirrored Z layers close/touching; architectural families keep adjacent terraces touching.
-- **Separated** moves layers farther apart while leaving the XY structured plan unchanged.
+- **Separated** moves layers farther apart while leaving the XY geometric plan unchanged.
 
-The 2D structured plan itself never changes when spacing changes.
+The 2D geometric plan itself never changes when spacing changes.
