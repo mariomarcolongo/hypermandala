@@ -2077,7 +2077,7 @@
       }
     }
 
-    const data = [];
+    const faceData = [];
 
     for (const entry of entries) {
       if ((counts.get(entry.key) || 0) > 1) continue;
@@ -2088,7 +2088,10 @@
           entry.module.vertices[index],
         ));
 
-      if (points.length < 3 || Math.abs(polygonArea2D(points)) < 0.45) continue;
+      if (
+        points.length < 3
+        || Math.abs(polygonArea2D(points)) < 0.45
+      ) continue;
 
       const rgb = faceFillRgb(entry.face, entry.module);
 
@@ -2100,7 +2103,7 @@
           const y = 1 - (p.y / state.height) * 2;
           const z = clamp(-p.depth / 4.5, -0.98, 0.98);
 
-          data.push(
+          faceData.push(
             x, y, z,
             rgb.r / 255,
             rgb.g / 255,
@@ -2115,11 +2118,15 @@
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    if (!data.length) return true;
+    if (!faceData.length) return true;
 
     gl.useProgram(solidRenderer.program);
     gl.bindBuffer(gl.ARRAY_BUFFER, solidRenderer.buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.DYNAMIC_DRAW);
+    gl.bufferData(
+      gl.ARRAY_BUFFER,
+      new Float32Array(faceData),
+      gl.DYNAMIC_DRAW,
+    );
 
     const stride = 7 * 4;
 
@@ -2149,7 +2156,103 @@
 
     gl.disable(gl.BLEND);
     gl.disable(gl.CULL_FACE);
-    gl.drawArrays(gl.TRIANGLES, 0, data.length / 7);
+    gl.drawArrays(gl.TRIANGLES, 0, faceData.length / 7);
+
+    // Default Solid follows the 2D visual grammar: colored faces plus only
+    // the edges that survive the same depth buffer. Hidden/back edges fail
+    // the depth test. Solid + edges may add the separate structural overlay.
+    const edgeData = [];
+    const black = hexToRgb('#1d1714');
+    const edgeWidth = 1.35;
+    const halfWidth = edgeWidth * 0.5;
+
+    const pushEdgeVertex = (xPx, yPx, depth, edgeAlpha) => {
+      const x = (xPx / state.width) * 2 - 1;
+      const y = 1 - (yPx / state.height) * 2;
+      const z = clamp(
+        -depth / 4.5 - 0.0018,
+        -0.999,
+        0.999,
+      );
+
+      edgeData.push(
+        x, y, z,
+        black.r / 255,
+        black.g / 255,
+        black.b / 255,
+        edgeAlpha,
+      );
+    };
+
+    for (const module of modules) {
+      const moduleAmount = moduleEmergence(module);
+      if (moduleAmount <= 0.002) continue;
+
+      for (const edge of module.edges) {
+        const visibility = edgeVisibility(edge) * moduleAmount;
+        if (visibility <= 0.002) continue;
+
+        const a = projectModulePoint(
+          module,
+          module.vertices[edge.a],
+        );
+        const b = projectModulePoint(
+          module,
+          module.vertices[edge.b],
+        );
+
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const length = Math.hypot(dx, dy);
+        if (length < 0.5) continue;
+
+        const ox = (-dy / length) * halfWidth;
+        const oy = (dx / length) * halfWidth;
+        const edgeAlpha = clamp(alpha * visibility, 0, 1);
+
+        const a0 = [a.x + ox, a.y + oy, a.depth];
+        const a1 = [a.x - ox, a.y - oy, a.depth];
+        const b0 = [b.x + ox, b.y + oy, b.depth];
+        const b1 = [b.x - ox, b.y - oy, b.depth];
+
+        for (const p of [a0, a1, b0, b0, a1, b1]) {
+          pushEdgeVertex(p[0], p[1], p[2], edgeAlpha);
+        }
+      }
+    }
+
+    if (edgeData.length) {
+      gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array(edgeData),
+        gl.DYNAMIC_DRAW,
+      );
+
+      gl.vertexAttribPointer(
+        solidRenderer.aPosition,
+        3,
+        gl.FLOAT,
+        false,
+        stride,
+        0,
+      );
+      gl.vertexAttribPointer(
+        solidRenderer.aColor,
+        4,
+        gl.FLOAT,
+        false,
+        stride,
+        3 * 4,
+      );
+
+      gl.depthMask(false);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.drawArrays(gl.TRIANGLES, 0, edgeData.length / 7);
+
+      gl.disable(gl.BLEND);
+      gl.depthMask(true);
+    }
 
     return true;
   }
@@ -2199,6 +2302,12 @@
         ? 1
         : clamp(item.visibility, 0, 1);
       ctx.fill();
+
+      ctx.strokeStyle = '#1d1714';
+      ctx.lineWidth = 1.35;
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+
       ctx.globalAlpha = 1;
     }
   }
