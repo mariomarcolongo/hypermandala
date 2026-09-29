@@ -14,7 +14,7 @@ The common source is the **2D geometric plan**: a centered, hierarchical, radial
 
 Families then divide naturally:
 
-- **Symmetric forms** — Square, Yantra and Hex remain balanced through the added Z dimension. Their 3D construction is reflected through ±Z rather than forced into an architectural “up” direction.
+- **Symmetric forms** — Square, Sri Yantra, Kali Yantra, Matangi Yantra and Hex remain balanced through the added Z dimension. Their 3D construction is reflected through ±Z rather than forced into an architectural “up” direction.
 - **Architecture** — Stupa, Borobudur, Castel del Monte, Kukulcán and Bete Giyorgis rise in +Z because vertical hierarchy is intrinsic to the object itself.
 
 In every case:
@@ -85,14 +85,39 @@ A square/palace symmetric family.
 
 Both variants remain balanced through ±Z and preserve exact 2D↔3D↔4D region identity.
 
-### Triangle Yantra
+### Sri Yantra
 
-A yantra-inspired symmetric family built from alternating upward/downward equilateral triangles:
+The former generic **Yantra** preset has been replaced by a specific Sri Yantra / Sri Chakra construction.
 
-- nested triangular circuits plus the central bindu;
-- symmetric ±Z triangular-prism structure in 3D;
-- the bindu becomes the culminating element at both Z extrema;
-- the same region identities are extruded through W in 4D.
+Its core uses nine interlocking triangles — four upward and five downward — from a published computational coordinate set rather than the previous nested-triangle approximation. Both variants also retain the two defining lotus rings, bhupura and bindu.
+
+- **Simple**: nine-triangle core + 8-petal lotus + 16-petal lotus + four-gated bhupura + bindu.
+- **Complex**: the same identity-preserving core plus the fuller triple bhupura and concentric enclosure detail.
+- 3D: each exact 2D footprint is lifted symmetrically through ±Z in a meru-like hierarchy.
+- 4D: the same intrinsic 3D structure is extruded through W.
+
+Geometry references:
+- https://sriyantrageometry.com/
+- https://github.com/bhaskatripathi/SriYantra
+
+### Kali Yantra
+
+This preset follows the widely documented Kali Yantra type consisting of **five concentric downward-pointing triangles**, an **eight-petalled lotus**, a **four-gated bhupura**, and a central bindu.
+
+Complex adds a fuller multi-band bhupura while preserving the same five-triangle identity.
+
+Reference:
+- https://archive.artgallery.nsw.gov.au/sub/goddess/yantras.html
+
+### Matangi Yantra
+
+Matangi is no longer represented by a generic yantra. Its specific plan uses the documented **six-pointed star (shatkona)** inside an **eight-petalled lotus**, enclosed by a bhupura and centered on the bindu.
+
+Complex adds the additional triangle and lotus enclosures described in fuller Matangi-puja constructions while preserving the shatkona as the central identity.
+
+References:
+- https://dlbs.liberal.ntu.edu.tw/DLMBS/search/search_detail.jsp?seq=351551
+- https://www.drikpanchang.com/vedic-mantra/goddesses/parvati/mahavidya/matangi/yantra/goddess-matangi-yantra.html
 
 ### Hexagonal Mandala
 
@@ -207,16 +232,13 @@ Classic no longer computes color independently from polygon overlap or camera po
 
 Square uses the Tibetan-inspired five-direction vocabulary already used by Hypermandala: **center white, east blue, south yellow, west red, north green**. All cubes or higher-dimensional faces derived from a given square cell inherit that same base hue.
 
-### Yantra family
+### Specific yantra families
 
-Yantra colors are assigned by circuit:
+- **Sri Yantra** — gold bhupura, rose/ivory lotus rings, blue upward triangles, red downward triangles, red bindu.
+- **Kali Yantra** — dark bhupura, crimson lotus, black/crimson triangle hierarchy, gold bindu.
+- **Matangi Yantra** — olive bhupura, pink lotus, ochre/green shatkona, gold bindu.
 
-- outer surround — saffron/yellow;
-- successive triangle circuits — alternating blue and red families;
-- innermost triangle — white;
-- bindu — red.
-
-The exact historical treatment of Sri Yantra colors varies, so this remains explicitly Sri-Chakra-inspired rather than a claim of one universal canonical palette.
+The palettes are visual interpretations of documented traditional color vocabularies, not a claim that every lineage uses one universal color scheme.
 
 ### Hex family
 
@@ -244,8 +266,8 @@ Classic 2D regions are painted **opaquely** in deterministic outer→inner order
 
 ## Controls
 
-- **Geometric forms** — choose Square, Yantra, Hex, Stupa, Borobudur, Castel del Monte, Kukulcán, or Bete Giyorgis.
-- **Persistent 2D previews** — all eight families are shown in a centered four-column grid using the current complexity and Classic palette.
+- **Geometric forms** — choose Square, Sri Yantra, Kali Yantra, Matangi Yantra, Hex, Stupa, Borobudur, Castel del Monte, Kukulcán, or Bete Giyorgis.
+- **Persistent 2D previews** — all ten families are shown in a centered grid using the current complexity and Classic palette.
 - **Collapsible library** — the entire Geometric Forms panel can collapse to a compact header and expand again without changing the current form.
 - **Complexity** — choose Simple or Complex generated geometry.
 - **Spacing** — **Compact** by default, where neighboring Z layers touch; **Separated** preserves the airy exploded-layer look.
@@ -258,7 +280,8 @@ Classic 2D regions are painted **opaquely** in deterministic outer→inner order
 - **Dimension stretch** — manually scale X/Y/Z/W; 1 is normal and 0 collapses that coordinate.
 - **Projection** — Perspective, Orthographic, or true Isometric.
 - **Color** — Classic (default), Form, or Axis.
-- **Reset** — restore rotations, scale, camera, Perspective projection, Classic color, and Solid rendering.
+- **Reset** — restore the complete default state, including Square / Simple / Compact / 2D / Perspective / Classic / Solid.
+- **Persistence** — explorer settings are stored in browser `localStorage` and restored after reload/reopening: selected form, complexity, spacing, dimension, projection, rendering, color mode, rotations, autorotation, dimension stretches, zoom, and Geometric Forms panel collapse state.
 
 Keyboard: `2`, `3`, `4` switch dimensions; `R` resets.
 
@@ -305,7 +328,9 @@ The 2D geometric plan is the source of truth for every family.
 Current intrinsic mapping:
 
 - Square → symmetric form.
-- Yantra → symmetric form.
+- Sri Yantra → symmetric form.
+- Kali Yantra → symmetric form.
+- Matangi Yantra → symmetric form.
 - Hex → symmetric form.
 - Stupa → architectural form.
 - Borobudur → architectural form.
@@ -313,7 +338,7 @@ Current intrinsic mapping:
 - Kukulcán → architectural form.
 - Bete Giyorgis → architectural form.
 
-The Yantra and Hex center marks are promoted into culminating ±Z elements. Stupa and Borobudur instead use their central footprints as the top architectural crown.
+The yantra and Hex center marks are promoted into culminating ±Z elements. Stupa and Borobudur instead use their central footprints as the top architectural crown.
 
 ## 3D spacing
 
