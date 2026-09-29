@@ -769,6 +769,92 @@
     planFaces.push(face);
   }
 
+  function regionPolarity(regionId) {
+    if (regionId?.startsWith('sri-shiva-')) return 1;
+    if (regionId?.startsWith('sri-shakti-')) return -1;
+    if (regionId === 'matangi-shiva') return 1;
+    if (regionId === 'matangi-shakti') return -1;
+
+    if (regionId?.startsWith('kali-triangle-')) {
+      const index = Number(regionId.split('-')[2]);
+      return index % 2 === 0 ? -1 : 1;
+    }
+
+    return 0;
+  }
+
+  function isCentralRegion(regionId) {
+    return (
+      regionId?.includes('bindu')
+      || regionId?.endsWith('-center')
+      || regionId === 'square-center'
+      || regionId === 'borobudur-center'
+      || regionId === 'stupa-center'
+      || regionId === 'kukulkan-temple'
+      || regionId === 'lalibela-center'
+    );
+  }
+
+  function fourthDimensionProfile(vertices3, baseHalf, regionId) {
+    const meta = PRESET_META[state.preset] || PRESET_META.square;
+
+    const centroid = vertices3.reduce(
+      (sum, p) => [
+        sum[0] + p[0],
+        sum[1] + p[1],
+        sum[2] + p[2],
+      ],
+      [0,0,0],
+    ).map((value) => value / vertices3.length);
+
+    const z = centroid[2];
+    const absZ = Math.abs(z);
+    const zSign = z > 1e-7 ? 1 : z < -1e-7 ? -1 : 0;
+    const hierarchy = clamp(absZ / 1.25, 0, 1);
+    const central = isCentralRegion(regionId);
+
+    if (meta.kind === 'architecture') {
+      // Architecture keeps a W-reflection symmetry, but the higher /
+      // more central parts are allowed more fourth-dimensional extent.
+      // Real-world gravity/material constraints therefore do not cap the
+      // hyperform's expression of hierarchy.
+      const upward = clamp(Math.max(0, z) / 1.55, 0, 1);
+      const centerBoost = central ? 1.28 : 1;
+      return {
+        center: 0,
+        half: Math.max(
+          0.035,
+          baseHalf * (0.52 + upward * 0.58) * centerBoost,
+        ),
+        kind: 'architectural-hierarchy',
+      };
+    }
+
+    // Symmetric forms use an experimental 4D double-Meru lift.
+    // Z hierarchy becomes diagonal Z/W hierarchy, while yantra polarity
+    // separates complementary triangle families along W.
+    const polarity = regionPolarity(regionId);
+    const polarityOffset = polarity * (0.08 + 0.08 * hierarchy);
+    const hierarchyOffset = absZ * 0.68;
+    const center = zSign
+      ? zSign * (hierarchyOffset + polarityOffset)
+      : polarity * 0.08;
+
+    const centerBoost = central ? 1.5 : 1;
+    const half = Math.max(
+      central ? 0.075 : 0.025,
+      baseHalf * (0.38 + hierarchy * 0.52) * centerBoost,
+    );
+
+    return {
+      center,
+      half,
+      kind: polarity
+        ? 'hierarchy-polarity'
+        : 'hierarchy',
+    };
+  }
+
   function extrudeTo4D(
     vertices3,
     edges3,
@@ -778,8 +864,17 @@
     planExtra = [],
     regionId = 'unclassified',
   ) {
+    const wProfile = fourthDimensionProfile(
+      vertices3,
+      wHalf,
+      regionId,
+    );
+
     const vertices = [];
-    for (const w of [-wHalf, wHalf]) {
+    for (const w of [
+      wProfile.center - wProfile.half,
+      wProfile.center + wProfile.half,
+    ]) {
       for (const p of vertices3) vertices.push([p[0], p[1], p[2], w]);
     }
 
@@ -820,7 +915,13 @@
       });
     }
 
-    modules.push({ vertices, edges, faces, regionId });
+    modules.push({
+      vertices,
+      edges,
+      faces,
+      regionId,
+      wProfile,
+    });
   }
 
   function cubeData(cx, cy, baseZ, size, rotation = 0) {
@@ -2562,14 +2663,70 @@
     return [[0,0],[1,0],[-1,0],[0,1],[0,-1]];
   }
 
-  function buildSquareComplexMandala() {
-    resetGeometry();
-    const separated = state.spacingStyle === 'separated';
-    const height = 0.11;
-    const step = separated ? 0.30 : height;
+  function hierarchyLevelLayout(
+    pieces,
+    thicknessForPiece,
+    separatedGap = 0.12,
+  ) {
+    const levels = [...new Set(
+      pieces.map((piece) => piece.level),
+    )].sort((a, b) => a - b);
 
-    for (const piece of squareComplexPieces()) {
-      if (piece.level === 0) {
+    const piecesByLevel = new Map(
+      levels.map((level) => [
+        level,
+        pieces.filter((piece) => piece.level === level),
+      ]),
+    );
+
+    const rankThickness = levels.map((level, rank) => {
+      const candidates = piecesByLevel.get(level).map((piece) => (
+        thicknessForPiece(piece, rank, levels.length)
+      ));
+      return Math.max(...candidates);
+    });
+
+    const centers = [0];
+    let topSurface = rankThickness[0] * 0.5;
+
+    for (let rank = 1; rank < levels.length; rank += 1) {
+      const gap = state.spacingStyle === 'separated'
+        ? separatedGap
+        : 0;
+      const center = topSurface + gap + rankThickness[rank] * 0.5;
+      centers.push(center);
+      topSurface = center + rankThickness[rank] * 0.5;
+    }
+
+    return {
+      levels,
+      rankByLevel: new Map(
+        levels.map((level, rank) => [level, rank]),
+      ),
+      rankThickness,
+      centers,
+    };
+  }
+
+  function buildSymmetricPieceHierarchy(
+    pieces,
+    thicknessForPiece,
+    separatedGap = 0.12,
+  ) {
+    resetGeometry();
+
+    const layout = hierarchyLevelLayout(
+      pieces,
+      thicknessForPiece,
+      separatedGap,
+    );
+
+    for (const piece of pieces) {
+      const rank = layout.rankByLevel.get(piece.level) || 0;
+      const height = layout.rankThickness[rank];
+      const z = layout.centers[rank];
+
+      if (rank === 0) {
         addFootprintPrismCentered(
           piece.points,
           0,
@@ -2579,7 +2736,6 @@
         continue;
       }
 
-      const z = piece.level * step;
       addFootprintPrismCentered(
         piece.points,
         z,
@@ -2593,6 +2749,22 @@
         piece.regionId,
       );
     }
+  }
+
+  function buildSquareComplexMandala() {
+    const pieces = squareComplexPieces();
+
+    buildSymmetricPieceHierarchy(
+      pieces,
+      (piece, rank, count) => {
+        const t = count <= 1 ? 0 : rank / (count - 1);
+        if (piece.regionId === 'square-center') {
+          return 0.10 + t * 0.075;
+        }
+        return 0.075 + t * 0.045;
+      },
+      0.14,
+    );
   }
 
   function buildSquareMandala() {
@@ -2655,50 +2827,26 @@
   
 
   function buildSymmetricYantraForm(pieces) {
-    resetGeometry();
+    buildSymmetricPieceHierarchy(
+      pieces,
+      (piece, rank, count) => {
+        const t = count <= 1 ? 0 : rank / (count - 1);
 
-    const separated = state.spacingStyle === 'separated';
-    const height = 0.085;
-    const step = separated ? 0.22 : height;
+        if (piece.regionId?.includes('bindu')) {
+          return 0.17;
+        }
+        if (piece.regionId?.includes('bhupura')) {
+          return 0.065;
+        }
+        if (piece.regionId?.includes('lotus')) {
+          return 0.075 + t * 0.012;
+        }
 
-    // Levels are semantic hierarchy labels, not physical distances.
-    // Rank only the levels that actually exist so Compact is contiguous:
-    // bhupura → lotus/enclosures → triangle hierarchy → bindu.
-    const orderedLevels = [...new Set(
-      pieces.map((piece) => piece.level),
-    )].sort((a, b) => a - b);
-
-    const rankByLevel = new Map(
-      orderedLevels.map((level, rank) => [level, rank]),
+        // Triangle / enclosure hierarchy grows subtly toward the center.
+        return 0.082 + t * 0.052;
+      },
+      0.13,
     );
-
-    for (const piece of pieces) {
-      const rank = rankByLevel.get(piece.level) || 0;
-
-      if (rank === 0) {
-        addFootprintPrismCentered(
-          piece.points,
-          0,
-          height,
-          piece.regionId,
-        );
-        continue;
-      }
-
-      const z = rank * step;
-      addFootprintPrismCentered(
-        piece.points,
-        z,
-        height,
-        piece.regionId,
-      );
-      addFootprintPrismCentered(
-        piece.points,
-        -z,
-        height,
-        piece.regionId,
-      );
-    }
   }
 
   function buildSriYantraForm() {
@@ -2754,14 +2902,18 @@
 
     const layers = hexLayerSpecs();
     const separated = state.spacingStyle === 'separated';
-    const baseThickness = 0.10;
-    const layerThickness = 0.11;
-    const centerHeight = 0.12;
+    const layerThicknesses = layers.map((_, index) => (
+      0.085 + index * 0.018
+    ));
+    const centerHeight = 0.17;
+    const levelGap = separated ? 0.15 : 0;
     let lastPositiveZ = 0;
+    let topSurface = layerThicknesses[0] * 0.5;
 
     layers.forEach(([radius, rotation], index) => {
       const regionId =
         'hex-layer-' + index + '-of-' + layers.length;
+      const thickness = layerThicknesses[index];
 
       if (index === 0) {
         addCenteredPrism(
@@ -2770,17 +2922,16 @@
           0,
           radius,
           6,
-          baseThickness,
+          thickness,
           rotation,
           regionId,
         );
         return;
       }
 
-      const compactZ = (baseThickness + layerThickness) * 0.5
-        + (index - 1) * layerThickness;
-      const z = separated ? index * 0.32 : compactZ;
+      const z = topSurface + levelGap + thickness * 0.5;
       lastPositiveZ = z;
+      topSurface = z + thickness * 0.5;
 
       addCenteredPrism(
         0,
@@ -2788,7 +2939,7 @@
         z,
         radius,
         6,
-        layerThickness,
+        thickness,
         rotation,
         regionId,
       );
@@ -2798,7 +2949,7 @@
         -z,
         radius,
         6,
-        layerThickness,
+        thickness,
         rotation,
         regionId,
       );
@@ -2823,9 +2974,8 @@
       }
     }
 
-    const topThickness =
-      layers.length > 1 ? layerThickness : baseThickness;
-    const crownGap = separated ? 0.10 : 0;
+    const topThickness = layerThicknesses[layerThicknesses.length - 1];
+    const crownGap = separated ? 0.15 : 0;
     const crownZ =
       lastPositiveZ + topThickness * 0.5 + centerHeight * 0.5 + crownGap;
 
@@ -4435,11 +4585,14 @@
       return;
     }
 
-    // Mouse drag now manipulates the same object-rotation planes shown in
-    // the Explorer instead of an invisible second camera-orbit state.
+    // Trackball-like object gesture. Horizontal motion now includes an
+    // XY spin as well as XZ tilt, so XY remains directly responsive in
+    // 3D/4D instead of being hidden behind Shift-drag only.
+    stopAutorotation('xy');
     stopAutorotation('xz');
     stopAutorotation('yz');
-    setRotationValue('xz', state.rotations.xz + dx * 0.34);
+    setRotationValue('xy', state.rotations.xy + dx * 0.18);
+    setRotationValue('xz', state.rotations.xz + dx * 0.24);
     setRotationValue('yz', state.rotations.yz + dy * 0.34);
   });
 
