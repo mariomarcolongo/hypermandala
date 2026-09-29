@@ -78,43 +78,71 @@
     </section>
   </aside>
 
-  <aside class="mandala-dock" aria-label="Geometric form library">
-    <div class="mandala-dock__title">Geometric forms</div>
-    <div class="mandala-library" id="presetControl">
-      <button type="button" class="mandala-card is-active" data-preset="square">
-        <canvas id="previewSquare" width="120" height="120" aria-hidden="true"></canvas>
-        <span>Square</span>
-      </button>
-      <button type="button" class="mandala-card" data-preset="yantra">
-        <canvas id="previewYantra" width="120" height="120" aria-hidden="true"></canvas>
-        <span>Yantra</span>
-      </button>
-      <button type="button" class="mandala-card" data-preset="hex">
-        <canvas id="previewHex" width="120" height="120" aria-hidden="true"></canvas>
-        <span>Hex</span>
-      </button>
-      <button type="button" class="mandala-card" data-preset="stupa">
-        <canvas id="previewStupa" width="120" height="120" aria-hidden="true"></canvas>
-        <span>Stupa</span>
-      </button>
-      <button type="button" class="mandala-card" data-preset="borobudur">
-        <canvas id="previewBorobudur" width="120" height="120" aria-hidden="true"></canvas>
-        <span>Borobudur</span>
-      </button>
+  <aside class="mandala-dock" id="geometricFormsDock" aria-label="Geometric form library">
+    <div class="mandala-dock__header">
+      <div class="mandala-dock__title">Geometric forms</div>
+      <button
+        id="toggleGeometricForms"
+        class="mandala-dock__toggle"
+        type="button"
+        aria-expanded="true"
+        aria-controls="geometricFormsBody"
+        title="Collapse geometric forms"
+      >⌄</button>
     </div>
-    <div class="mandala-dock__options">
-      <div class="dock-option">
-        <span>Complexity</span>
-        <div class="segmented" id="complexityControl">
-          <button type="button" data-complexity="simple" class="is-active">Simple</button>
-          <button type="button" data-complexity="complex">Complex</button>
-        </div>
+    <div class="mandala-dock__body" id="geometricFormsBody">
+      <div class="mandala-library" id="presetControl">
+        <button type="button" class="mandala-card is-active" data-preset="square">
+          <canvas id="previewSquare" width="120" height="120" aria-hidden="true"></canvas>
+          <span>Square</span>
+        </button>
+        <button type="button" class="mandala-card" data-preset="yantra">
+          <canvas id="previewYantra" width="120" height="120" aria-hidden="true"></canvas>
+          <span>Yantra</span>
+        </button>
+        <button type="button" class="mandala-card" data-preset="hex">
+          <canvas id="previewHex" width="120" height="120" aria-hidden="true"></canvas>
+          <span>Hex</span>
+        </button>
+        <button type="button" class="mandala-card" data-preset="stupa">
+          <canvas id="previewStupa" width="120" height="120" aria-hidden="true"></canvas>
+          <span>Stupa</span>
+        </button>
+        <button type="button" class="mandala-card" data-preset="borobudur">
+          <canvas id="previewBorobudur" width="120" height="120" aria-hidden="true"></canvas>
+          <span>Borobudur</span>
+        </button>
+        <button type="button" class="mandala-card" data-preset="castel">
+          <canvas id="previewCastel" width="120" height="120" aria-hidden="true"></canvas>
+          <span>Castel del Monte</span>
+        </button>
+        <button type="button" class="mandala-card" data-preset="kukulkan">
+          <canvas id="previewKukulkan" width="120" height="120" aria-hidden="true"></canvas>
+          <span>Kukulcán</span>
+        </button>
+        <button type="button" class="mandala-card" data-preset="lalibela">
+          <canvas id="previewLalibela" width="120" height="120" aria-hidden="true"></canvas>
+          <span>Lalibela</span>
+        </button>
+        <button type="button" class="mandala-card" data-preset="zimbabwe">
+          <canvas id="previewZimbabwe" width="120" height="120" aria-hidden="true"></canvas>
+          <span>Great Zimbabwe</span>
+        </button>
       </div>
-      <div class="dock-option">
-        <span>Spacing</span>
-        <div class="segmented" id="spacingControl">
-          <button type="button" data-spacing="compact" class="is-active">Compact</button>
-          <button type="button" data-spacing="separated">Separated</button>
+      <div class="mandala-dock__options">
+        <div class="dock-option">
+          <span>Complexity</span>
+          <div class="segmented" id="complexityControl">
+            <button type="button" data-complexity="simple" class="is-active">Simple</button>
+            <button type="button" data-complexity="complex">Complex</button>
+          </div>
+        </div>
+        <div class="dock-option">
+          <span>Spacing</span>
+          <div class="segmented" id="spacingControl">
+            <button type="button" data-spacing="compact" class="is-active">Compact</button>
+            <button type="button" data-spacing="separated">Separated</button>
+          </div>
         </div>
       </div>
     </div>
