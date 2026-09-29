@@ -583,20 +583,7 @@
     };
   }
 
-  function yantraLayerRgb(index, count) {
-    if (index === 0) return hexToRgb('#d7ad39');
-    if (index === count - 1) return hexToRgb('#f3efe5');
-
-    const blueShades = ['#4968aa', '#355aa0', '#315aa5'];
-    const redShades = ['#c94b40', '#bd4136', '#c7473d'];
-    const circuitIndex = Math.floor((index - 1) / 2);
-
-    return hexToRgb(
-      index % 2 === 1
-        ? blueShades[circuitIndex % blueShades.length]
-        : redShades[circuitIndex % redShades.length],
-    );
-  }
+  
 
   function hexLayerRgb(index) {
     return hexToRgb(
