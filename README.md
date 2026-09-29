@@ -150,9 +150,9 @@ Each family has **Simple** and **Complex** variants. “Simple” is relative: b
 
 Three render modes are available:
 
-- **Wire** — structural edges only.
-- **Solid** — projected polygon faces without edge overlay.
-- **Solid + edges** — opaque faces plus dark, non-transparent structural edges; this is now the default because it makes the Classic family identity immediately legible. The edges remain fully opaque once a dimension has emerged, while new Z/W edges still fade in during dimensional transitions.
+- **Solid + edges** — the default; opaque faces plus dark, non-transparent structural edges.
+- **Solid** — projected polygon faces without the 3D structural edge overlay.
+- **Wire** — structural edges only. The edges remain fully opaque once a dimension has emerged, while new Z/W edges still fade in during dimensional transitions.
 
 The solid layer uses **WebGL2 with a real depth buffer**. Projected faces are triangulated and depth-tested per pixel rather than painter-sorted as whole polygons. Coincident shared faces are removed before rendering to prevent z-fighting.
 
@@ -164,9 +164,9 @@ Wireframe and interaction overlays remain on the existing Canvas layer. If WebGL
 
 ## Color
 
+- **Classic** — the default; semantic region colors remain the same across 2D, 3D and 4D.
 - **Form** — restrained neutral material.
 - **Axis** — X red, Y green, Z blue, W gold.
-- **Classic** — semantic mandala-region colors that remain the same across 2D, 3D and 4D; this is now the default color mode.
 
 Classic no longer computes color independently from polygon overlap or camera position. Every 2D region and every 3D/4D primitive derived from it carries the same stable region ID. Higher-dimensional face orientation may change **brightness only**; it never changes the region's base hue.
 
@@ -207,7 +207,7 @@ Classic uses restrained volcanic-stone / warm-gray terraces, progressively light
 
 ### 2D overlap rule
 
-Classic 2D regions are painted **opaquely** in deterministic outer→inner order. Overlapping polygons therefore do not mix alpha and invent muddy colors. The visible 2D result follows the same hierarchy as the top surfaces of the 3D construction.
+Classic 2D regions are painted **opaquely** in deterministic outer→inner order. Overlapping polygons therefore do not mix alpha and invent muddy colors. Every filled region is also given a dark visible contour, and the full structural edge pass is drawn on top. The persistent previews use the same paint order and contour treatment.
 
 ## Controls
 
@@ -215,7 +215,7 @@ Classic 2D regions are painted **opaquely** in deterministic outer→inner order
 - **Persistent 2D previews** — all five families are shown at the same time, using the current complexity and Classic palette, so the previews help you choose rather than only confirming the current choice.
 - **Complexity** — choose Simple or Complex generated geometry.
 - **Spacing** — **Compact** by default, where neighboring Z layers touch; **Separated** preserves the airy exploded-layer look.
-- **Rendering** — Wire, Solid, or Solid + edges; Solid + edges is the default.
+- **Rendering** — Solid + edges (default), Solid, or Wire.
 - **2D / 3D / 4D** — automatic dimensional transitions.
 - **Drag** — XY rotation in 2D; XZ/YZ object rotation in 3D/4D, with the sliders updating live. Shift-drag gives XY twist.
 - **Wheel / trackpad** — zoom.
@@ -223,7 +223,7 @@ Classic 2D regions are painted **opaquely** in deterministic outer→inner order
 - **A** — autorotate an individual plane.
 - **Dimension stretch** — manually scale X/Y/Z/W; 1 is normal and 0 collapses that coordinate.
 - **Projection** — Perspective, Orthographic, or true Isometric.
-- **Color** — Form, Axis, or Classic; Classic is the default.
+- **Color** — Classic (default), Form, or Axis.
 - **Reset** — restore rotations, scale, camera, Perspective projection, Classic color, and Solid + edges.
 
 Keyboard: `2`, `3`, `4` switch dimensions; `R` resets.
