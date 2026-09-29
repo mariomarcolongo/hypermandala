@@ -1437,6 +1437,123 @@
     }
   }
 
+  function faceWorldKey(module, face) {
+    return face.indices
+      .map((index) => module.vertices[index]
+        .map(symmetryCoord)
+        .join(','))
+      .sort()
+      .join('|');
+  }
+
+  function clearSolidLayer() {
+    if (!solidRenderer || !gl) return;
+    gl.viewport(0, 0, solidCanvas.width, solidCanvas.height);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  }
+
+  function drawSolidLayer(alpha) {
+    if (!solidRenderer || !gl) return false;
+
+    if (state.renderMode === 'wire' || alpha <= 0.001) {
+      clearSolidLayer();
+      return true;
+    }
+
+    const entries = [];
+    const counts = new Map();
+
+    for (const module of modules) {
+      for (const face of module.faces) {
+        const visibility = faceVisibility(face);
+        if (visibility <= 0.002) continue;
+
+        const key = faceWorldKey(module, face);
+        counts.set(key, (counts.get(key) || 0) + 1);
+        entries.push({ module, face, visibility, key });
+      }
+    }
+
+    const data = [];
+
+    for (const entry of entries) {
+      // Shared coincident faces are internal to the assembled mandala volume.
+      // Removing both sides prevents z-fighting and color flashes.
+      if ((counts.get(entry.key) || 0) > 1) continue;
+
+      const points = entry.face.indices
+        .map((index) => projectToScreen(entry.module.vertices[index]));
+
+      if (points.length < 3 || Math.abs(polygonArea2D(points)) < 0.45) continue;
+
+      const rgb = faceFillRgb(entry.face, entry.module);
+      const faceAlpha = clamp(alpha * entry.visibility, 0, 1);
+
+      for (let i = 1; i < points.length - 1; i += 1) {
+        const tri = [points[0], points[i], points[i + 1]];
+
+        for (const p of tri) {
+          const x = (p.x / state.width) * 2 - 1;
+          const y = 1 - (p.y / state.height) * 2;
+          const z = clamp(-p.depth / 4.5, -0.98, 0.98);
+
+          data.push(
+            x, y, z,
+            rgb.r / 255,
+            rgb.g / 255,
+            rgb.b / 255,
+            faceAlpha,
+          );
+        }
+      }
+    }
+
+    gl.viewport(0, 0, solidCanvas.width, solidCanvas.height);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    if (!data.length) return true;
+
+    gl.useProgram(solidRenderer.program);
+    gl.bindBuffer(gl.ARRAY_BUFFER, solidRenderer.buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.DYNAMIC_DRAW);
+
+    const stride = 7 * 4;
+
+    gl.enableVertexAttribArray(solidRenderer.aPosition);
+    gl.vertexAttribPointer(
+      solidRenderer.aPosition,
+      3,
+      gl.FLOAT,
+      false,
+      stride,
+      0,
+    );
+
+    gl.enableVertexAttribArray(solidRenderer.aColor);
+    gl.vertexAttribPointer(
+      solidRenderer.aColor,
+      4,
+      gl.FLOAT,
+      false,
+      stride,
+      3 * 4,
+    );
+
+    gl.enable(gl.DEPTH_TEST);
+    gl.depthFunc(gl.LEQUAL);
+    gl.depthMask(true);
+
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+    gl.disable(gl.CULL_FACE);
+    gl.drawArrays(gl.TRIANGLES, 0, data.length / 7);
+
+    return true;
+  }
+
   function drawFaces(alpha) {
     if (state.renderMode === 'wire' || alpha <= 0.001) return;
 
@@ -1596,7 +1713,9 @@
     drawPlanFaces(planAlpha);
     drawPlanEdges(planAlpha);
 
-    drawFaces(volumeAlpha);
+    const solidHandled = drawSolidLayer(volumeAlpha);
+    if (!solidHandled) drawFaces(volumeAlpha);
+
     drawEdges(edgeAlpha);
     drawVertices(edgeAlpha);
   }
@@ -2031,6 +2150,13 @@
     canvas.height = Math.round(state.height * state.dpr);
     canvas.style.width = state.width + 'px';
     canvas.style.height = state.height + 'px';
+
+    solidCanvas.width = Math.round(state.width * state.dpr);
+    solidCanvas.height = Math.round(state.height * state.dpr);
+    solidCanvas.style.width = state.width + 'px';
+    solidCanvas.style.height = state.height + 'px';
+
+    if (gl) gl.viewport(0, 0, solidCanvas.width, solidCanvas.height);
 
     ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
   }
