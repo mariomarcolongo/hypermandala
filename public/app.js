@@ -17,12 +17,14 @@
   const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
   const basisCanvas = document.getElementById('basisCanvas');
   const basisCtx = basisCanvas.getContext('2d');
-  const previewCanvas = document.getElementById('previewCanvas');
-  const previewCtx = previewCanvas.getContext('2d');
+  const previewCanvases = {
+    square: document.getElementById('previewSquare'),
+    yantra: document.getElementById('previewYantra'),
+    hex: document.getElementById('previewHex'),
+  };
 
   const dimensionValue = document.getElementById('dimensionValue');
   const dimensionStatus = document.getElementById('dimensionStatus');
-  const symmetryStatus = document.getElementById('symmetryStatus');
   const hint = document.getElementById('hint');
   const resetAllButton = document.getElementById('resetAll');
 
@@ -98,6 +100,7 @@
     height: innerHeight,
     dpr: 1,
     lastTime: performance.now(),
+    transitionDirection: 0,
   };
 
   const modules = [];
@@ -852,7 +855,7 @@
     }
   }
 
-  function buildActiveMandala() {
+  function buildGeometryForCurrentChoice() {
     if (state.preset === 'yantra') {
       if (state.formStyle === 'temple') buildYantraTemple();
       else buildYantraSymmetric();
@@ -863,9 +866,11 @@
       if (state.formStyle === 'temple') buildSquareTemple();
       else buildSquareSymmetric();
     }
+  }
 
-    updateSymmetryStatus();
-    drawPreview();
+  function buildActiveMandala() {
+    buildGeometryForCurrentChoice();
+    drawAllPreviews();
   }
 
   function rotatePlane(point, a, b, angle) {
@@ -924,7 +929,10 @@
 
   function cameraTransform(p) {
     let [x, y, z] = p;
-    const viewMix = state.zMix;
+
+    // Let the new dimension visibly separate before the viewpoint tilts.
+    // This preserves the feeling that the volume grows out of the 2D mandala.
+    const viewMix = smoother(clamp((state.zMix - 0.30) / 0.70, 0, 1));
 
     const yaw = state.cameraYaw * viewMix;
     let c = Math.cos(yaw);
@@ -1024,11 +1032,11 @@
   function faceFillColor(axis, depth) {
     if (state.colorMode === 'axis') return axisColor(axis);
 
+    // One neutral material across X/Y/Z/W. A very small depth shift helps
+    // shape perception without inventing different materials for W faces.
     const normalized = clamp((depth + 1.8) / 3.8, 0, 1);
-    const light = 31 + normalized * 23;
-    const saturation = axis === 'w' ? 39 : 21;
-    const hue = axis === 'w' ? 43 : 38;
-    return 'hsl(' + hue + ' ' + saturation + '% ' + light + '%)';
+    const light = 45 + normalized * 9;
+    return 'hsl(39 18% ' + light + '%)';
   }
 
   function drawPlanFaces(alpha) {
@@ -1091,9 +1099,11 @@
       ctx.closePath();
 
       ctx.fillStyle = faceFillColor(item.face.axis, item.depth);
-      ctx.globalAlpha = alpha
-        * item.visibility
-        * (state.renderMode === 'solid' ? 0.985 : 0.93);
+      // Solid means solid: avoid cumulative translucent overdraw, which made
+      // 4D face projections create false bands and strange colors.
+      ctx.globalAlpha = item.visibility >= 0.995
+        ? 1
+        : clamp(item.visibility * 1.15, 0, 1);
       ctx.fill();
       ctx.globalAlpha = 1;
     }
@@ -1194,13 +1204,22 @@
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    const planAlpha = 1 - state.zMix;
+    // Keep the originating mandala visible while the new dimension separates.
+    // It only fades late in the transition, so the viewer can follow where
+    // every emerging volume came from.
+    const planFade = smoother(clamp((state.zMix - 0.58) / 0.42, 0, 1));
+    const planAlpha = 1 - planFade;
+
+    // Faces arrive after the first geometric separation; edges lead the motion.
+    const volumeAlpha = smoother(clamp((state.zMix - 0.08) / 0.92, 0, 1));
+    const edgeAlpha = smoother(clamp(state.zMix / 0.82, 0, 1));
+
     drawPlanFaces(planAlpha);
     drawPlanEdges(planAlpha);
 
-    drawFaces(state.zMix);
-    drawEdges(state.zMix);
-    drawVertices(state.zMix);
+    drawFaces(volumeAlpha);
+    drawEdges(edgeAlpha);
+    drawVertices(edgeAlpha);
   }
 
   function drawPreview() {
@@ -1441,6 +1460,7 @@
     const toZ = target >= 3 ? 1 : 0;
     const toW = target >= 4 ? 1 : 0;
 
+    state.transitionDirection = target > state.dimension ? 1 : -1;
     state.transition = {
       fromDimension: state.dimension,
       toDimension: target,
@@ -1449,7 +1469,7 @@
       toZ,
       toW,
       start: performance.now(),
-      duration: reducedMotion ? 80 : 1150,
+      duration: reducedMotion ? 80 : 1750,
     };
   }
 
