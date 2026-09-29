@@ -126,11 +126,31 @@ The current Canvas renderer uses painter-style face sorting rather than a per-pi
 
 ## Color
 
-- **Form** — restrained neutral material for the geometry.
+- **Form** — restrained neutral material.
 - **Axis** — X red, Y green, Z blue, W gold.
-- **Classic** — a colorful mandala palette organized by concentric radial bands: ivory/gold at the center, then vermilion, saffron, teal, and lapis toward the outside. Face orientation adds only a subtle tint so the radial mandala hierarchy remains dominant while 3D/4D sides stay distinguishable.
+- **Classic** — family-aware traditional or tradition-inspired color rules rather than a generic radial rainbow.
 
-Choosing **Classic** from Wire automatically switches to **Solid + edges** so the palette is immediately visible.
+### Classic: Square / palace family
+
+The Square family uses the common Tibetan Buddhist five-family directional scheme:
+
+- **center — white**
+- **east — blue**
+- **south — yellow**
+- **west — red**
+- **north — green**
+
+The 2D screen follows the common painted-mandala orientation in which east is at the bottom, south at the left, west at the top, and north at the right. References: [Rubin Museum / Project Himalayan Art — Buddha Families](https://rubinmuseum.org/projecthimalayanart/glossary/buddha-families/) and [The Mandala: A Guide to Transformation](https://rubinmuseum.org/the-mandala-a-guide-to-transformation/).
+
+### Classic: Yantra family
+
+Yantra uses a **Sri-Chakra-inspired** concentric sequence rather than Tibetan directional colors: red bindu, white central triangle, alternating red/blue triangle circuits, and a yellow outer surround. This follows traditional descriptions of Sri Chakra color circuits but the current geometric generator is an exploration inspired by the nine-triangle structure, not a ritual-grade reconstruction.
+
+### Classic: Hex family
+
+The Hex family is a modern geometric mandala rather than a canonical Tibetan or Sri Chakra form. Classic therefore applies the Tibetan five-color directional vocabulary as a deliberate visual adaptation, not as a claim of historical authenticity.
+
+In Classic mode, face orientation changes **brightness only**, not hue. This keeps traditional color assignments intact while still making different 3D/4D sides easier to distinguish.
 
 ## Controls
 
@@ -181,6 +201,14 @@ GNU Affero General Public License v3.0 or later. See [`LICENSE`](./LICENSE).
 
 ## Mandala construction rules
 
-Every family is treated as a mandala in every dimension. The generators therefore prioritize a centered structure, radial or rotational organization, concentric / hierarchical relationships, and dimensional emergence from the same lower-dimensional plan.
+The 2D mandala is now generated independently from the 3D/4D primitive footprints. Higher-dimensional roofs, upper tiers, satellites, and W extrusions are no longer allowed to leak arbitrary lines into the plan.
 
-The optional Temple form is an architectural interpretation of the same mandala. Temple primitives are placed as explicit supported levels: roofs begin on their supporting geometry, stack layers do not overlap, and elevated satellite roofs have supporting prisms instead of floating or penetrating nearby solids.
+Each family has one explicit 2D construction:
+
+- **Square** — exact touching square cells on a modular lattice, plus contained central guides.
+- **Yantra** — centered alternating triangles and a bindu; decorative satellite triangles that spilled outside the field were removed.
+- **Hex** — concentric hexagons with non-overlapping satellite rings.
+
+The higher-dimensional forms reuse those same measurements. Their additional Z/W structure can be hidden by dimensional compression, but it must remain centered, ordered, and compatible with the lower-dimensional mandala rather than changing the plan retroactively.
+
+The optional Temple form remains an architectural interpretation of the same mandala. Roofs and tiers are supported and separated rather than penetrating one another.
