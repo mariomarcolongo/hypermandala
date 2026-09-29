@@ -108,6 +108,8 @@
     requestedDimension: 2,
     queue: [],
     transition: null,
+    formTransition: null,
+    formMorph: 1,
     zMix: 0,
     wMix: 0,
 
@@ -595,200 +597,11 @@
     planFaceKeys.clear();
   }
 
-  function clearModules() {
-    modules.length = 0;
-  }
-
-  function centerKey(center) {
-    return center.map(symmetryCoord).join(',');
-  }
-
-  function collectPlanLandmarks() {
-    const points = [];
-    const seen = new Set();
-
-    const add = (x, y) => {
-      const point = [
-        Math.round(x * 10000) / 10000,
-        Math.round(y * 10000) / 10000,
-      ];
-      const key = point.join(',');
-      if (seen.has(key)) return;
-      seen.add(key);
-      points.push(point);
-    };
-
-    add(0, 0);
-
-    if (state.preset === 'square') {
-      const size = 0.34;
-      for (const [gx, gy] of squareBaseCells(state.complexity === 'complex')) {
-        add(gx * size, gy * size);
-      }
-      return points;
-    }
-
-    if (state.preset === 'yantra') {
-      for (const [radius, rotation] of yantraLayerSpecs()) {
-        for (const point of polygonFootprint(0, 0, radius, 3, rotation)) {
-          add(point[0], point[1]);
-        }
-      }
-      return points;
-    }
-
-    for (const [radius, rotation] of hexLayerSpecs()) {
-      for (const point of polygonFootprint(0, 0, radius, 6, rotation)) {
-        add(point[0], point[1]);
-      }
-    }
-
-    const firstRingRadius = 1.58;
-    for (let i = 0; i < 6; i += 1) {
-      const angle = (i / 6) * TAU;
-      add(
-        Math.cos(angle) * firstRingRadius,
-        Math.sin(angle) * firstRingRadius,
-      );
-    }
-
-    if (state.complexity === 'complex') {
-      const outerRingRadius = 2.02;
-      for (let i = 0; i < 12; i += 1) {
-        const angle = (i / 12) * TAU + Math.PI / 12;
-        add(
-          Math.cos(angle) * outerRingRadius,
-          Math.sin(angle) * outerRingRadius,
-        );
-      }
-    }
-
-    return points;
-  }
-
-  function uniqueSignedPermutationCenters(seedCenters, dimensions) {
-    const permutations = dimensions === 3
-      ? XYZ_PERMUTATIONS.map((xyz) => [xyz[0], xyz[1], xyz[2], 3])
-      : [
-          [0,1,2,3],[0,1,3,2],[0,2,1,3],[0,2,3,1],
-          [0,3,1,2],[0,3,2,1],[1,0,2,3],[1,0,3,2],
-          [1,2,0,3],[1,2,3,0],[1,3,0,2],[1,3,2,0],
-          [2,0,1,3],[2,0,3,1],[2,1,0,3],[2,1,3,0],
-          [2,3,0,1],[2,3,1,0],[3,0,1,2],[3,0,2,1],
-          [3,1,0,2],[3,1,2,0],[3,2,0,1],[3,2,1,0],
-        ];
-
-    const signs = [-1, 1];
-    const map = new Map();
-
-    for (const seed of seedCenters) {
-      const source = [seed[0], seed[1], 0, 0];
-
-      for (const permutation of permutations) {
-        for (const sx of signs) {
-          for (const sy of signs) {
-            for (const sz of signs) {
-              const wSigns = dimensions === 4 ? signs : [1];
-
-              for (const sw of wSigns) {
-                const sign = [sx, sy, sz, sw];
-                const center = permutation.map(
-                  (sourceIndex, outputIndex) => source[sourceIndex] * sign[outputIndex],
-                );
-                const key = centerKey(center);
-                if (!map.has(key)) map.set(key, center);
-              }
-            }
-          }
-        }
-      }
-    }
-
-    return map;
-  }
-
-  function minimumChebyshevDistance(centers) {
-    let min = Infinity;
-
-    for (let i = 0; i < centers.length; i += 1) {
-      for (let j = i + 1; j < centers.length; j += 1) {
-        let distance = 0;
-        for (let axis = 0; axis < 4; axis += 1) {
-          distance = Math.max(
-            distance,
-            Math.abs(centers[i][axis] - centers[j][axis]),
-          );
-        }
-        if (distance > 1e-6) min = Math.min(min, distance);
-      }
-    }
-
-    return Number.isFinite(min) ? min : 0.2;
-  }
-
-  function addOrbitHypercube(center, size, stage) {
-    addCenteredCube(center[0], center[1], center[2], size, 0);
-    const module = modules[modules.length - 1];
-
-    for (const vertex of module.vertices) {
-      vertex[3] += center[3];
-    }
-
-    module.center = [...center];
-    module.stage = stage;
-    module.hyperOnly = stage === 4;
-    module.spatialOnly = stage === 3;
-  }
-
-  function buildSymmetricOrbitFromPlan() {
-    clearModules();
-
-    const landmarks = collectPlanLandmarks();
-    const seedMap = new Map(
-      landmarks.map(([x, y]) => {
-        const center = [x, y, 0, 0];
-        return [centerKey(center), center];
-      }),
-    );
-
-    const spatialMap = uniqueSignedPermutationCenters(landmarks, 3);
-    const hyperMap = uniqueSignedPermutationCenters(landmarks, 4);
-
-    const baseCenters = [...hyperMap.values()];
-    const minDistance = minimumChebyshevDistance(baseCenters);
-    const cellSize = clamp(minDistance * 0.86, 0.045, 0.18);
-    const centerScale = state.spacingStyle === 'separated' ? 1.38 : 1;
-
-    for (const baseCenter of hyperMap.values()) {
-      const key = centerKey(baseCenter);
-      const stage = seedMap.has(key)
-        ? 2
-        : spatialMap.has(key)
-          ? 3
-          : 4;
-
-      const center = baseCenter.map((value) => value * centerScale);
-      addOrbitHypercube(center, cellSize, stage);
-    }
-  }
-
   function symmetryCoord(value) {
     if (Math.abs(value) < 1e-8) return 0;
     return Math.round(value * 100000) / 100000;
   }
 
-  function moduleSignature(module) {
-    return module.vertices
-      .map((point) => point.map(symmetryCoord).join(','))
-      .sort()
-      .join('|');
-  }
-
-  const XYZ_PERMUTATIONS = [
-    [0,1,2], [0,2,1],
-    [1,0,2], [1,2,0],
-    [2,0,1], [2,1,0],
-  ];
 
   function clearPlan() {
     planEdges.length = 0;
@@ -1212,11 +1025,6 @@
 
 
   function buildGeometryForCurrentChoice() {
-    if (state.formStyle === 'isotropic') {
-      buildSymmetricOrbitFromPlan();
-      return;
-    }
-
     if (state.formStyle === 'temple') {
       if (state.preset === 'yantra') buildYantraTemple();
       else if (state.preset === 'hex') buildHexTemple();
@@ -1249,8 +1057,8 @@
 
   function activeAngle(config) {
     let factor = 1;
-    if (config.key.includes('z')) factor *= state.zMix;
-    if (config.key.includes('w')) factor *= state.wMix;
+    if (config.key.includes('z')) factor *= state.zMix * state.formMorph;
+    if (config.key.includes('w')) factor *= state.wMix * state.formMorph;
     return state.rotations[config.key] * RAD * factor;
   }
 
@@ -1264,8 +1072,8 @@
 
     p[0] *= sx;
     p[1] *= sy;
-    p[2] *= sz * state.zMix;
-    p[3] *= sw * state.wMix;
+    p[2] *= sz * state.zMix * state.formMorph;
+    p[3] *= sw * state.wMix * state.formMorph;
 
     for (const config of ROTATION_CONFIG) {
       rotatePlane(p, config.a, config.b, activeAngle(config));
@@ -1275,7 +1083,10 @@
   }
 
   function project4Dto3D(p) {
-    if (state.projection === 'orthographic' || state.wMix < 0.001) {
+    if (
+      state.projection === 'orthographic'
+      || state.wMix * state.formMorph < 0.001
+    ) {
       return [p[0], p[1], p[2]];
     }
 
@@ -1296,7 +1107,8 @@
 
     // Let the new dimension visibly separate before the viewpoint tilts.
     // This preserves the feeling that the volume grows out of the 2D mandala.
-    const viewMix = smoother(clamp((state.zMix - 0.62) / 0.38, 0, 1));
+    const visibleZ = state.zMix * state.formMorph;
+    const viewMix = smoother(clamp((visibleZ - 0.62) / 0.38, 0, 1));
 
     const yaw = state.cameraYaw * viewMix;
     let c = Math.cos(yaw);
@@ -1333,35 +1145,14 @@
     };
   }
 
-  function moduleEmergence(module) {
-    if (module.stage === 3) {
-      return smoother(clamp((state.zMix - 0.03) / 0.97, 0, 1));
-    }
-    if (module.stage === 4) {
-      return smoother(clamp((state.wMix - 0.03) / 0.97, 0, 1));
-    }
-    if (module.hyperOnly) return smoother(state.wMix);
+  function moduleEmergence() {
     return 1;
   }
 
   function projectModulePoint(module, source) {
-    const emergence = moduleEmergence(module);
-
-    if (
-      emergence >= 0.9999
-      || !module.center
-      || (module.stage !== 3 && module.stage !== 4)
-    ) {
-      return projectToScreen(source);
-    }
-
-    const animated = module.center.map((centerValue, axis) => {
-      const local = source[axis] - centerValue;
-      return centerValue + local * emergence;
-    });
-
-    return projectToScreen(animated);
+    return projectToScreen(source);
   }
+
 
   function axisColor(axis) {
     if (state.colorMode === 'axis') {
@@ -1891,12 +1682,13 @@
     // Keep the originating mandala visible while the new dimension separates.
     // It only fades late in the transition, so the viewer can follow where
     // every emerging volume came from.
-    const planFade = smoother(clamp((state.zMix - 0.72) / 0.28, 0, 1));
+    const visibleZ = state.zMix * state.formMorph;
+    const planFade = smoother(clamp((visibleZ - 0.72) / 0.28, 0, 1));
     const planAlpha = 1 - planFade;
 
     // Faces arrive after the first geometric separation; edges lead the motion.
-    const volumeAlpha = smoother(clamp((state.zMix - 0.08) / 0.92, 0, 1));
-    const edgeAlpha = smoother(clamp(state.zMix / 0.82, 0, 1));
+    const volumeAlpha = smoother(clamp((visibleZ - 0.08) / 0.92, 0, 1));
+    const edgeAlpha = smoother(clamp(visibleZ / 0.82, 0, 1));
 
     drawPlanFaces(planAlpha);
     drawPlanEdges(planAlpha);
@@ -2179,6 +1971,59 @@
     };
   }
 
+  function requestForm(target) {
+    if (!['mandala', 'temple'].includes(target)) return;
+    if (
+      target === state.formStyle
+      || state.transition
+      || state.formTransition
+    ) return;
+
+    if (state.dimension === 2) {
+      state.formStyle = target;
+      buildActiveMandala();
+      hideHint();
+      return;
+    }
+
+    state.formTransition = {
+      from: state.formStyle,
+      to: target,
+      start: performance.now(),
+      duration: reducedMotion ? 80 : 1800,
+      swapped: false,
+    };
+    hideHint();
+  }
+
+  function updateFormTransition(now) {
+    if (!state.formTransition) return;
+
+    const transition = state.formTransition;
+    const t = clamp(
+      (now - transition.start) / transition.duration,
+      0,
+      1,
+    );
+
+    if (t < 0.5) {
+      state.formMorph = 1 - smoother(t * 2);
+    } else {
+      if (!transition.swapped) {
+        state.formStyle = transition.to;
+        transition.swapped = true;
+        buildActiveMandala();
+      }
+
+      state.formMorph = smoother((t - 0.5) * 2);
+    }
+
+    if (t >= 1) {
+      state.formMorph = 1;
+      state.formTransition = null;
+    }
+  }
+
   function requestDimension(target) {
     target = Number(target);
     if (![2,3,4].includes(target) || state.transition || target === state.dimension) return;
@@ -2232,7 +2077,7 @@
 
   function updateControlAvailability() {
     const dim = effectiveDimension();
-    const locked = Boolean(state.transition);
+    const locked = Boolean(state.transition || state.formTransition);
 
     for (const config of ROTATION_CONFIG) {
       const ui = rotationUI[config.key];
@@ -2258,6 +2103,10 @@
         + state.transition.toDimension
         + 'D';
       dimensionStatus.textContent = 'unfolding';
+    } else if (state.formTransition) {
+      dimensionValue.textContent = state.dimension + 'D';
+      dimensionStatus.textContent =
+        state.formTransition.from + ' → ' + state.formTransition.to;
     } else {
       dimensionValue.textContent = state.dimension + 'D';
 
@@ -2267,22 +2116,37 @@
         dimensionStatus.textContent =
           state.formStyle === 'temple'
             ? 'temple view'
-            : state.formStyle === 'isotropic'
-              ? 'isotropic form'
-              : 'mandala lift';
+            : 'mandala lift';
       } else {
-        dimensionStatus.textContent = '4D projection';
+        dimensionStatus.textContent =
+          state.formStyle === 'temple'
+            ? '4D temple projection'
+            : '4D mandala projection';
       }
     }
 
     dimensionButtons.forEach((button) => {
       const d = Number(button.dataset.dimension);
-      button.classList.toggle('is-active', !state.transition && d === state.dimension);
+      const locked = Boolean(state.transition || state.formTransition);
+      button.classList.toggle('is-active', !locked && d === state.dimension);
       button.classList.toggle(
         'is-target',
         state.requestedDimension === d && d !== state.dimension,
       );
-      button.disabled = Boolean(state.transition);
+      button.disabled = locked;
+    });
+
+    formButtons.forEach((button) => {
+      const form = button.dataset.form;
+      button.classList.toggle(
+        'is-active',
+        !state.formTransition && form === state.formStyle,
+      );
+      button.classList.toggle(
+        'is-target',
+        Boolean(state.formTransition && form === state.formTransition.to),
+      );
+      button.disabled = Boolean(state.transition || state.formTransition);
     });
 
     updateControlAvailability();
@@ -2354,7 +2218,7 @@
   }
 
   function rebuildFromChoice(buttons, button, stateKey, dataKey) {
-    if (state.transition) return;
+    if (state.transition || state.formTransition) return;
 
     state[stateKey] = button.dataset[dataKey];
     buttons.forEach((item) => {
@@ -2414,12 +2278,7 @@
 
   formButtons.forEach((button) => {
     button.addEventListener('click', () => {
-      rebuildFromChoice(
-        formButtons,
-        button,
-        'formStyle',
-        'form',
-      );
+      requestForm(button.dataset.form);
     });
   });
 
@@ -2456,7 +2315,7 @@
     state.pointerX = event.clientX;
     state.pointerY = event.clientY;
 
-    if (state.dimension === 2 && !state.transition) {
+    if (state.dimension === 2 && !state.transition && !state.formTransition) {
       state.rotations.xy += dx * 0.42;
       state.rotations.xy =
         ((state.rotations.xy + 180) % 360 + 360) % 360 - 180;
@@ -2520,6 +2379,7 @@
     state.lastTime = now;
 
     updateTransition(now);
+    updateFormTransition(now);
     updateAutorotation(dt);
     updateUI();
     drawScene();
