@@ -150,8 +150,8 @@ Each family has **Simple** and **Complex** variants. “Simple” is relative: b
 
 Three render modes are available:
 
-- **Solid + edges** — the default; opaque faces plus dark, non-transparent structural edges.
-- **Solid** — projected polygon faces without the 3D structural edge overlay.
+- **Solid** — the default; clean opaque colored faces without the 3D structural edge overlay.
+- **Solid + edges** — opaque faces plus the structural edge overlay.
 - **Wire** — structural edges only. The edges remain fully opaque once a dimension has emerged, while new Z/W edges still fade in during dimensional transitions.
 
 The solid layer uses **WebGL2 with a real depth buffer**. Projected faces are triangulated and depth-tested per pixel rather than painter-sorted as whole polygons. Coincident shared faces are removed before rendering to prevent z-fighting.
@@ -215,7 +215,7 @@ Classic 2D regions are painted **opaquely** in deterministic outer→inner order
 - **Persistent 2D previews** — all five families are shown at the same time, using the current complexity and Classic palette, so the previews help you choose rather than only confirming the current choice.
 - **Complexity** — choose Simple or Complex generated geometry.
 - **Spacing** — **Compact** by default, where neighboring Z layers touch; **Separated** preserves the airy exploded-layer look.
-- **Rendering** — Solid + edges (default), Solid, or Wire.
+- **Rendering** — Solid (default), Solid + edges, or Wire.
 - **2D / 3D / 4D** — automatic dimensional transitions.
 - **Drag** — XY rotation in 2D; XZ/YZ object rotation in 3D/4D, with the sliders updating live. Shift-drag gives XY twist.
 - **Wheel / trackpad** — zoom.
@@ -224,7 +224,7 @@ Classic 2D regions are painted **opaquely** in deterministic outer→inner order
 - **Dimension stretch** — manually scale X/Y/Z/W; 1 is normal and 0 collapses that coordinate.
 - **Projection** — Perspective, Orthographic, or true Isometric.
 - **Color** — Classic (default), Form, or Axis.
-- **Reset** — restore rotations, scale, camera, Perspective projection, Classic color, and Solid + edges.
+- **Reset** — restore rotations, scale, camera, Perspective projection, Classic color, and Solid rendering.
 
 Keyboard: `2`, `3`, `4` switch dimensions; `R` resets.
 
