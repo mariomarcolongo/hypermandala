@@ -13,8 +13,14 @@
 (() => {
   'use strict';
 
+  const solidCanvas = document.getElementById('solidLayer');
   const canvas = document.getElementById('mandala');
   const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
+  const gl = solidCanvas.getContext('webgl2', {
+    alpha: true,
+    antialias: true,
+    premultipliedAlpha: false,
+  });
   const basisCanvas = document.getElementById('basisCanvas');
   const basisCtx = basisCanvas.getContext('2d');
   const previewCanvases = {
@@ -141,6 +147,64 @@
   const rotationUI = {};
   const scaleUI = {};
   const geometryStats = { maxPlanRadius: 1 };
+
+  function compileGlShader(type, source) {
+    if (!gl) return null;
+    const shader = gl.createShader(type);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+      console.warn('Hypermandala solid shader failed:', gl.getShaderInfoLog(shader));
+      gl.deleteShader(shader);
+      return null;
+    }
+    return shader;
+  }
+
+  function createSolidRenderer() {
+    if (!gl) return null;
+
+    const vertexShader = compileGlShader(gl.VERTEX_SHADER, `#version 300 es
+      in vec3 aPosition;
+      in vec4 aColor;
+      out vec4 vColor;
+      void main() {
+        gl_Position = vec4(aPosition, 1.0);
+        vColor = aColor;
+      }
+    `);
+
+    const fragmentShader = compileGlShader(gl.FRAGMENT_SHADER, `#version 300 es
+      precision highp float;
+      in vec4 vColor;
+      out vec4 outColor;
+      void main() {
+        outColor = vColor;
+      }
+    `);
+
+    if (!vertexShader || !fragmentShader) return null;
+
+    const program = gl.createProgram();
+    gl.attachShader(program, vertexShader);
+    gl.attachShader(program, fragmentShader);
+    gl.linkProgram(program);
+
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      console.warn('Hypermandala solid program failed:', gl.getProgramInfoLog(program));
+      return null;
+    }
+
+    const buffer = gl.createBuffer();
+    return {
+      program,
+      buffer,
+      aPosition: gl.getAttribLocation(program, 'aPosition'),
+      aColor: gl.getAttribLocation(program, 'aColor'),
+    };
+  }
+
+  const solidRenderer = createSolidRenderer();
 
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
   const mix = (a, b, t) => a + (b - a) * t;
@@ -529,6 +593,57 @@
     planFaces.length = 0;
     planEdgeKeys.clear();
     planFaceKeys.clear();
+  }
+
+  function symmetryCoord(value) {
+    if (Math.abs(value) < 1e-8) return 0;
+    return Math.round(value * 100000) / 100000;
+  }
+
+  function moduleSignature(module) {
+    return module.vertices
+      .map((point) => point.map(symmetryCoord).join(','))
+      .sort()
+      .join('|');
+  }
+
+  function reflectedModule(module, sx, sy, sz, sw) {
+    return {
+      vertices: module.vertices.map((point) => [
+        point[0] * sx,
+        point[1] * sy,
+        point[2] * sz,
+        point[3] * sw,
+      ]),
+      edges: module.edges.map((edge) => ({ ...edge })),
+      faces: module.faces.map((face) => ({
+        ...face,
+        indices: [...face.indices],
+      })),
+    };
+  }
+
+  function enforceFullCoordinateReflectionSymmetry() {
+    const source = [...modules];
+    const seen = new Set(source.map(moduleSignature));
+    const signs = [-1, 1];
+
+    for (const module of source) {
+      for (const sx of signs) {
+        for (const sy of signs) {
+          for (const sz of signs) {
+            for (const sw of signs) {
+              const reflected = reflectedModule(module, sx, sy, sz, sw);
+              const signature = moduleSignature(reflected);
+
+              if (seen.has(signature)) continue;
+              seen.add(signature);
+              modules.push(reflected);
+            }
+          }
+        }
+      }
+    }
   }
 
   function clearPlan() {
@@ -975,6 +1090,10 @@
       if (state.formStyle === 'temple') buildSquareTemple();
       else buildSquareSymmetric();
     }
+
+    if (state.formStyle === 'symmetric') {
+      enforceFullCoordinateReflectionSymmetry();
+    }
   }
 
   function buildActiveMandala() {
@@ -1154,7 +1273,7 @@
     return centroid.map((value) => value / n);
   }
 
-  function classicFaceColor(face, module, depth) {
+  function classicFaceRgb(face, module) {
     const centroid = faceCentroid(face, module);
     const meanRadius = face.indices.reduce((sum, index) => {
       const point = module.vertices[index];
@@ -1180,26 +1299,35 @@
     );
 
     const orientationShade = CLASSIC_SHADE[face.axis] || 1;
-    const depthNorm = clamp((depth + 1.8) / 3.8, 0, 1);
-
-    return rgbCss(
-      shadeRgb(
-        base,
-        orientationShade * (0.94 + depthNorm * 0.10),
-      ),
-    );
+    return shadeRgb(base, orientationShade);
   }
 
-  function faceFillColor(face, module, depth) {
-    if (state.colorMode === 'axis') return axisColor(face.axis);
-    if (state.colorMode === 'classic') {
-      return classicFaceColor(face, module, depth);
+  function classicFaceColor(face, module) {
+    return rgbCss(classicFaceRgb(face, module));
+  }
+
+  function faceFillRgb(face, module) {
+    if (state.colorMode === 'axis') {
+      return hexToRgb(axisColor(face.axis));
     }
 
-    // One neutral material across X/Y/Z/W.
-    const normalized = clamp((depth + 1.8) / 3.8, 0, 1);
-    const light = 45 + normalized * 9;
-    return 'hsl(39 18% ' + light + '%)';
+    if (state.colorMode === 'classic') {
+      return classicFaceRgb(face, module);
+    }
+
+    const formColors = {
+      x: '#b9ad96',
+      y: '#c5b9a1',
+      z: '#d2c6ad',
+      w: '#9f927d',
+      n: '#c0b49d',
+    };
+
+    return hexToRgb(formColors[face.axis] || formColors.n);
+  }
+
+  function faceFillColor(face, module) {
+    return rgbCss(faceFillRgb(face, module));
   }
 
   function classicPlanColor(face) {
@@ -1309,6 +1437,123 @@
     }
   }
 
+  function faceWorldKey(module, face) {
+    return face.indices
+      .map((index) => module.vertices[index]
+        .map(symmetryCoord)
+        .join(','))
+      .sort()
+      .join('|');
+  }
+
+  function clearSolidLayer() {
+    if (!solidRenderer || !gl) return;
+    gl.viewport(0, 0, solidCanvas.width, solidCanvas.height);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  }
+
+  function drawSolidLayer(alpha) {
+    if (!solidRenderer || !gl) return false;
+
+    if (state.renderMode === 'wire' || alpha <= 0.001) {
+      clearSolidLayer();
+      return true;
+    }
+
+    const entries = [];
+    const counts = new Map();
+
+    for (const module of modules) {
+      for (const face of module.faces) {
+        const visibility = faceVisibility(face);
+        if (visibility <= 0.002) continue;
+
+        const key = faceWorldKey(module, face);
+        counts.set(key, (counts.get(key) || 0) + 1);
+        entries.push({ module, face, visibility, key });
+      }
+    }
+
+    const data = [];
+
+    for (const entry of entries) {
+      // Shared coincident faces are internal to the assembled mandala volume.
+      // Removing both sides prevents z-fighting and color flashes.
+      if ((counts.get(entry.key) || 0) > 1) continue;
+
+      const points = entry.face.indices
+        .map((index) => projectToScreen(entry.module.vertices[index]));
+
+      if (points.length < 3 || Math.abs(polygonArea2D(points)) < 0.45) continue;
+
+      const rgb = faceFillRgb(entry.face, entry.module);
+      const faceAlpha = clamp(alpha * entry.visibility, 0, 1);
+
+      for (let i = 1; i < points.length - 1; i += 1) {
+        const tri = [points[0], points[i], points[i + 1]];
+
+        for (const p of tri) {
+          const x = (p.x / state.width) * 2 - 1;
+          const y = 1 - (p.y / state.height) * 2;
+          const z = clamp(-p.depth / 4.5, -0.98, 0.98);
+
+          data.push(
+            x, y, z,
+            rgb.r / 255,
+            rgb.g / 255,
+            rgb.b / 255,
+            faceAlpha,
+          );
+        }
+      }
+    }
+
+    gl.viewport(0, 0, solidCanvas.width, solidCanvas.height);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    if (!data.length) return true;
+
+    gl.useProgram(solidRenderer.program);
+    gl.bindBuffer(gl.ARRAY_BUFFER, solidRenderer.buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.DYNAMIC_DRAW);
+
+    const stride = 7 * 4;
+
+    gl.enableVertexAttribArray(solidRenderer.aPosition);
+    gl.vertexAttribPointer(
+      solidRenderer.aPosition,
+      3,
+      gl.FLOAT,
+      false,
+      stride,
+      0,
+    );
+
+    gl.enableVertexAttribArray(solidRenderer.aColor);
+    gl.vertexAttribPointer(
+      solidRenderer.aColor,
+      4,
+      gl.FLOAT,
+      false,
+      stride,
+      3 * 4,
+    );
+
+    gl.enable(gl.DEPTH_TEST);
+    gl.depthFunc(gl.LEQUAL);
+    gl.depthMask(true);
+
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+    gl.disable(gl.CULL_FACE);
+    gl.drawArrays(gl.TRIANGLES, 0, data.length / 7);
+
+    return true;
+  }
+
   function drawFaces(alpha) {
     if (state.renderMode === 'wire' || alpha <= 0.001) return;
 
@@ -1337,7 +1582,7 @@
       });
       ctx.closePath();
 
-      ctx.fillStyle = faceFillColor(item.face, item.module, item.depth);
+      ctx.fillStyle = faceFillColor(item.face, item.module);
       // Solid means solid: avoid cumulative translucent overdraw, which made
       // 4D face projections create false bands and strange colors.
       ctx.globalAlpha = item.visibility >= 0.995
@@ -1468,7 +1713,9 @@
     drawPlanFaces(planAlpha);
     drawPlanEdges(planAlpha);
 
-    drawFaces(volumeAlpha);
+    const solidHandled = drawSolidLayer(volumeAlpha);
+    if (!solidHandled) drawFaces(volumeAlpha);
+
     drawEdges(edgeAlpha);
     drawVertices(edgeAlpha);
   }
@@ -1903,6 +2150,13 @@
     canvas.height = Math.round(state.height * state.dpr);
     canvas.style.width = state.width + 'px';
     canvas.style.height = state.height + 'px';
+
+    solidCanvas.width = Math.round(state.width * state.dpr);
+    solidCanvas.height = Math.round(state.height * state.dpr);
+    solidCanvas.style.width = state.width + 'px';
+    solidCanvas.style.height = state.height + 'px';
+
+    if (gl) gl.viewport(0, 0, solidCanvas.width, solidCanvas.height);
 
     ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
   }
