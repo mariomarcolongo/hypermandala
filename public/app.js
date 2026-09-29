@@ -586,21 +586,9 @@
       addPlanRegularPolygon(0, 0, radius, 3, rotation, false);
     }
 
-    // Bindu remains an actual central point/circle rather than a stray
-    // footprint from a 3D pyramid.
+    // Bindu: the only separate central mark. No decorative satellite
+    // triangles are allowed to spill outside the primary yantra field.
     addPlanPoint(0, 0, 0.028);
-
-    const satelliteCount = state.complexity === 'complex' ? 12 : 6;
-    const ringRadius = state.complexity === 'complex' ? 1.38 : 1.24;
-    const satelliteRadius = state.complexity === 'complex' ? 0.19 : 0.23;
-
-    for (let i = 0; i < satelliteCount; i += 1) {
-      const angle = (i / satelliteCount) * TAU - Math.PI / 2;
-      const cx = Math.cos(angle) * ringRadius;
-      const cy = Math.sin(angle) * ringRadius;
-      const rotation = angle + Math.PI / 2 + (i % 2 ? Math.PI : 0);
-      addPlanRegularPolygon(cx, cy, satelliteRadius, 3, rotation, false);
-    }
   }
 
   function buildHexPlan() {
@@ -611,12 +599,13 @@
       addPlanRegularPolygon(0, 0, radius, 6, rotation, false);
     }
 
+    const firstRingRadius = 1.58;
     for (let i = 0; i < 6; i += 1) {
       const angle = (i / 6) * TAU;
       addPlanRegularPolygon(
-        Math.cos(angle) * 1.08,
-        Math.sin(angle) * 1.08,
-        0.28,
+        Math.cos(angle) * firstRingRadius,
+        Math.sin(angle) * firstRingRadius,
+        0.22,
         6,
         Math.PI / 6,
         false,
@@ -624,12 +613,13 @@
     }
 
     if (state.complexity === 'complex') {
+      const outerRingRadius = 2.02;
       for (let i = 0; i < 12; i += 1) {
         const angle = (i / 12) * TAU + Math.PI / 12;
         addPlanRegularPolygon(
-          Math.cos(angle) * 1.55,
-          Math.sin(angle) * 1.55,
-          0.17,
+          Math.cos(angle) * outerRingRadius,
+          Math.sin(angle) * outerRingRadius,
+          0.15,
           6,
           i % 2 ? Math.PI / 6 : 0,
           false,
@@ -801,34 +791,6 @@
       );
     }
 
-    const satelliteCount = state.complexity === 'complex' ? 12 : 6;
-    const ringRadius = state.complexity === 'complex' ? 1.38 : 1.24;
-    const satelliteRadius = state.complexity === 'complex' ? 0.19 : 0.23;
-
-    for (let i = 0; i < satelliteCount; i += 1) {
-      const angle = (i / satelliteCount) * TAU - Math.PI / 2;
-      const cx = Math.cos(angle) * ringRadius;
-      const cy = Math.sin(angle) * ringRadius;
-      const rotation = angle + Math.PI / 2 + (i % 2 ? Math.PI : 0);
-      addCenteredPrism(cx, cy, 0, satelliteRadius, 3, 0.14, rotation);
-    }
-
-    if (state.complexity === 'complex') {
-      for (let i = 0; i < 6; i += 1) {
-        const angle = (i / 6) * TAU - Math.PI / 2;
-        const cx = Math.cos(angle) * 0.82;
-        const cy = Math.sin(angle) * 0.82;
-        addBipyramid(
-          cx,
-          cy,
-          0,
-          0.15,
-          3,
-          0.22,
-          angle + Math.PI / 2,
-        );
-      }
-    }
   }
 
   function buildYantraTemple() {
@@ -862,38 +824,6 @@
       -Math.PI / 2,
     );
 
-    const satelliteCount = state.complexity === 'complex' ? 12 : 6;
-    const ringRadius = state.complexity === 'complex' ? 1.38 : 1.24;
-    const satelliteRadius = state.complexity === 'complex' ? 0.19 : 0.23;
-
-    for (let i = 0; i < satelliteCount; i += 1) {
-      const angle = (i / satelliteCount) * TAU - Math.PI / 2;
-      const cx = Math.cos(angle) * ringRadius;
-      const cy = Math.sin(angle) * ringRadius;
-      const rotation = angle + Math.PI / 2 + (i % 2 ? Math.PI : 0);
-      addPrism(cx, cy, 0, satelliteRadius, 3, 0.17, rotation);
-    }
-
-    if (state.complexity === 'complex') {
-      for (let i = 0; i < 6; i += 1) {
-        const angle = (i / 6) * TAU - Math.PI / 2;
-        const cx = Math.cos(angle) * 0.82;
-        const cy = Math.sin(angle) * 0.82;
-        const rotation = angle + Math.PI / 2;
-
-        // Every elevated roof has an explicit supporting prism.
-        addPrism(cx, cy, 0, 0.18, 3, 0.30, rotation);
-        addPolygonPyramid(
-          cx,
-          cy,
-          0.30,
-          0.16,
-          3,
-          0.26,
-          rotation,
-        );
-      }
-    }
   }
 
   function hexLayerSpecs() {
@@ -912,15 +842,16 @@
   }
 
   function addHexSatelliteRing(centerZ) {
+    const ringRadius = 1.58;
     for (let i = 0; i < 6; i += 1) {
       const angle = (i / 6) * TAU;
       addCenteredPrism(
-        Math.cos(angle) * 1.08,
-        Math.sin(angle) * 1.08,
+        Math.cos(angle) * ringRadius,
+        Math.sin(angle) * ringRadius,
         centerZ,
-        0.28,
+        0.22,
         6,
-        0.2,
+        0.18,
         Math.PI / 6,
       );
     }
@@ -963,8 +894,8 @@
       for (let i = 0; i < 12; i += 1) {
         const angle = (i / 12) * TAU + Math.PI / 12;
         addCenteredPrism(
-          Math.cos(angle) * 1.55,
-          Math.sin(angle) * 1.55,
+          Math.cos(angle) * 2.02,
+          Math.sin(angle) * 2.02,
           0,
           0.17,
           6,
@@ -973,18 +904,7 @@
         );
       }
 
-      for (let i = 0; i < 6; i += 1) {
-        const angle = (i / 6) * TAU;
-        addBipyramid(
-          Math.cos(angle) * 0.72,
-          Math.sin(angle) * 0.72,
-          0,
-          0.16,
-          6,
-          0.22,
-          Math.PI / 6,
-        );
-      }
+
     }
   }
 
@@ -1022,12 +942,12 @@
     for (let i = 0; i < 6; i += 1) {
       const angle = (i / 6) * TAU;
       addPrism(
-        Math.cos(angle) * 1.08,
-        Math.sin(angle) * 1.08,
+        Math.cos(angle) * 1.58,
+        Math.sin(angle) * 1.58,
         0,
-        0.28,
+        0.22,
         6,
-        0.20,
+        0.18,
         Math.PI / 6,
       );
     }
@@ -1036,359 +956,16 @@
       for (let i = 0; i < 12; i += 1) {
         const angle = (i / 12) * TAU + Math.PI / 12;
         addPrism(
-          Math.cos(angle) * 1.55,
-          Math.sin(angle) * 1.55,
+          Math.cos(angle) * 2.02,
+          Math.sin(angle) * 2.02,
           0,
-          0.17,
-          6,
           0.15,
+          6,
+          0.14,
           i % 2 ? Math.PI / 6 : 0,
         );
       }
 
-      for (let i = 0; i < 6; i += 1) {
-        const angle = (i / 6) * TAU;
-        const cx = Math.cos(angle) * 0.72;
-        const cy = Math.sin(angle) * 0.72;
-
-        addPrism(cx, cy, 0, 0.19, 6, 0.32, Math.PI / 6);
-        addPolygonPyramid(
-          cx,
-          cy,
-          0.32,
-          0.17,
-          6,
-          0.25,
-          Math.PI / 6,
-        );
-      }
-    }
-  }
-
-
-  function buildGeometryForCurrentChoice() {
-    if (state.preset === 'yantra') {
-      if (state.formStyle === 'temple') buildYantraTemple();
-      else buildYantraSymmetric();
-    } else if (state.preset === 'hex') {
-      if (state.formStyle === 'temple') buildHexTemple();
-      else buildHexSymmetric();
-    } else {
-      if (state.formStyle === 'temple') buildSquareTemple();
-      else buildSquareSymmetric();
-    }
-  }
-
-  function buildActiveMandala() {
-    buildGeometryForCurrentChoice();
-    buildPlanForPreset();
-    updateGeometryStats();
-    drawAllPreviews();
-    updateGeometryStats();
-  }
-
-  function rotatePlane(point, a, b, angle) {
-    if (Math.abs(angle) < 1e-8) return;
-    const c = Math.cos(angle);
-    const s = Math.sin(angle);
-    const pa = point[a];
-    const pb = point[b];
-    point[a] = c * pa - s * pb;
-    point[b] = s * pa + c * pb;
-  }
-
-  function activeAngle(config) {
-    let factor = 1;
-    if (config.key.includes('z')) factor *= state.zMix;
-    if (config.key.includes('w')) factor *= state.wMix;
-    return state.rotations[config.key] * RAD * factor;
-  }
-
-  function transform4D(source, applyUserScale = true) {
-    const p = [source[0], source[1], source[2], source[3]];
-
-    const sx = applyUserScale ? state.scales.x : 1;
-    const sy = applyUserScale ? state.scales.y : 1;
-    const sz = applyUserScale ? state.scales.z : 1;
-    const sw = applyUserScale ? state.scales.w : 1;
-
-    p[0] *= sx;
-    p[1] *= sy;
-    p[2] *= sz * state.zMix;
-    p[3] *= sw * state.wMix;
-
-    for (const config of ROTATION_CONFIG) {
-      rotatePlane(p, config.a, config.b, activeAngle(config));
-    }
-
-    return p;
-  }
-
-  function project4Dto3D(p) {
-    if (state.projection === 'orthographic' || state.wMix < 0.001) {
-      return [p[0], p[1], p[2]];
-    }
-
-    const cameraW = 3.6;
-    const focal = 3.6;
-    const denom = Math.max(0.8, cameraW - p[3]);
-    const factor = focal / denom;
-
-    return [
-      p[0] * factor,
-      p[1] * factor,
-      p[2] * factor,
-    ];
-  }
-
-  function cameraTransform(p) {
-    let [x, y, z] = p;
-
-    // Let the new dimension visibly separate before the viewpoint tilts.
-    // This preserves the feeling that the volume grows out of the 2D mandala.
-    const viewMix = smoother(clamp((state.zMix - 0.30) / 0.70, 0, 1));
-
-    const yaw = state.cameraYaw * viewMix;
-    let c = Math.cos(yaw);
-    let s = Math.sin(yaw);
-    let nx = c * x - s * z;
-    let nz = s * x + c * z;
-    x = nx;
-    z = nz;
-
-    const pitch = state.cameraPitch * viewMix;
-    c = Math.cos(pitch);
-    s = Math.sin(pitch);
-    const ny = c * y - s * z;
-    nz = s * y + c * z;
-    y = ny;
-    z = nz;
-
-    return [x, y, z];
-  }
-
-  function projectToScreen(source) {
-    const p4 = transform4D(source, true);
-    const p3 = cameraTransform(project4Dto3D(p4));
-
-    const cameraZ = 5.8;
-    const factor = cameraZ / Math.max(2.6, cameraZ - p3[2]);
-    const scale = Math.min(state.width, state.height) * 0.245 * state.zoom;
-
-    return {
-      x: state.width * 0.47 + p3[0] * factor * scale,
-      y: state.height * 0.49 + p3[1] * factor * scale,
-      depth: p3[2],
-      w: p4[3],
-    };
-  }
-
-  function axisColor(axis) {
-    if (state.colorMode === 'axis') {
-      return axis === 'x' ? COLORS.x
-        : axis === 'y' ? COLORS.y
-        : axis === 'z' ? COLORS.z
-        : axis === 'w' ? COLORS.w
-        : COLORS.neutral;
-    }
-
-    return axis === 'w'
-      ? '#d8b662'
-      : axis === 'n'
-        ? '#eee7d8'
-        : COLORS.form;
-  }
-
-  function drawLine(a, b, color, width, alpha) {
-    ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
-    ctx.strokeStyle = color;
-    ctx.globalAlpha = alpha;
-    ctx.lineWidth = width;
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-  }
-
-  function polygonArea2D(points) {
-    let sum = 0;
-    for (let i = 0; i < points.length; i += 1) {
-      const a = points[i];
-      const b = points[(i + 1) % points.length];
-      sum += a.x * b.y - b.x * a.y;
-    }
-    return sum * 0.5;
-  }
-
-  function rawPolygonArea(points) {
-    let sum = 0;
-    for (let i = 0; i < points.length; i += 1) {
-      const a = points[i];
-      const b = points[(i + 1) % points.length];
-      sum += a[0] * b[1] - b[0] * a[1];
-    }
-    return Math.abs(sum * 0.5);
-  }
-
-  function faceVisibility(face) {
-    if (face.bridge) return state.wMix;
-    if (face.wLayer === 1) return state.wMix;
-    return 1;
-  }
-
-  function edgeVisibility(edge) {
-    if (edge.axis === 'w') return state.wMix;
-    if (edge.axis === 'z') return state.zMix;
-    if (edge.wLayer === 1) return state.wMix;
-    return 1;
-  }
-
-  function faceCentroid(face, module) {
-    const centroid = [0, 0, 0, 0];
-    for (const index of face.indices) {
-      const point = module.vertices[index];
-      centroid[0] += point[0];
-      centroid[1] += point[1];
-      centroid[2] += point[2];
-      centroid[3] += point[3];
-    }
-    const n = face.indices.length;
-    return centroid.map((value) => value / n);
-  }
-
-  function classicFaceColor(face, module, depth) {
-    const centroid = faceCentroid(face, module);
-    const meanRadius = face.indices.reduce((sum, index) => {
-      const point = module.vertices[index];
-      return sum + Math.hypot(point[0], point[1]);
-    }, 0) / face.indices.length;
-
-    const radiusNorm = clamp(
-      meanRadius / geometryStats.maxPlanRadius,
-      0,
-      1,
-    );
-
-    const base = classicBaseColor(
-      centroid[0],
-      centroid[1],
-      radiusNorm,
-    );
-
-    // Preserve the traditional hue assignment. Different sides are separated
-    // only by luminance, not by inventing new orientation colors.
-    const orientationShade = CLASSIC_SHADE[face.axis] || 1;
-    const depthNorm = clamp((depth + 1.8) / 3.8, 0, 1);
-    return rgbCss(
-      shadeRgb(base, orientationShade * (0.94 + depthNorm * 0.10)),
-    );
-  }
-
-  function faceFillColor(face, module, depth) {
-    if (state.colorMode === 'axis') return axisColor(face.axis);
-    if (state.colorMode === 'classic') {
-      return classicFaceColor(face, module, depth);
-    }
-
-    // One neutral material across X/Y/Z/W.
-    const normalized = clamp((depth + 1.8) / 3.8, 0, 1);
-    const light = 45 + normalized * 9;
-    return 'hsl(39 18% ' + light + '%)';
-  }
-
-  function classicPlanColor(face) {
-    const cx = face.reduce((sum, p) => sum + p[0], 0) / face.length;
-    const cy = face.reduce((sum, p) => sum + p[1], 0) / face.length;
-    const meanRadius = face.reduce(
-      (sum, p) => sum + Math.hypot(p[0], p[1]),
-      0,
-    ) / face.length;
-    const radiusNorm = clamp(meanRadius / geometryStats.maxPlanRadius, 0, 1);
-    return rgbCss(classicBaseColor(cx, cy, radiusNorm));
-  }
-
-  function edgeStrokeColor(axis) {
-    if (state.renderMode === 'solid-edges') {
-      if (state.colorMode === 'classic') return '#1d1714';
-      if (state.colorMode === 'form') return '#241f19';
-      return axisColor(axis);
-    }
-    return axisColor(axis);
-  }
-
-  function drawPlanFaces(alpha) {
-    if (state.renderMode === 'wire' || alpha <= 0.001) return;
-
-    const sorted = [...planFaces].sort((a, b) => rawPolygonArea(b) - rawPolygonArea(a));
-    for (const face of sorted) {
-      const points = face.map(projectToScreen);
-      if (Math.abs(polygonArea2D(points)) < 0.2) continue;
-
-      ctx.beginPath();
-      points.forEach((p, index) => {
-        if (index === 0) ctx.moveTo(p.x, p.y);
-        else ctx.lineTo(p.x, p.y);
-      });
-      ctx.closePath();
-      ctx.fillStyle = state.colorMode === 'axis'
-        ? '#d9dde4'
-        : state.colorMode === 'classic'
-          ? classicPlanColor(face)
-          : '#c9b995';
-      ctx.globalAlpha = alpha * (state.colorMode === 'classic' ? 0.62 : 0.16);
-      ctx.fill();
-      ctx.globalAlpha = 1;
-    }
-  }
-
-  function classicPlanEdgeColor(edge) {
-    const mx = (edge.a[0] + edge.b[0]) * 0.5;
-    const my = (edge.a[1] + edge.b[1]) * 0.5;
-    const radiusNorm = clamp(
-      (Math.hypot(edge.a[0], edge.a[1]) + Math.hypot(edge.b[0], edge.b[1]))
-        * 0.5
-        / geometryStats.maxPlanRadius,
-      0,
-      1,
-    );
-    return rgbCss(classicBaseColor(mx, my, radiusNorm));
-  }
-
-  function drawPlanEdges(alpha) {
-    if (alpha <= 0.001) return;
-
-    for (const edge of planEdges) {
-      const a = projectToScreen(edge.a);
-      const b = projectToScreen(edge.b);
-      const color = state.colorMode === 'classic'
-        ? classicPlanEdgeColor(edge)
-        : axisColor(edge.axis);
-      drawLine(
-        a,
-        b,
-        color,
-        state.colorMode === 'classic' ? 1.35 : 1.15,
-        alpha * 0.94,
-      );
-    }
-  }
-
-  function drawFaces(alpha) {
-    if (state.renderMode === 'wire' || alpha <= 0.001) return;
-
-    const rendered = [];
-
-    for (const module of modules) {
-      for (const face of module.faces) {
-        const visibility = faceVisibility(face);
-        if (visibility <= 0.002) continue;
-
-        const points = face.indices.map((index) => projectToScreen(module.vertices[index]));
-        if (Math.abs(polygonArea2D(points)) < 0.45) continue;
-
-        const depth = points.reduce((sum, p) => sum + p.depth, 0) / points.length;
-        rendered.push({ face, module, points, depth, visibility });
-      }
     }
 
     rendered.sort((a, b) => a.depth - b.depth);
