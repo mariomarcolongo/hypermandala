@@ -1240,7 +1240,13 @@
         width = 1.35;
       }
 
-      drawLine(a, b, color, width, alpha * 0.94);
+      drawLine(
+        a,
+        b,
+        color,
+        width,
+        alpha * 0.94,
+      );
     }
   }
 
