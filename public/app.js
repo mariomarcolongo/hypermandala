@@ -595,6 +595,147 @@
     planFaceKeys.clear();
   }
 
+  function clearModules() {
+    modules.length = 0;
+  }
+
+  function centerKey(center) {
+    return center.map(symmetryCoord).join(',');
+  }
+
+  function collectPlanLandmarks() {
+    const points = [];
+    const seen = new Set();
+
+    const add = (x, y) => {
+      const radius = Math.hypot(x, y);
+      if (radius < 0.055) return;
+
+      const point = [
+        Math.round(x * 10000) / 10000,
+        Math.round(y * 10000) / 10000,
+      ];
+      const key = point.join(',');
+      if (seen.has(key)) return;
+      seen.add(key);
+      points.push(point);
+    };
+
+    for (const edge of planEdges) {
+      add(edge.a[0], edge.a[1]);
+      add(edge.b[0], edge.b[1]);
+    }
+
+    // A single central seed represents the bindu / shrine center.
+    points.push([0, 0]);
+    return points;
+  }
+
+  function uniqueSignedPermutationCenters(seedCenters, dimensions) {
+    const permutations = dimensions === 3
+      ? XYZ_PERMUTATIONS.map((xyz) => [xyz[0], xyz[1], xyz[2], 3])
+      : [
+          [0,1,2,3],[0,1,3,2],[0,2,1,3],[0,2,3,1],
+          [0,3,1,2],[0,3,2,1],[1,0,2,3],[1,0,3,2],
+          [1,2,0,3],[1,2,3,0],[1,3,0,2],[1,3,2,0],
+          [2,0,1,3],[2,0,3,1],[2,1,0,3],[2,1,3,0],
+          [2,3,0,1],[2,3,1,0],[3,0,1,2],[3,0,2,1],
+          [3,1,0,2],[3,1,2,0],[3,2,0,1],[3,2,1,0],
+        ];
+
+    const signs = [-1, 1];
+    const map = new Map();
+
+    for (const seed of seedCenters) {
+      const source = [seed[0], seed[1], 0, 0];
+
+      for (const permutation of permutations) {
+        for (const sx of signs) {
+          for (const sy of signs) {
+            for (const sz of signs) {
+              const wSigns = dimensions === 4 ? signs : [1];
+
+              for (const sw of wSigns) {
+                const sign = [sx, sy, sz, sw];
+                const center = permutation.map(
+                  (sourceIndex, outputIndex) => source[sourceIndex] * sign[outputIndex],
+                );
+                const key = centerKey(center);
+                if (!map.has(key)) map.set(key, center);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return map;
+  }
+
+  function minimumChebyshevDistance(centers) {
+    let min = Infinity;
+
+    for (let i = 0; i < centers.length; i += 1) {
+      for (let j = i + 1; j < centers.length; j += 1) {
+        let distance = 0;
+        for (let axis = 0; axis < 4; axis += 1) {
+          distance = Math.max(
+            distance,
+            Math.abs(centers[i][axis] - centers[j][axis]),
+          );
+        }
+        if (distance > 1e-6) min = Math.min(min, distance);
+      }
+    }
+
+    return Number.isFinite(min) ? min : 0.2;
+  }
+
+  function addOrbitHypercube(center, size, stage) {
+    addCenteredCube(center[0], center[1], center[2], size, 0);
+    const module = modules[modules.length - 1];
+
+    for (const vertex of module.vertices) {
+      vertex[3] += center[3];
+    }
+
+    module.center = [...center];
+    module.stage = stage;
+    module.hyperOnly = stage === 4;
+    module.spatialOnly = stage === 3;
+  }
+
+  function buildSymmetricOrbitFromPlan() {
+    clearModules();
+
+    const landmarks = collectPlanLandmarks();
+    const seedMap = new Map(
+      landmarks.map(([x, y]) => {
+        const center = [x, y, 0, 0];
+        return [centerKey(center), center];
+      }),
+    );
+
+    const spatialMap = uniqueSignedPermutationCenters(landmarks, 3);
+    const hyperMap = uniqueSignedPermutationCenters(landmarks, 4);
+
+    const allCenters = [...hyperMap.values()];
+    const minDistance = minimumChebyshevDistance(allCenters);
+    const sizeFactor = state.spacingStyle === 'separated' ? 0.52 : 0.82;
+    const cellSize = clamp(minDistance * sizeFactor, 0.045, 0.18);
+
+    for (const center of hyperMap.values()) {
+      const key = centerKey(center);
+      const stage = seedMap.has(key)
+        ? 2
+        : spatialMap.has(key)
+          ? 3
+          : 4;
+
+      addOrbitHypercube(center, cellSize, stage);
+    }
+  }
+
   function symmetryCoord(value) {
     if (Math.abs(value) < 1e-8) return 0;
     return Math.round(value * 100000) / 100000;
