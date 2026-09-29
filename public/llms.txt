@@ -1,0 +1,25 @@
+# Hypermandala
+
+Canonical: https://hypermandala.mariomarcolongo.com/
+Source: https://github.com/jnton/hypermandala
+Creator: Mario Marcolongo — https://mariomarcolongo.com/
+
+Hypermandala is an interactive browser-based geometry explorer for mandalas, yantras, sacred geometry, and architecture-inspired geometric plans.
+
+It lets users move from exact 2D plans to hierarchy-aware 3D forms and projected 4D hyperforms. The 4D model supports the six rotation planes XY, XZ, YZ, XW, YW, and ZW, plus perspective, orthographic, and isometric projection.
+
+Specific geometric families include:
+- Sri Yantra / Sri Chakra
+- Kali Yantra
+- Matangi Yantra
+- Square mandala
+- Hexagonal mandala
+- Stupa
+- Borobudur-inspired geometry
+- Castel del Monte
+- Kukulcán
+- Bete Giyorgis
+
+For non-architectural forms, users can compare a hierarchy-first Z lift with an experimental reflection-symmetric Mirror lift. Dimensional collapse preserves the source geometry.
+
+Hypermandala is open source under GNU AGPL v3 or later.
