@@ -52,20 +52,35 @@
     w: '#f0c45c',
   };
 
-  const CLASSIC_PALETTE = [
-    '#efe2b3', // ivory / gold center
-    '#b83d32', // vermilion
-    '#dda633', // saffron
-    '#168c80', // teal
-    '#3452a3', // lapis / indigo outer
+  // Tradition-aware palettes. "Classic" is family-specific rather than a
+  // universal rainbow: Tibetan-style directional colors for palace/hex forms,
+  // and Sri Chakra-inspired concentric cakra colors for the Yantra family.
+  const TIBETAN_COLORS = {
+    center: '#f4efe1',
+    east: '#315db5',
+    south: '#d8ae35',
+    west: '#b64238',
+    north: '#31906a',
+  };
+
+  const SRI_CHAKRA_COLORS = [
+    '#b92f2f', // bindu: red
+    '#f3efe5', // central triangle: white
+    '#c7473d', // inner red triangles
+    '#315aa5', // blue triangle circuit
+    '#bd4136', // red triangle circuit
+    '#355aa0', // blue outer triangles
+    '#c94b40', // red lotus / inner outer circuit
+    '#4968aa', // blue lotus / outer circuit
+    '#d7ad39', // yellow bhupura / surround
   ];
 
-  const CLASSIC_ORIENTATION = {
-    x: '#b84c3d',
-    y: '#2f9b82',
-    z: '#e8c660',
-    w: '#7253a8',
-    n: '#d9a33d',
+  const CLASSIC_SHADE = {
+    x: 0.93,
+    y: 0.98,
+    z: 1.08,
+    w: 0.86,
+    n: 1.00,
   };
 
   const ROTATION_CONFIG = [
@@ -168,12 +183,30 @@
     };
   }
 
-  function classicBandColor(radiusNorm) {
+  function sriChakraBandColor(radiusNorm) {
     const band = Math.min(
-      CLASSIC_PALETTE.length - 1,
-      Math.floor(clamp(radiusNorm, 0, 0.9999) * CLASSIC_PALETTE.length),
+      SRI_CHAKRA_COLORS.length - 1,
+      Math.floor(clamp(radiusNorm, 0, 0.9999) * SRI_CHAKRA_COLORS.length),
     );
-    return hexToRgb(CLASSIC_PALETTE[band]);
+    return hexToRgb(SRI_CHAKRA_COLORS[band]);
+  }
+
+  function tibetanDirectionalColor(x, y, radiusNorm) {
+    if (radiusNorm < 0.18) return hexToRgb(TIBETAN_COLORS.center);
+
+    // Standard painted orientation used by many Tibetan mandalas:
+    // east = bottom, south = left, west = top, north = right.
+    if (Math.abs(y) >= Math.abs(x)) {
+      return hexToRgb(y >= 0 ? TIBETAN_COLORS.east : TIBETAN_COLORS.west);
+    }
+    return hexToRgb(x < 0 ? TIBETAN_COLORS.south : TIBETAN_COLORS.north);
+  }
+
+  function classicBaseColor(x, y, radiusNorm) {
+    if (state.preset === 'yantra') {
+      return sriChakraBandColor(radiusNorm);
+    }
+    return tibetanDirectionalColor(x, y, radiusNorm);
   }
 
   function updateGeometryStats() {
@@ -266,13 +299,6 @@
     }
 
     modules.push({ vertices, edges, faces });
-
-    addPlanFace(footprint);
-    for (let i = 0; i < footprint.length; i += 1) {
-      const planAxis = footprint.length === 4 ? (i % 2 === 0 ? 'x' : 'y') : 'n';
-      addPlanEdge(footprint[i], footprint[(i + 1) % footprint.length], planAxis);
-    }
-    for (const edge of planExtra) addPlanEdge(edge[0], edge[1], 'n');
   }
 
   function cubeData(cx, cy, baseZ, size, rotation = 0) {
@@ -501,21 +527,138 @@
     planFaceKeys.clear();
   }
 
-  function squareBaseCells(complex) {
-    const base = [];
-    for (let gx = -2; gx <= 2; gx += 1) {
-      for (let gy = -2; gy <= 2; gy += 1) {
-        if (Math.abs(gx) + Math.abs(gy) <= 2) base.push([gx, gy]);
-      }
-    }
-    base.push([3,0],[-3,0],[0,3],[0,-3]);
+  function clearPlan() {
+    planEdges.length = 0;
+    planFaces.length = 0;
+    planEdgeKeys.clear();
+    planFaceKeys.clear();
+  }
 
-    if (complex) {
-      base.push(
-        [2,1],[2,-1],[-2,1],[-2,-1],
-        [1,2],[1,-2],[-1,2],[-1,-2],
+  function addPlanLoop(points, axis = 'n', fill = true) {
+    if (fill) addPlanFace(points);
+    for (let i = 0; i < points.length; i += 1) {
+      addPlanEdge(points[i], points[(i + 1) % points.length], axis);
+    }
+  }
+
+  function addPlanRegularPolygon(cx, cy, radius, sides, rotation = 0, fill = true) {
+    const points = polygonFootprint(cx, cy, radius, sides, rotation);
+    addPlanLoop(points, 'n', fill);
+    return points;
+  }
+
+  function addPlanSquareCell(cx, cy, size, rotation = 0) {
+    const h = size / 2;
+    const points = [
+      [-h,-h], [h,-h], [h,h], [-h,h],
+    ].map(([x, y]) => {
+      const rotated = rotateXYPoint(x, y, rotation);
+      return [cx + rotated[0], cy + rotated[1]];
+    });
+    addPlanLoop(points, 'n', true);
+  }
+
+  function addPlanPoint(cx, cy, radius = 0.025) {
+    addPlanRegularPolygon(cx, cy, radius, 12, 0, true);
+  }
+
+  function buildSquarePlan() {
+    clearPlan();
+    const size = 0.34;
+    const spacing = size;
+    const complex = state.complexity === 'complex';
+
+    for (const [gx, gy] of squareBaseCells(complex)) {
+      addPlanSquareCell(gx * spacing, gy * spacing, size, 0);
+    }
+
+    // Clean nested center: each higher-dimensional central tier collapses
+    // exactly onto one of these contained square/diamond guides.
+    addPlanSquareCell(0, 0, size * 0.72, Math.PI / 4);
+    if (complex) addPlanSquareCell(0, 0, size * 0.46, 0);
+  }
+
+  function buildYantraPlan() {
+    clearPlan();
+
+    const layers = yantraLayerSpecs();
+    for (const [radius, rotation] of layers) {
+      addPlanRegularPolygon(0, 0, radius, 3, rotation, false);
+    }
+
+    // Bindu remains an actual central point/circle rather than a stray
+    // footprint from a 3D pyramid.
+    addPlanPoint(0, 0, 0.028);
+
+    const satelliteCount = state.complexity === 'complex' ? 12 : 6;
+    const ringRadius = state.complexity === 'complex' ? 1.38 : 1.24;
+    const satelliteRadius = state.complexity === 'complex' ? 0.19 : 0.23;
+
+    for (let i = 0; i < satelliteCount; i += 1) {
+      const angle = (i / satelliteCount) * TAU - Math.PI / 2;
+      const cx = Math.cos(angle) * ringRadius;
+      const cy = Math.sin(angle) * ringRadius;
+      const rotation = angle + Math.PI / 2 + (i % 2 ? Math.PI : 0);
+      addPlanRegularPolygon(cx, cy, satelliteRadius, 3, rotation, false);
+    }
+  }
+
+  function buildHexPlan() {
+    clearPlan();
+
+    const layers = hexLayerSpecs();
+    for (const [radius, rotation] of layers) {
+      addPlanRegularPolygon(0, 0, radius, 6, rotation, false);
+    }
+
+    for (let i = 0; i < 6; i += 1) {
+      const angle = (i / 6) * TAU;
+      addPlanRegularPolygon(
+        Math.cos(angle) * 1.08,
+        Math.sin(angle) * 1.08,
+        0.28,
+        6,
+        Math.PI / 6,
+        false,
       );
     }
+
+    if (state.complexity === 'complex') {
+      for (let i = 0; i < 12; i += 1) {
+        const angle = (i / 12) * TAU + Math.PI / 12;
+        addPlanRegularPolygon(
+          Math.cos(angle) * 1.55,
+          Math.sin(angle) * 1.55,
+          0.17,
+          6,
+          i % 2 ? Math.PI / 6 : 0,
+          false,
+        );
+      }
+    }
+
+    addPlanPoint(0, 0, 0.026);
+  }
+
+  function buildPlanForPreset() {
+    if (state.preset === 'yantra') buildYantraPlan();
+    else if (state.preset === 'hex') buildHexPlan();
+    else buildSquarePlan();
+  }
+
+  function squareBaseCells(complex) {
+    const base = [];
+
+    for (let gx = -2; gx <= 2; gx += 1) {
+      for (let gy = -2; gy <= 2; gy += 1) {
+        if (complex || Math.abs(gx) + Math.abs(gy) <= 2) {
+          base.push([gx, gy]);
+        }
+      }
+    }
+
+    // Four cardinal gates extend exactly one cell beyond the enclosure.
+    base.push([3,0],[-3,0],[0,3],[0,-3]);
     return base;
   }
 
@@ -529,11 +672,11 @@
     resetGeometry();
     const complex = state.complexity === 'complex';
     const size = 0.34;
-    const spacing = 0.47;
+    const spacing = size;
 
     // The ground mandala is a thin central layer.
     for (const [gx, gy] of squareBaseCells(complex)) {
-      addCenteredCube(gx * spacing, gy * spacing, 0, size * 0.46, 0);
+      addCenteredCube(gx * spacing, gy * spacing, 0, size, 0);
     }
 
     // Structures that occupy the same 2D plan separate into mirrored ±Z tiers.
@@ -562,26 +705,14 @@
       );
     }
 
-    if (complex) {
-      const diagonalRadius = spacing * 2.65;
-      for (let i = 0; i < 4; i += 1) {
-        const angle = Math.PI / 4 + i * Math.PI / 2;
-        addCenteredCube(
-          Math.cos(angle) * diagonalRadius,
-          Math.sin(angle) * diagonalRadius,
-          0,
-          size * 0.42,
-          Math.PI / 4,
-        );
-      }
-    }
+
   }
 
   function buildSquareTemple() {
     resetGeometry();
     const complex = state.complexity === 'complex';
     const size = 0.34;
-    const spacing = 0.47;
+    const spacing = size;
 
     for (const [gx, gy] of squareBaseCells(complex)) {
       addCube(gx * spacing, gy * spacing, 0, size, 0);
@@ -622,20 +753,28 @@
   }
 
   function yantraLayerSpecs() {
+    // A clean yantra grammar: centered alternating upward/downward triangles.
+    // Complex mode uses nine triangles (4 upward, 5 downward), echoing the
+    // defining nine-triangle structure of the Sri Chakra without claiming an
+    // exact ritual reconstruction.
     return state.complexity === 'complex'
       ? [
-          [1.48, -Math.PI / 2],
-          [1.28, Math.PI / 2],
-          [1.08, -Math.PI / 2],
-          [0.88, Math.PI / 2],
-          [0.68, -Math.PI / 2],
-          [0.48, Math.PI / 2],
+          [1.46, -Math.PI / 2],
+          [1.30,  Math.PI / 2],
+          [1.15, -Math.PI / 2],
+          [1.00,  Math.PI / 2],
+          [0.85, -Math.PI / 2],
+          [0.70,  Math.PI / 2],
+          [0.56, -Math.PI / 2],
+          [0.43,  Math.PI / 2],
+          [0.31, -Math.PI / 2],
         ]
       : [
-          [1.42, -Math.PI / 2],
-          [1.04, Math.PI / 2],
-          [0.72, -Math.PI / 2],
-          [0.46, Math.PI / 2],
+          [1.40, -Math.PI / 2],
+          [1.10,  Math.PI / 2],
+          [0.82, -Math.PI / 2],
+          [0.58,  Math.PI / 2],
+          [0.36, -Math.PI / 2],
         ];
   }
 
@@ -953,6 +1092,7 @@
 
   function buildActiveMandala() {
     buildGeometryForCurrentChoice();
+    buildPlanForPreset();
     updateGeometryStats();
     drawAllPreviews();
     updateGeometryStats();
@@ -1135,18 +1275,19 @@
       1,
     );
 
-    const base = classicBandColor(radiusNorm);
-    const orientation = hexToRgb(
-      CLASSIC_ORIENTATION[face.axis] || CLASSIC_ORIENTATION.n,
+    const base = classicBaseColor(
+      centroid[0],
+      centroid[1],
+      radiusNorm,
     );
 
-    // Orientation should clarify form without overriding radial mandala bands.
-    const tintStrength = face.axis === 'w' ? 0.18 : 0.10;
-    const tinted = mixRgb(base, orientation, tintStrength);
-
+    // Preserve the traditional hue assignment. Different sides are separated
+    // only by luminance, not by inventing new orientation colors.
+    const orientationShade = CLASSIC_SHADE[face.axis] || 1;
     const depthNorm = clamp((depth + 1.8) / 3.8, 0, 1);
-    const shaded = shadeRgb(tinted, 0.90 + depthNorm * 0.17);
-    return rgbCss(shaded);
+    return rgbCss(
+      shadeRgb(base, orientationShade * (0.94 + depthNorm * 0.10)),
+    );
   }
 
   function faceFillColor(face, module, depth) {
@@ -1164,12 +1305,12 @@
   function classicPlanColor(face) {
     const cx = face.reduce((sum, p) => sum + p[0], 0) / face.length;
     const cy = face.reduce((sum, p) => sum + p[1], 0) / face.length;
-    const radiusNorm = clamp(
-      Math.hypot(cx, cy) / geometryStats.maxPlanRadius,
+    const meanRadius = face.reduce(
+      (sum, p) => sum + Math.hypot(p[0], p[1]),
       0,
-      1,
-    );
-    return rgbCss(classicBandColor(radiusNorm));
+    ) / face.length;
+    const radiusNorm = clamp(meanRadius / geometryStats.maxPlanRadius, 0, 1);
+    return rgbCss(classicBaseColor(cx, cy, radiusNorm));
   }
 
   function edgeStrokeColor(axis) {
@@ -1443,11 +1584,13 @@
     for (const preset of ['square', 'yantra', 'hex']) {
       state.preset = preset;
       buildGeometryForCurrentChoice();
+      buildPlanForPreset();
       drawPreviewToCanvas(previewCanvases[preset]);
     }
 
     state.preset = selectedPreset;
     buildGeometryForCurrentChoice();
+    buildPlanForPreset();
   }
 
   function basisPoint(source) {
