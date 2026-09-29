@@ -3750,6 +3750,7 @@
     if (alpha <= 0.001) return;
 
     for (const edge of planEdges) {
+      if (edge.detail) continue;
       const a = projectToScreen(edge.a);
       const b = projectToScreen(edge.b);
 
@@ -4257,6 +4258,7 @@
     previewCtx.lineWidth = state.colorMode === 'classic' ? 1.05 : 1;
 
     for (const edge of planEdges) {
+      if (edge.detail) continue;
       const a = map(edge.a);
       const b = map(edge.b);
       previewCtx.beginPath();
