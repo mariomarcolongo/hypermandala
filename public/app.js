@@ -3096,7 +3096,7 @@
 
   
 
-  function buildSymmetricYantraForm(pieces) {
+  function buildYantraForm(pieces) {
     buildCenteredPieceHierarchy(
       pieces,
       (piece, rank, count) => {
@@ -3121,15 +3121,15 @@
   }
 
   function buildSriYantraForm() {
-    buildSymmetricYantraForm(sriYantraPieces());
+    buildYantraForm(sriYantraPieces());
   }
 
   function buildKaliYantraForm() {
-    buildSymmetricYantraForm(kaliYantraPieces());
+    buildYantraForm(kaliYantraPieces());
   }
 
   function buildMatangiYantraForm() {
-    buildSymmetricYantraForm(matangiYantraPieces());
+    buildYantraForm(matangiYantraPieces());
   }
 
   
@@ -3151,7 +3151,7 @@
         ];
   }
 
-  function addHexSatelliteRing(centerZ) {
+  function addHexSatelliteRing(centerZ, liftMeta = null) {
     const ringRadius = 1.58;
     for (let i = 0; i < 6; i += 1) {
       const angle = (i / 6) * TAU;
@@ -3164,6 +3164,7 @@
         0.18,
         Math.PI / 6,
         'hex-satellite',
+        liftMeta,
       );
     }
   }
@@ -3173,60 +3174,32 @@
 
     const layers = hexLayerSpecs();
     const separated = state.spacingStyle === 'separated';
+    const satelliteThickness = 0.11;
     const layerThicknesses = layers.map((_, index) => (
       0.085 + index * 0.018
     ));
     const centerHeight = 0.17;
-    const levelGap = separated ? 0.15 : 0;
-    let lastPositiveZ = 0;
-    let topSurface = layerThicknesses[0] * 0.5;
+    const gap = separated ? 0.15 : 0;
+    const thicknesses = [
+      satelliteThickness,
+      ...layerThicknesses,
+      centerHeight,
+    ];
 
-    layers.forEach(([radius, rotation], index) => {
-      const regionId =
-        'hex-layer-' + index + '-of-' + layers.length;
-      const thickness = layerThicknesses[index];
+    const total =
+      thicknesses.reduce((sum, value) => sum + value, 0)
+      + gap * (thicknesses.length - 1);
+    const centers = [];
+    let cursor = -total * 0.5;
 
-      if (index === 0) {
-        addCenteredPrism(
-          0,
-          0,
-          0,
-          radius,
-          6,
-          thickness,
-          rotation,
-          regionId,
-        );
-        return;
-      }
+    for (const thickness of thicknesses) {
+      centers.push(cursor + thickness * 0.5);
+      cursor += thickness + gap;
+    }
 
-      const z = topSurface + levelGap + thickness * 0.5;
-      lastPositiveZ = z;
-      topSurface = z + thickness * 0.5;
-
-      addCenteredPrism(
-        0,
-        0,
-        z,
-        radius,
-        6,
-        thickness,
-        rotation,
-        regionId,
-      );
-      addCenteredPrism(
-        0,
-        0,
-        -z,
-        radius,
-        6,
-        thickness,
-        rotation,
-        regionId,
-      );
-    });
-
-    addHexSatelliteRing(0);
+    const lastIndex = thicknesses.length - 1;
+    const satelliteMeta = { hierarchyT: 0, polarity: 0 };
+    addHexSatelliteRing(centers[0], satelliteMeta);
 
     if (state.complexity === 'complex') {
       const outerRadius = 2.02;
@@ -3235,33 +3208,44 @@
         addCenteredPrism(
           Math.cos(angle) * outerRadius,
           Math.sin(angle) * outerRadius,
-          0,
+          centers[0],
           0.15,
           6,
-          0.13,
+          satelliteThickness,
           i % 2 ? Math.PI / 6 : 0,
           'hex-outer-satellite',
+          satelliteMeta,
         );
       }
     }
 
-    const topThickness = layerThicknesses[layerThicknesses.length - 1];
-    const crownGap = separated ? 0.15 : 0;
-    const crownZ =
-      lastPositiveZ + topThickness * 0.5 + centerHeight * 0.5 + crownGap;
-
-    for (const sign of [-1, 1]) {
+    layers.forEach(([radius, rotation], index) => {
+      const hierarchyIndex = index + 1;
+      const hierarchyT = hierarchyIndex / lastIndex;
       addCenteredPrism(
         0,
         0,
-        sign * crownZ,
-        0.026,
-        12,
-        centerHeight,
-        0,
-        'hex-center',
+        centers[hierarchyIndex],
+        radius,
+        6,
+        layerThicknesses[index],
+        rotation,
+        'hex-layer-' + index + '-of-' + layers.length,
+        { hierarchyT, polarity: 0 },
       );
-    }
+    });
+
+    addCenteredPrism(
+      0,
+      0,
+      centers[lastIndex],
+      0.026,
+      12,
+      centerHeight,
+      0,
+      'hex-center',
+      { hierarchyT: 1, polarity: 0 },
+    );
   }
 
   
