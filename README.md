@@ -17,17 +17,17 @@ The default prioritizes exact dimensional continuity:
 - **2D → 3D:** every non-zero XY edge of the 3D geometry is already an edge of the selected 2D mandala, and every 2D edge is represented by the collapsed 3D geometry.
 - **3D → 4D:** each 3D primitive is extruded symmetrically through W, so W=0 collapses the 4D construction back onto the same 3D object.
 
-The family-specific lift is therefore the default even when that means the object is not invariant under arbitrary permutations of X/Y/Z.
-
-### Isotropic form — optional
-
-**Isotropic** preserves the experimental signed-axis-permutation construction. It is useful for studying coordinate-isotropic 3D/4D symmetry, but for triangular and hexagonal families its lower-dimensional projection is not identical to the original 2D plan. It is therefore explicit rather than the default.
+The family-specific lift is therefore the default. Symmetry is the symmetry native to the mandala family plus reflection in the added dimension, not artificial invariance under arbitrary X/Y/Z permutations.
 
 ### Temple form — optional
 
-**Temple** is an explicit architectural option. It keeps the richer cube/prism/pyramid vocabulary and intentionally gives Z a preferred upward direction. The collision-free isotropic cell-orbit construction applies to Symmetric mode, not Temple.
+**Temple** is an architectural interpretation of the same 2D mandala plan. It intentionally gives Z a preferred upward direction and may use pyramids/stepped levels where Mandala uses a symmetric lift.
 
-The transition is automatic and deliberately staged so the higher dimension can be seen emerging from the lower one. Seed cells are already present in the lower-dimensional plan; new 3D symmetry cells grow from points as Z opens, and new 4D orbit cells grow from their collapsed 3D locations as W opens. The camera waits until late in the 2D → 3D transition before tilting, so geometry emergence remains visually primary. There is no fractional-dimension slider:
+Mandala families keep their **native planar symmetry** rather than being forced into full X/Y/Z isotropy. Square, Yantra, and Hex do not generally admit an all-axis-isotropic 3D realization while preserving the exact original 2D mandala.
+
+Switching **Mandala ↔ Temple** is animated through their common lower-dimensional state: the current form folds back toward the 2D mandala, the generator changes at the collapsed plan, then the target form unfolds. In 4D, Z and W collapse together during this form morph so both forms meet at the same exact 2D geometry.
+
+Dimensional transitions remain staged so the higher dimension can be seen emerging before the camera tilts. There is no fractional-dimension slider:
 
 ```
 square → cube → hypercube
@@ -158,7 +158,7 @@ Across Classic mode, face orientation changes **brightness**, not hue. This help
 - **Mandala dock** — choose Square, Yantra, or Hex using the compact library at lower left.
 - **Persistent 2D previews** — all three mandala families are shown at the same time, using the current complexity setting, so the previews help you choose rather than only confirming the current choice.
 - **Complexity** — choose Simple or Complex generated geometry.
-- **3D form** — **Mandala** by default for exact 2D→3D→4D correspondence; **Isotropic** for all-axis symmetry; **Temple** for an upward architectural interpretation.
+- **Form** — **Mandala** by default for exact 2D→3D→4D correspondence, or **Temple** for an architectural interpretation. Switching between them folds through the shared 2D plan.
 - **Spacing** — **Compact** by default, where neighboring Z layers touch; **Separated** preserves the airy exploded-layer look.
 - **Rendering** — Wire, Solid, or Solid + edges.
 - **2D / 3D / 4D** — automatic dimensional transitions.
@@ -220,7 +220,6 @@ Spacing is a real geometric control again:
 
 - **Compact** is the default. In Mandala mode, mirrored Z layers touch or nearly touch according to the actual primitive thicknesses.
 - **Separated** moves those Z layers farther apart while leaving the XY footprint unchanged.
-- In Isotropic mode, Separated expands the symmetry-orbit centers while retaining the same cell size, producing a visibly more exploded construction.
 - Temple uses zero inter-level gap in Compact and explicit gaps in Separated.
 
 The 2D mandala itself never changes when spacing changes.
