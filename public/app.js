@@ -42,7 +42,6 @@
   const renderButtons = [...document.querySelectorAll('[data-render]')];
   const presetButtons = [...document.querySelectorAll('[data-preset]')];
   const complexityButtons = [...document.querySelectorAll('[data-complexity]')];
-  const formButtons = [...document.querySelectorAll('[data-form]')];
   const spacingButtons = [...document.querySelectorAll('[data-spacing]')];
 
   const rotationRows = document.getElementById('rotationRows');
@@ -135,19 +134,44 @@
     { key: 'w', label: 'W', minDim: 4, color: COLORS.w },
   ];
 
+  const PRESET_META = {
+    square: {
+      kind: 'symmetric',
+      plan: 'square mandala',
+      spatial: 'symmetric mandala',
+    },
+    yantra: {
+      kind: 'symmetric',
+      plan: 'yantra plan',
+      spatial: 'symmetric yantra',
+    },
+    hex: {
+      kind: 'symmetric',
+      plan: 'hexagonal mandala',
+      spatial: 'symmetric mandala',
+    },
+    stupa: {
+      kind: 'architecture',
+      plan: 'stupa sacred plan',
+      spatial: 'stupa architecture',
+    },
+    borobudur: {
+      kind: 'architecture',
+      plan: 'Borobudur sacred plan',
+      spatial: 'Borobudur architecture',
+    },
+  };
+
   const state = {
     dimension: 2,
     requestedDimension: 2,
     queue: [],
     transition: null,
-    formTransition: null,
-    formMorph: 1,
     zMix: 0,
     wMix: 0,
 
     preset: 'square',
     complexity: 'simple',
-    formStyle: 'mandala',
     spacingStyle: 'compact',
 
     projection: 'perspective',
@@ -1232,39 +1256,7 @@
     }
   }
 
-  function buildStupaMandala() {
-    resetGeometry();
-    const layers = stupaLayerSpecs();
-    const separated = state.spacingStyle === 'separated';
-    const height = 0.12;
-    const step = separated ? 0.28 : height;
-    let lastZ = 0;
-
-    layers.forEach((layer, index) => {
-      if (index === 0) {
-        addLayerCentered(layer, 0, height);
-        return;
-      }
-
-      const z = index * step;
-      lastZ = z;
-      addLayerCentered(layer, z, height);
-      addLayerCentered(layer, -z, height);
-    });
-
-    const centerHeight = 0.18;
-    const crownGap = separated ? 0.10 : 0;
-    const crownZ = lastZ + height * 0.5 + centerHeight * 0.5 + crownGap;
-    const center = {
-      kind: 'polygon',
-      radius: state.complexity === 'complex' ? 0.20 : 0.18,
-      sides: 20,
-      regionId: 'stupa-center',
-    };
-
-    addLayerCentered(center, crownZ, centerHeight);
-    addLayerCentered(center, -crownZ, centerHeight);
-  }
+  
 
   function buildStupaTemple() {
     resetGeometry();
@@ -1312,85 +1304,7 @@
     }
   }
 
-  function buildBorobudurMandala() {
-    resetGeometry();
-    const spec = borobudurSpec();
-    const separated = state.spacingStyle === 'separated';
-    const layerHeight = 0.10;
-    const satelliteHeight = 0.09;
-    const stepGap = separated ? 0.11 : 0;
-    let z = 0;
-    let stage = 0;
-
-    const placeSymmetric = (callback, height) => {
-      if (stage === 0) {
-        callback(0);
-      } else {
-        callback(z);
-        callback(-z);
-      }
-      z += height + stepGap;
-      stage += 1;
-    };
-
-    spec.squares.forEach((size, index) => {
-      placeSymmetric((centerZ) => {
-        addSquarePrismCentered(
-          centerZ,
-          size,
-          layerHeight,
-          'borobudur-square-' + index,
-        );
-      }, layerHeight);
-    });
-
-    spec.circles.forEach((radius, index) => {
-      placeSymmetric((centerZ) => {
-        addCenteredPrism(
-          0,
-          0,
-          centerZ,
-          radius,
-          24,
-          layerHeight,
-          Math.PI / 24,
-          'borobudur-circle-' + index,
-        );
-      }, layerHeight);
-
-      placeSymmetric((centerZ) => {
-        addBorobudurSatelliteModules(
-          spec,
-          index,
-          centerZ,
-          satelliteHeight,
-        );
-      }, satelliteHeight);
-    });
-
-    const centerHeight = 0.22;
-    const centerZ = z + centerHeight * 0.5;
-    addCenteredPrism(
-      0,
-      0,
-      centerZ,
-      spec.centerRadius,
-      24,
-      centerHeight,
-      Math.PI / 24,
-      'borobudur-center',
-    );
-    addCenteredPrism(
-      0,
-      0,
-      -centerZ,
-      spec.centerRadius,
-      24,
-      centerHeight,
-      Math.PI / 24,
-      'borobudur-center',
-    );
-  }
+  
 
   function buildBorobudurTemple() {
     resetGeometry();
@@ -1543,76 +1457,7 @@
     }
   }
 
-  function buildSquareTemple() {
-    resetGeometry();
-    const complex = state.complexity === 'complex';
-    const separated = state.spacingStyle === 'separated';
-    const size = 0.34;
-    const spacing = size;
-    const gap = separated ? 0.10 : 0;
-
-    for (const [gx, gy] of squareBaseCells(complex)) {
-      const cx = gx * spacing;
-      const cy = gy * spacing;
-      addCube(
-        cx,
-        cy,
-        0,
-        size,
-        0,
-        squareRegionId(cx, cy),
-      );
-    }
-
-    const secondBase = size + gap;
-    for (const [gx, gy] of squareSecondCells(complex)) {
-      const cx = gx * spacing;
-      const cy = gy * spacing;
-      addCube(
-        cx,
-        cy,
-        secondBase,
-        size,
-        0,
-        squareRegionId(cx, cy),
-      );
-    }
-
-    const thirdBase = secondBase + size + gap;
-    addCube(
-      0,
-      0,
-      thirdBase,
-      size,
-      0,
-      'square-center',
-    );
-
-    // The crown uses the central diamond already present in the 2D plan.
-    const diamondSize = size * 0.72;
-    const diamondBase = thirdBase + size + gap;
-    addCube(
-      0,
-      0,
-      diamondBase,
-      diamondSize,
-      Math.PI / 4,
-      'square-center',
-    );
-
-    if (complex) {
-      const innerSize = size * 0.46;
-      const innerBase = diamondBase + diamondSize + gap;
-      addCube(
-        0,
-        0,
-        innerBase,
-        innerSize,
-        0,
-        'square-center',
-      );
-    }
-  }
+  
 
   function yantraLayerSpecs() {
     return state.complexity === 'complex'
@@ -1709,41 +1554,7 @@
     }
   }
 
-  function buildYantraTemple() {
-    resetGeometry();
-    const layers = yantraLayerSpecs();
-    const separated = state.spacingStyle === 'separated';
-
-    let zCursor = 0;
-    const layerHeight = 0.10;
-    const layerGap = separated ? 0.035 : 0;
-
-    layers.forEach(([radius, rotation], index) => {
-      addPrism(
-        0,
-        0,
-        zCursor,
-        radius,
-        3,
-        layerHeight,
-        rotation,
-        'yantra-layer-' + index + '-of-' + layers.length,
-      );
-      zCursor += layerHeight + layerGap;
-    });
-
-    // Temple culmination: the same bindu footprint, elevated on top.
-    addPrism(
-      0,
-      0,
-      zCursor,
-      0.028,
-      12,
-      0.14,
-      0,
-      'yantra-center',
-    );
-  }
+  
 
   function hexLayerSpecs() {
     return state.complexity === 'complex'
@@ -1871,90 +1682,14 @@
     }
   }
 
-  function buildHexTemple() {
-    resetGeometry();
-
-    const layers = hexLayerSpecs();
-    const separated = state.spacingStyle === 'separated';
-    let zCursor = 0;
-    const layerHeight = 0.12;
-    const layerGap = separated ? 0.035 : 0;
-
-    layers.forEach(([radius, rotation], index) => {
-      addPrism(
-        0,
-        0,
-        zCursor,
-        radius,
-        6,
-        layerHeight,
-        rotation,
-        'hex-layer-' + index + '-of-' + layers.length,
-      );
-      zCursor += layerHeight + layerGap;
-    });
-
-    // The central mark becomes the crown instead of introducing a pyramid
-    // whose collapsed spokes do not exist in the 2D hex mandala.
-    addPrism(
-      0,
-      0,
-      zCursor,
-      0.026,
-      12,
-      0.14,
-      0,
-      'hex-center',
-    );
-
-    const ringRadius = 1.58;
-    for (let i = 0; i < 6; i += 1) {
-      const angle = (i / 6) * TAU;
-      addPrism(
-        Math.cos(angle) * ringRadius,
-        Math.sin(angle) * ringRadius,
-        0,
-        0.22,
-        6,
-        0.18,
-        Math.PI / 6,
-        'hex-satellite',
-      );
-    }
-
-    if (state.complexity === 'complex') {
-      const outerRadius = 2.02;
-      for (let i = 0; i < 12; i += 1) {
-        const angle = (i / 12) * TAU + Math.PI / 12;
-        addPrism(
-          Math.cos(angle) * outerRadius,
-          Math.sin(angle) * outerRadius,
-          0,
-          0.15,
-          6,
-          0.13,
-          i % 2 ? Math.PI / 6 : 0,
-          'hex-outer-satellite',
-        );
-      }
-    }
-  }
+  
 
 
   function buildGeometryForCurrentChoice() {
-    if (state.formStyle === 'temple') {
-      if (state.preset === 'yantra') buildYantraTemple();
-      else if (state.preset === 'hex') buildHexTemple();
-      else if (state.preset === 'stupa') buildStupaTemple();
-      else if (state.preset === 'borobudur') buildBorobudurTemple();
-      else buildSquareTemple();
-      return;
-    }
-
     if (state.preset === 'yantra') buildYantraMandala();
     else if (state.preset === 'hex') buildHexMandala();
-    else if (state.preset === 'stupa') buildStupaMandala();
-    else if (state.preset === 'borobudur') buildBorobudurMandala();
+    else if (state.preset === 'stupa') buildStupaTemple();
+    else if (state.preset === 'borobudur') buildBorobudurTemple();
     else buildSquareMandala();
   }
 
@@ -1978,8 +1713,8 @@
 
   function activeAngle(config) {
     let factor = 1;
-    if (config.key.includes('z')) factor *= state.zMix * state.formMorph;
-    if (config.key.includes('w')) factor *= state.wMix * state.formMorph;
+    if (config.key.includes('z')) factor *= state.zMix;
+    if (config.key.includes('w')) factor *= state.wMix;
     return state.rotations[config.key] * RAD * factor;
   }
 
@@ -1993,8 +1728,8 @@
 
     p[0] *= sx;
     p[1] *= sy;
-    p[2] *= sz * state.zMix * state.formMorph;
-    p[3] *= sw * state.wMix * state.formMorph;
+    p[2] *= sz * state.zMix;
+    p[3] *= sw * state.wMix;
 
     for (const config of ROTATION_CONFIG) {
       rotatePlane(p, config.a, config.b, activeAngle(config));
@@ -2007,7 +1742,7 @@
     if (
       state.projection === 'orthographic'
       || state.projection === 'isometric'
-      || state.wMix * state.formMorph < 0.001
+      || state.wMix < 0.001
     ) {
       return [p[0], p[1], p[2]];
     }
@@ -2029,7 +1764,7 @@
 
     // Let the new dimension visibly separate before the viewpoint tilts.
     // This preserves the feeling that the volume grows out of the 2D mandala.
-    const visibleZ = state.zMix * state.formMorph;
+    const visibleZ = state.zMix;
     const viewMix = smoother(clamp((visibleZ - 0.62) / 0.38, 0, 1));
 
     const isometric = state.projection === 'isometric';
@@ -2577,7 +2312,7 @@
     // Keep the originating mandala visible while the new dimension separates.
     // It only fades late in the transition, so the viewer can follow where
     // every emerging volume came from.
-    const visibleZ = state.zMix * state.formMorph;
+    const visibleZ = state.zMix;
     const planFade = smoother(clamp((visibleZ - 0.72) / 0.28, 0, 1));
     const planAlpha = 1 - planFade;
 
@@ -2903,58 +2638,9 @@
     };
   }
 
-  function requestForm(target) {
-    if (!['mandala', 'temple'].includes(target)) return;
-    if (
-      target === state.formStyle
-      || state.transition
-      || state.formTransition
-    ) return;
+  
 
-    if (state.dimension === 2) {
-      state.formStyle = target;
-      buildActiveMandala();
-      hideHint();
-      return;
-    }
-
-    state.formTransition = {
-      from: state.formStyle,
-      to: target,
-      start: performance.now(),
-      duration: reducedMotion ? 80 : 1800,
-      swapped: false,
-    };
-    hideHint();
-  }
-
-  function updateFormTransition(now) {
-    if (!state.formTransition) return;
-
-    const transition = state.formTransition;
-    const t = clamp(
-      (now - transition.start) / transition.duration,
-      0,
-      1,
-    );
-
-    if (t < 0.5) {
-      state.formMorph = 1 - smoother(t * 2);
-    } else {
-      if (!transition.swapped) {
-        state.formStyle = transition.to;
-        transition.swapped = true;
-        buildActiveMandala();
-      }
-
-      state.formMorph = smoother((t - 0.5) * 2);
-    }
-
-    if (t >= 1) {
-      state.formMorph = 1;
-      state.formTransition = null;
-    }
-  }
+  
 
   function requestDimension(target) {
     target = Number(target);
@@ -3009,7 +2695,7 @@
 
   function updateControlAvailability() {
     const dim = effectiveDimension();
-    const locked = Boolean(state.transition || state.formTransition);
+    const locked = Boolean(state.transition);
 
     for (const config of ROTATION_CONFIG) {
       const ui = rotationUI[config.key];
@@ -3028,6 +2714,8 @@
   }
 
   function updateUI() {
+    const meta = PRESET_META[state.preset] || PRESET_META.square;
+
     if (state.transition) {
       dimensionValue.textContent =
         state.transition.fromDimension
@@ -3035,50 +2723,30 @@
         + state.transition.toDimension
         + 'D';
       dimensionStatus.textContent = 'unfolding';
-    } else if (state.formTransition) {
-      dimensionValue.textContent = state.dimension + 'D';
-      dimensionStatus.textContent =
-        state.formTransition.from + ' → ' + state.formTransition.to;
     } else {
       dimensionValue.textContent = state.dimension + 'D';
 
       if (state.dimension === 2) {
-        dimensionStatus.textContent = 'mandala plan';
+        dimensionStatus.textContent = meta.plan;
       } else if (state.dimension === 3) {
-        dimensionStatus.textContent =
-          state.formStyle === 'temple'
-            ? 'temple view'
-            : 'mandala lift';
+        dimensionStatus.textContent = meta.spatial;
       } else {
         dimensionStatus.textContent =
-          state.formStyle === 'temple'
-            ? '4D temple projection'
-            : '4D mandala projection';
+          meta.kind === 'architecture'
+            ? '4D architectural projection'
+            : '4D symmetric projection';
       }
     }
 
     dimensionButtons.forEach((button) => {
       const d = Number(button.dataset.dimension);
-      const locked = Boolean(state.transition || state.formTransition);
+      const locked = Boolean(state.transition);
       button.classList.toggle('is-active', !locked && d === state.dimension);
       button.classList.toggle(
         'is-target',
         state.requestedDimension === d && d !== state.dimension,
       );
       button.disabled = locked;
-    });
-
-    formButtons.forEach((button) => {
-      const form = button.dataset.form;
-      button.classList.toggle(
-        'is-active',
-        !state.formTransition && form === state.formStyle,
-      );
-      button.classList.toggle(
-        'is-target',
-        Boolean(state.formTransition && form === state.formTransition.to),
-      );
-      button.disabled = Boolean(state.transition || state.formTransition);
     });
 
     updateControlAvailability();
@@ -3150,7 +2818,7 @@
   }
 
   function rebuildFromChoice(buttons, button, stateKey, dataKey) {
-    if (state.transition || state.formTransition) return;
+    if (state.transition) return;
 
     state[stateKey] = button.dataset[dataKey];
     buttons.forEach((item) => {
@@ -3208,12 +2876,6 @@
     });
   });
 
-  formButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      requestForm(button.dataset.form);
-    });
-  });
-
   spacingButtons.forEach((button) => {
     button.addEventListener('click', () => {
       rebuildFromChoice(
@@ -3240,7 +2902,7 @@
 
   canvas.addEventListener('pointermove', (event) => {
     if (!state.pointerDown) return;
-    if (state.transition || state.formTransition) return;
+    if (state.transition) return;
 
     const dx = event.clientX - state.pointerX;
     const dy = event.clientY - state.pointerY;
@@ -3317,7 +2979,6 @@
     state.lastTime = now;
 
     updateTransition(now);
-    updateFormTransition(now);
     updateAutorotation(dt);
     updateUI();
     drawScene();
