@@ -4,16 +4,106 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#070809" />
-  <meta name="description" content="Structured 2D plans unfolding into intrinsic 3D forms and interactive 4D projections." />
-  <title>Hypermandala</title>
+  <meta name="color-scheme" content="dark" />
+
+  <title>Hypermandala — Interactive 4D Mandala & Yantra Explorer</title>
+  <meta
+    name="description"
+    content="Explore Sri Yantra, Kali Yantra, Matangi Yantra, mandalas and sacred geometry as interactive 2D plans, 3D forms and rotatable 4D hyperforms."
+  />
+  <meta name="author" content="Mario Marcolongo" />
+  <meta
+    name="robots"
+    content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1"
+  />
+  <link rel="canonical" href="https://hypermandala.mariomarcolongo.com/" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Hypermandala" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:url" content="https://hypermandala.mariomarcolongo.com/" />
+  <meta property="og:title" content="Hypermandala — Interactive 4D Mandala & Yantra Explorer" />
+  <meta
+    property="og:description"
+    content="Explore mandalas and specific yantras from exact 2D plans through hierarchy-aware 3D forms into rotatable 4D hyperforms."
+  />
+  <meta property="og:image" content="https://hypermandala.mariomarcolongo.com/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta
+    property="og:image:alt"
+    content="Hypermandala: an interactive geometric mandala unfolding from 2D to 3D and 4D."
+  />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Hypermandala — Interactive 4D Mandala & Yantra Explorer" />
+  <meta
+    name="twitter:description"
+    content="Explore Sri Yantra, Kali Yantra, Matangi Yantra and mandala geometry in interactive 2D, 3D and 4D."
+  />
+  <meta name="twitter:image" content="https://hypermandala.mariomarcolongo.com/og-image.png" />
+  <meta
+    name="twitter:image:alt"
+    content="Hypermandala 2D → 3D → 4D geometric visualization."
+  />
+
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="./site.webmanifest" />
   <link rel="stylesheet" href="./styles.css" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://hypermandala.mariomarcolongo.com/#website",
+        "url": "https://hypermandala.mariomarcolongo.com/",
+        "name": "Hypermandala",
+        "description": "Interactive 2D, 3D and 4D mandala and yantra geometry explorer.",
+        "inLanguage": "en"
+      },
+      {
+        "@type": "WebApplication",
+        "@id": "https://hypermandala.mariomarcolongo.com/#app",
+        "url": "https://hypermandala.mariomarcolongo.com/",
+        "name": "Hypermandala",
+        "alternateName": "Hypermandala 4D Explorer",
+        "description": "An interactive browser-based explorer that unfolds mandala, yantra and architectural geometric plans from 2D into hierarchy-aware 3D forms and rotatable 4D hyperforms.",
+        "applicationCategory": "EducationalApplication",
+        "operatingSystem": "Any",
+        "browserRequirements": "JavaScript; WebGL2 recommended",
+        "isAccessibleForFree": true,
+        "image": "https://hypermandala.mariomarcolongo.com/og-image.png",
+        "author": {
+          "@type": "Person",
+          "name": "Mario Marcolongo",
+          "url": "https://mariomarcolongo.com/"
+        },
+        "codeRepository": "https://github.com/jnton/hypermandala",
+        "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+        "keywords": [
+          "4D mandala",
+          "4D yantra",
+          "Sri Yantra",
+          "Kali Yantra",
+          "Matangi Yantra",
+          "sacred geometry",
+          "3D mandala",
+          "4D geometry",
+          "higher-dimensional visualization"
+        ]
+      }
+    ]
+  }
+  </script>
 </head>
 <body>
   <canvas id="solidLayer" aria-hidden="true"></canvas>
   <canvas id="mandala" aria-label="Interactive 2D, 3D and 4D geometric form explorer"></canvas>
 
   <header class="brand">
-    <div class="brand__name">Hypermandala</div>
+    <h1 class="brand__name">Hypermandala</h1>
     <div class="brand__tagline">plan · form · hyperform</div>
   </header>
 
@@ -148,6 +238,22 @@
             <button type="button" data-spacing="separated">Separated</button>
           </div>
         </div>
+        <div class="dock-option" id="liftOption">
+          <span>Z lift</span>
+          <div class="segmented" id="liftControl">
+            <button
+              type="button"
+              data-lift="hierarchy"
+              class="is-active"
+              title="One outer-to-inner hierarchy spanning the Z axis"
+            >Hierarchy</button>
+            <button
+              type="button"
+              data-lift="mirror"
+              title="Experimental reflection-symmetric lift through ±Z"
+            >Mirror</button>
+          </div>
+        </div>
       </div>
     </div>
   </aside>
@@ -159,9 +265,37 @@
 
   <div class="hint" id="hint">drag: XY in 2D · spin + tilt in 3D/4D · shift-drag: pure XY · scroll: zoom</div>
 
+  <details class="about-panel">
+    <summary>about</summary>
+    <div class="about-panel__content">
+      <h2>Interactive 4D mandala &amp; yantra explorer</h2>
+      <p>
+        Hypermandala unfolds exact geometric plans into interactive 3D forms and
+        rotatable 4D hyperforms. Explore Sri Yantra, Kali Yantra, Matangi Yantra,
+        mandalas, sacred geometry and geometry inspired by historic architecture.
+      </p>
+      <p>
+        Move continuously between 2D, 3D and 4D; rotate in XY, XZ, YZ, XW, YW
+        and ZW; compare hierarchy-first and reflection-symmetric Z lifts; and
+        collapse dimensions to trace every higher-dimensional structure back to
+        its source plan.
+      </p>
+      <p>
+        Created by
+        <a href="https://mariomarcolongo.com/" rel="author">Mario Marcolongo</a>.
+        <a href="https://github.com/jnton/hypermandala" target="_blank" rel="noreferrer">Source code</a>.
+      </p>
+    </div>
+  </details>
+
   <a class="source" href="https://github.com/jnton/hypermandala" target="_blank" rel="noreferrer">source</a>
 
-  <noscript><div class="noscript">Hypermandala needs JavaScript to render the interactive geometry.</div></noscript>
+  <noscript>
+    <div class="noscript">
+      Hypermandala is an interactive 2D, 3D and 4D mandala, yantra and sacred
+      geometry explorer. JavaScript is required to render and rotate the geometry.
+    </div>
+  </noscript>
   <script src="./app.js" defer></script>
 </body>
 </html>
