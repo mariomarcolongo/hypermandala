@@ -1273,7 +1273,7 @@
     return centroid.map((value) => value / n);
   }
 
-  function classicFaceColor(face, module, depth) {
+  function classicFaceRgb(face, module) {
     const centroid = faceCentroid(face, module);
     const meanRadius = face.indices.reduce((sum, index) => {
       const point = module.vertices[index];
@@ -1299,26 +1299,35 @@
     );
 
     const orientationShade = CLASSIC_SHADE[face.axis] || 1;
-    const depthNorm = clamp((depth + 1.8) / 3.8, 0, 1);
-
-    return rgbCss(
-      shadeRgb(
-        base,
-        orientationShade * (0.94 + depthNorm * 0.10),
-      ),
-    );
+    return shadeRgb(base, orientationShade);
   }
 
-  function faceFillColor(face, module, depth) {
-    if (state.colorMode === 'axis') return axisColor(face.axis);
-    if (state.colorMode === 'classic') {
-      return classicFaceColor(face, module, depth);
+  function classicFaceColor(face, module) {
+    return rgbCss(classicFaceRgb(face, module));
+  }
+
+  function faceFillRgb(face, module) {
+    if (state.colorMode === 'axis') {
+      return hexToRgb(axisColor(face.axis));
     }
 
-    // One neutral material across X/Y/Z/W.
-    const normalized = clamp((depth + 1.8) / 3.8, 0, 1);
-    const light = 45 + normalized * 9;
-    return 'hsl(39 18% ' + light + '%)';
+    if (state.colorMode === 'classic') {
+      return classicFaceRgb(face, module);
+    }
+
+    const formColors = {
+      x: '#b9ad96',
+      y: '#c5b9a1',
+      z: '#d2c6ad',
+      w: '#9f927d',
+      n: '#c0b49d',
+    };
+
+    return hexToRgb(formColors[face.axis] || formColors.n);
+  }
+
+  function faceFillColor(face, module) {
+    return rgbCss(faceFillRgb(face, module));
   }
 
   function classicPlanColor(face) {
@@ -1456,7 +1465,7 @@
       });
       ctx.closePath();
 
-      ctx.fillStyle = faceFillColor(item.face, item.module, item.depth);
+      ctx.fillStyle = faceFillColor(item.face, item.module);
       // Solid means solid: avoid cumulative translucent overdraw, which made
       // 4D face projections create false bands and strange colors.
       ctx.globalAlpha = item.visibility >= 0.995
