@@ -463,43 +463,46 @@
     const size = 0.34;
     const spacing = 0.47;
 
+    // The ground mandala is a thin central layer.
     for (const [gx, gy] of squareBaseCells(complex)) {
-      addCenteredCube(gx * spacing, gy * spacing, 0, size, 0);
+      addCenteredCube(gx * spacing, gy * spacing, 0, size * 0.46, 0);
     }
 
-    const secondZ = 0.48;
+    // Structures that occupy the same 2D plan separate into mirrored ±Z tiers.
+    const secondZ = 0.42;
     for (const sign of [-1, 1]) {
       for (const [gx, gy] of squareSecondCells(complex)) {
         addCenteredCube(gx * spacing, gy * spacing, sign * secondZ, size, 0);
       }
     }
 
-    addSquareBipyramid(0, 0, 0, size * 1.18, size * 1.6, 0);
+    const crownZ = 0.88;
+    for (const sign of [-1, 1]) {
+      addCenteredCube(0, 0, sign * crownZ, size * 0.78, Math.PI / 4);
 
-    for (const [gx, gy] of [[3,0],[-3,0],[0,3],[0,-3]]) {
-      addSquareBipyramid(
-        gx * spacing,
-        gy * spacing,
+      const baseZ = sign > 0
+        ? crownZ + size * 0.39
+        : -crownZ - size * 0.39;
+      addPolygonPyramid(
         0,
-        size * 0.76,
-        size * 0.78,
         0,
+        baseZ,
+        size * 0.34,
+        4,
+        sign * size * 0.62,
+        Math.PI / 4,
       );
     }
 
     if (complex) {
-      const highZ = 0.88;
-      for (const sign of [-1, 1]) {
-        addCenteredCube(0, 0, sign * highZ, size * 0.82, Math.PI / 4);
-      }
-
-      for (const [gx, gy] of [[2,2],[2,-2],[-2,2],[-2,-2]]) {
-        addSquareBipyramid(
-          gx * spacing,
-          gy * spacing,
+      const diagonalRadius = spacing * 2.65;
+      for (let i = 0; i < 4; i += 1) {
+        const angle = Math.PI / 4 + i * Math.PI / 2;
+        addCenteredCube(
+          Math.cos(angle) * diagonalRadius,
+          Math.sin(angle) * diagonalRadius,
           0,
-          size * 0.58,
-          size * 0.6,
+          size * 0.42,
           Math.PI / 4,
         );
       }
@@ -572,12 +575,35 @@
     resetGeometry();
 
     const layers = yantraLayerSpecs();
+    const baseThickness = 0.10;
+    const zStep = 0.28;
+
     layers.forEach(([radius, rotation], index) => {
-      const thickness = 0.12 + index * 0.025;
-      addCenteredPrism(0, 0, 0, radius, 3, thickness, rotation);
+      if (index === 0) {
+        addCenteredPrism(0, 0, 0, radius, 3, baseThickness, rotation);
+      } else {
+        const z = index * zStep;
+        const thickness = 0.11 + index * 0.012;
+        addCenteredPrism(0, 0, z, radius, 3, thickness, rotation);
+        addCenteredPrism(0, 0, -z, radius, 3, thickness, rotation);
+      }
     });
 
-    addBipyramid(0, 0, 0, 0.34, 3, 0.62, -Math.PI / 2);
+    const innerRadius = layers[layers.length - 1][0] * 0.56;
+    const crownZ = layers.length * zStep + 0.08;
+    addBipyramid(0, 0, 0, innerRadius * 0.58, 3, 0.24, -Math.PI / 2);
+
+    for (const sign of [-1, 1]) {
+      addCenteredPrism(
+        0,
+        0,
+        sign * crownZ,
+        innerRadius,
+        3,
+        0.12,
+        layers[layers.length - 1][1],
+      );
+    }
 
     const satelliteCount = state.complexity === 'complex' ? 12 : 6;
     const ringRadius = state.complexity === 'complex' ? 1.38 : 1.24;
@@ -588,7 +614,7 @@
       const cx = Math.cos(angle) * ringRadius;
       const cy = Math.sin(angle) * ringRadius;
       const rotation = angle + Math.PI / 2 + (i % 2 ? Math.PI : 0);
-      addCenteredPrism(cx, cy, 0, satelliteRadius, 3, 0.18, rotation);
+      addCenteredPrism(cx, cy, 0, satelliteRadius, 3, 0.14, rotation);
     }
 
     if (state.complexity === 'complex') {
@@ -600,9 +626,9 @@
           cx,
           cy,
           0,
-          0.18,
+          0.15,
           3,
-          0.34,
+          0.22,
           angle + Math.PI / 2,
         );
       }
@@ -708,19 +734,33 @@
     resetGeometry();
 
     const layers = hexLayerSpecs();
+    const zStep = 0.30;
+
     layers.forEach(([radius, rotation], index) => {
+      if (index === 0) {
+        addCenteredPrism(0, 0, 0, radius, 6, 0.10, rotation);
+      } else {
+        const z = index * zStep;
+        const thickness = 0.12;
+        addCenteredPrism(0, 0, z, radius, 6, thickness, rotation);
+        addCenteredPrism(0, 0, -z, radius, 6, thickness, rotation);
+      }
+    });
+
+    const crownRadius = layers[layers.length - 1][0] * 0.62;
+    const crownZ = layers.length * zStep + 0.04;
+    for (const sign of [-1, 1]) {
       addCenteredPrism(
         0,
         0,
-        0,
-        radius,
+        sign * crownZ,
+        crownRadius,
         6,
-        0.14 + index * 0.035,
-        rotation,
+        0.13,
+        Math.PI / 6,
       );
-    });
+    }
 
-    addBipyramid(0, 0, 0, 0.36, 6, 0.58, Math.PI / 6);
     addHexSatelliteRing(0);
 
     if (state.complexity === 'complex') {
@@ -732,7 +772,7 @@
           0,
           0.17,
           6,
-          0.15,
+          0.12,
           i % 2 ? Math.PI / 6 : 0,
         );
       }
@@ -743,9 +783,9 @@
           Math.cos(angle) * 0.72,
           Math.sin(angle) * 0.72,
           0,
-          0.19,
+          0.16,
           6,
-          0.34,
+          0.22,
           Math.PI / 6,
         );
       }
@@ -829,65 +869,6 @@
     }
   }
 
-  function expectedRotationOrder() {
-    if (state.preset === 'square') return 4;
-    if (state.preset === 'hex') return 6;
-    return 3;
-  }
-
-  function geometryPointKey(point) {
-    return point.map((value) => (Math.round(value * 1000) / 1000).toFixed(3)).join(',');
-  }
-
-  function geometrySymmetryAudit() {
-    const set = new Set();
-    const points = [];
-
-    for (const module of modules) {
-      for (const p of module.vertices) {
-        const key = geometryPointKey(p);
-        if (!set.has(key)) {
-          set.add(key);
-          points.push(p);
-        }
-      }
-    }
-
-    const order = expectedRotationOrder();
-    const angle = TAU / order;
-    let rotation = true;
-    let mirrorZ = true;
-    let mirrorW = true;
-
-    for (const p of points) {
-      const xy = rotateXYPoint(p[0], p[1], angle);
-      if (!set.has(geometryPointKey([xy[0], xy[1], p[2], p[3]]))) rotation = false;
-      if (!set.has(geometryPointKey([p[0], p[1], -p[2], p[3]]))) mirrorZ = false;
-      if (!set.has(geometryPointKey([p[0], p[1], p[2], -p[3]]))) mirrorW = false;
-      if (!rotation && !mirrorZ && !mirrorW) break;
-    }
-
-    return { order, rotation, mirrorZ, mirrorW };
-  }
-
-  function updateSymmetryStatus() {
-    const audit = geometrySymmetryAudit();
-    symmetryStatus.className = 'symmetry-status';
-
-    if (state.formStyle === 'symmetric') {
-      const ok = audit.rotation && audit.mirrorZ && audit.mirrorW;
-      symmetryStatus.classList.add(ok ? 'is-ok' : 'is-warning');
-      symmetryStatus.textContent = ok
-        ? audit.order + '-fold XY · ±Z · ±W symmetry verified'
-        : 'symmetry audit warning';
-    } else {
-      const ok = audit.rotation && audit.mirrorW;
-      symmetryStatus.classList.add(ok ? 'is-directional' : 'is-warning');
-      symmetryStatus.textContent = ok
-        ? audit.order + '-fold XY · ±W · +Z temple direction'
-        : 'temple symmetry audit warning';
-    }
-  }
 
   function buildGeometryForCurrentChoice() {
     if (state.preset === 'yantra') {
