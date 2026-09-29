@@ -1268,6 +1268,22 @@
     };
   }
 
+  function moduleEmergence(module) {
+    return module.hyperOnly ? smoother(state.wMix) : 1;
+  }
+
+  function projectModulePoint(module, source) {
+    const emergence = moduleEmergence(module);
+    if (emergence >= 0.9999) return projectToScreen(source);
+
+    return projectToScreen([
+      source[0] * emergence,
+      source[1] * emergence,
+      source[2] * emergence,
+      source[3],
+    ]);
+  }
+
   function axisColor(axis) {
     if (state.colorMode === 'axis') {
       return axis === 'x' ? COLORS.x
