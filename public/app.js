@@ -1871,6 +1871,39 @@
     }
   }
 
+  function squareSimplePieces() {
+    const size = 0.34;
+    const spacing = size;
+    const pieces = [];
+
+    for (const [gx, gy] of squareBaseCells()) {
+      const cx = gx * spacing;
+      const cy = gy * spacing;
+      const distance = Math.abs(gx) + Math.abs(gy);
+      pieces.push({
+        points: rectFootprint(cx, cy, size, size, 0),
+        regionId: squareRegionId(cx, cy),
+        level: Math.max(0, 3 - Math.min(3, distance)),
+        paintOrder: 0,
+      });
+    }
+
+    pieces.push({
+      points: rectFootprint(
+        0,
+        0,
+        size * 0.72,
+        size * 0.72,
+        Math.PI / 4,
+      ),
+      regionId: 'square-center',
+      level: 4,
+      paintOrder: 20,
+    });
+
+    return pieces;
+  }
+
   function buildSquarePlan() {
     if (state.complexity === 'complex') {
       buildSquareComplexPlan();
@@ -1878,32 +1911,14 @@
     }
 
     clearPlan();
-    const size = 0.34;
-    const spacing = size;
-
-    for (const [gx, gy] of squareBaseCells()) {
-      const cx = gx * spacing;
-      const cy = gy * spacing;
-      addPlanSquareCell(
-        cx,
-        cy,
-        size,
-        0,
+    for (const piece of squareSimplePieces()) {
+      addPlanLoop(
+        piece.points,
         true,
-        squareRegionId(cx, cy),
-        0,
+        piece.regionId,
+        piece.paintOrder,
       );
     }
-
-    addPlanSquareCell(
-      0,
-      0,
-      size * 0.72,
-      Math.PI / 4,
-      true,
-      'square-center',
-      20,
-    );
   }
 
   function lotusPetalFootprint(
@@ -3062,60 +3077,21 @@
   }
 
   function buildSquareMandala() {
-    if (state.complexity === 'complex') {
-      buildSquareComplexMandala();
-      return;
-    }
+    const pieces = state.complexity === 'complex'
+      ? squareComplexPieces()
+      : squareSimplePieces();
 
-    resetGeometry();
-    const separated = state.spacingStyle === 'separated';
-    const size = 0.34;
-    const spacing = size;
-
-    for (const [gx, gy] of squareBaseCells()) {
-      const cx = gx * spacing;
-      const cy = gy * spacing;
-      addCenteredCube(
-        cx,
-        cy,
-        0,
-        size,
-        0,
-        squareRegionId(cx, cy),
-      );
-    }
-
-    const secondZ = separated ? size * 1.65 : size;
-    for (const sign of [-1, 1]) {
-      for (const [gx, gy] of squareSecondCells()) {
-        const cx = gx * spacing;
-        const cy = gy * spacing;
-        addCenteredCube(
-          cx,
-          cy,
-          sign * secondZ,
-          size,
-          0,
-          squareRegionId(cx, cy),
-        );
-      }
-    }
-
-    const diamondSize = size * 0.72;
-    const diamondZ = separated
-      ? secondZ + size * 1.15
-      : secondZ + size * 0.5 + diamondSize * 0.5;
-
-    for (const sign of [-1, 1]) {
-      addCenteredCube(
-        0,
-        0,
-        sign * diamondZ,
-        diamondSize,
-        Math.PI / 4,
-        'square-center',
-      );
-    }
+    buildCenteredPieceHierarchy(
+      pieces,
+      (piece, rank, count) => {
+        const t = count <= 1 ? 0 : rank / (count - 1);
+        if (piece.regionId === 'square-center') {
+          return 0.11 + t * 0.065;
+        }
+        return 0.085 + t * 0.045;
+      },
+      0.14,
+    );
   }
 
   
