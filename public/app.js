@@ -214,21 +214,19 @@
     base.push([3, 0], [-3, 0], [0, 3], [0, -3]);
 
     for (const [gx, gy] of base) {
-      const ring = Math.abs(gx) + Math.abs(gy);
-      const rotation = ring % 2 === 1 ? Math.PI / 4 : 0;
-      addCube(gx * spacing, gy * spacing, 0, size, rotation);
+      addCube(gx * spacing, gy * spacing, 0, size, 0);
     }
 
     const second = [[0,0], [1,0], [-1,0], [0,1], [0,-1]];
     for (const [gx, gy] of second) {
-      addCube(gx * spacing, gy * spacing, size, size, Math.PI / 4);
+      addCube(gx * spacing, gy * spacing, size, size, 0);
     }
 
     addCube(0, 0, size * 2, size, 0);
-    addPyramid(0, 0, size * 3, size * 1.16, size * 1.12, Math.PI / 4);
+    addPyramid(0, 0, size * 3, size * 1.16, size * 1.12, 0);
 
     for (const [gx, gy] of [[3,0],[-3,0],[0,3],[0,-3]]) {
-      addPyramid(gx * spacing, gy * spacing, size, size * 0.82, size * 0.72, Math.PI / 4);
+      addPyramid(gx * spacing, gy * spacing, size, size * 0.82, size * 0.72, 0);
     }
   }
 
@@ -436,7 +434,7 @@
 
     const planAlpha = 1 - state.zMix;
     drawPlan(planAlpha);
-    drawModules(Math.max(0.1, state.zMix));
+    drawModules(state.zMix);
     drawVertices(state.zMix);
   }
 
