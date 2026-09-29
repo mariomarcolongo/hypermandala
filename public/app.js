@@ -960,6 +960,166 @@
     addPlanLoop(points, fill, regionId, paintOrder);
   }
 
+  function rectFootprint(
+    cx,
+    cy,
+    width,
+    height,
+    rotation = 0,
+  ) {
+    const hw = width / 2;
+    const hh = height / 2;
+    return [
+      [-hw,-hh], [hw,-hh], [hw,hh], [-hw,hh],
+    ].map(([x, y]) => {
+      const p = rotateXYPoint(x, y, rotation);
+      return [cx + p[0], cy + p[1]];
+    });
+  }
+
+  function addPlanRect(
+    cx,
+    cy,
+    width,
+    height,
+    rotation = 0,
+    fill = true,
+    regionId = 'unclassified',
+    paintOrder = 0,
+  ) {
+    addPlanLoop(
+      rectFootprint(cx, cy, width, height, rotation),
+      fill,
+      regionId,
+      paintOrder,
+    );
+  }
+
+  function footprintPrismData(points, baseZ, height) {
+    const footprint = points.map((p) => [p[0], p[1]]);
+    const n = footprint.length;
+    const vertices3 = [
+      ...footprint.map(([x, y]) => [x, y, baseZ]),
+      ...footprint.map(([x, y]) => [x, y, baseZ + height]),
+    ];
+    const edges3 = [];
+    const faces3 = [];
+
+    for (let i = 0; i < n; i += 1) {
+      const next = (i + 1) % n;
+      edges3.push({ a: i, b: next, axis: 'n' });
+      edges3.push({ a: i + n, b: next + n, axis: 'n' });
+      edges3.push({ a: i, b: i + n, axis: 'z' });
+      faces3.push({
+        indices: [i, next, next + n, i + n],
+        axis: 'n',
+      });
+    }
+
+    faces3.push({
+      indices: Array.from({ length: n }, (_, i) => n - 1 - i),
+      axis: 'z',
+    });
+    faces3.push({
+      indices: Array.from({ length: n }, (_, i) => i + n),
+      axis: 'z',
+    });
+
+    return { vertices3, edges3, faces3, footprint };
+  }
+
+  function addFootprintPrism(
+    points,
+    baseZ,
+    height,
+    regionId = 'unclassified',
+  ) {
+    const data = footprintPrismData(points, baseZ, height);
+    const maxRadius = Math.max(
+      0.08,
+      ...points.map((p) => Math.hypot(p[0], p[1])),
+    );
+
+    extrudeTo4D(
+      data.vertices3,
+      data.edges3,
+      data.faces3,
+      maxRadius * 0.22,
+      data.footprint,
+      [],
+      regionId,
+    );
+  }
+
+  function addFootprintPrismCentered(
+    points,
+    centerZ,
+    height,
+    regionId = 'unclassified',
+  ) {
+    addFootprintPrism(
+      points,
+      centerZ - height / 2,
+      height,
+      regionId,
+    );
+  }
+
+  function addRectPrismBase(
+    cx,
+    cy,
+    width,
+    height2D,
+    baseZ,
+    height3D,
+    rotation,
+    regionId,
+  ) {
+    addFootprintPrism(
+      rectFootprint(cx, cy, width, height2D, rotation),
+      baseZ,
+      height3D,
+      regionId,
+    );
+  }
+
+  function addRectPrismCentered(
+    cx,
+    cy,
+    width,
+    height2D,
+    centerZ,
+    height3D,
+    rotation,
+    regionId,
+  ) {
+    addFootprintPrismCentered(
+      rectFootprint(cx, cy, width, height2D, rotation),
+      centerZ,
+      height3D,
+      regionId,
+    );
+  }
+
+  function polygonRingSectors(
+    outerRadius,
+    innerRadius,
+    sides,
+    rotation = 0,
+  ) {
+    const outer = polygonFootprint(0, 0, outerRadius, sides, rotation);
+    const inner = polygonFootprint(0, 0, innerRadius, sides, rotation);
+    return outer.map((point, i) => {
+      const next = (i + 1) % sides;
+      return [
+        point,
+        outer[next],
+        inner[next],
+        inner[i],
+      ];
+    });
+  }
+
   function addPlanPoint(
     cx,
     cy,
