@@ -1,6 +1,6 @@
 /*
  * Hypermandala — dimensional mandala explorer.
- * 2D plans expand into 3D primitive structures and symmetric 4D W-extrusions.
+ * 2D plans unfold into hierarchy-aware 3D forms and semantic 4D projections.
  *
  * Independent implementation inspired by the interaction model of
  * Tarek Sherif's Tesseract Explorer (MIT):
@@ -50,6 +50,7 @@
   const presetButtons = [...document.querySelectorAll('[data-preset]')];
   const complexityButtons = [...document.querySelectorAll('[data-complexity]')];
   const spacingButtons = [...document.querySelectorAll('[data-spacing]')];
+  const zLiftButtons = [...document.querySelectorAll('[data-zlift]')];
 
   const rotationRows = document.getElementById('rotationRows');
   const scaleRows = document.getElementById('scaleRows');
@@ -252,6 +253,7 @@
     preset: 'square',
     complexity: 'complex',
     spacingStyle: 'compact',
+    zLiftStyle: 'hierarchy',
 
     projection: 'perspective',
     colorMode: 'classic',
@@ -297,6 +299,7 @@
       preset: state.preset,
       complexity: state.complexity,
       spacingStyle: state.spacingStyle,
+      zLiftStyle: state.zLiftStyle,
       dimension: state.dimension,
       projection: state.projection,
       colorMode: state.colorMode,
@@ -357,6 +360,9 @@
     }
     if (['compact', 'separated'].includes(saved.spacingStyle)) {
       state.spacingStyle = saved.spacingStyle;
+    }
+    if (['hierarchy', 'mirror'].includes(saved.zLiftStyle)) {
+      state.zLiftStyle = saved.zLiftStyle;
     }
 
     const dimension = Number(saved.dimension);
@@ -422,6 +428,12 @@
       button.classList.toggle(
         'is-active',
         button.dataset.spacing === state.spacingStyle,
+      );
+    });
+    zLiftButtons.forEach((button) => {
+      button.classList.toggle(
+        'is-active',
+        button.dataset.zlift === state.zLiftStyle,
       );
     });
     projectionButtons.forEach((button) => {
@@ -3034,17 +3046,64 @@
     const network = preserveSubdivision
       ? yantraSubdivisionNetwork(pieces)
       : [];
+    const mirrored =
+      state.zLiftStyle === 'mirror'
+      && (PRESET_META[state.preset]?.kind !== 'architecture');
+
+    let mirroredCenters = null;
+    if (mirrored) {
+      const gap = state.spacingStyle === 'separated'
+        ? separatedGap
+        : 0;
+      mirroredCenters = [0];
+      let topSurface = layout.rankThickness[0] * 0.5;
+
+      for (let rank = 1; rank < layout.levels.length; rank += 1) {
+        const height = layout.rankThickness[rank];
+        const center = topSurface + gap + height * 0.5;
+        mirroredCenters.push(center);
+        topSurface = center + height * 0.5;
+      }
+    }
 
     for (const piece of pieces) {
       const rank = layout.rankByLevel.get(piece.level) || 0;
       const height = layout.rankThickness[rank];
-      const z = layout.centers[rank];
       const hierarchyT = layout.levels.length <= 1
         ? 1
         : rank / (layout.levels.length - 1);
       const details = preserveSubdivision
         ? detailSegmentsForPiece(piece, network)
         : [];
+      const liftMeta = {
+        hierarchyT,
+        polarity: regionPolarity(piece.regionId),
+      };
+
+      if (mirrored && rank > 0) {
+        const z = mirroredCenters[rank];
+        addFootprintPrismCentered(
+          piece.points,
+          z,
+          height,
+          piece.regionId,
+          details,
+          liftMeta,
+        );
+        addFootprintPrismCentered(
+          piece.points,
+          -z,
+          height,
+          piece.regionId,
+          details,
+          liftMeta,
+        );
+        continue;
+      }
+
+      const z = mirrored
+        ? 0
+        : layout.centers[rank];
 
       addFootprintPrismCentered(
         piece.points,
@@ -3052,10 +3111,7 @@
         height,
         piece.regionId,
         details,
-        {
-          hierarchyT,
-          polarity: regionPolarity(piece.regionId),
-        },
+        liftMeta,
       );
     }
   }
@@ -3184,6 +3240,92 @@
     ));
     const centerHeight = 0.17;
     const gap = separated ? 0.15 : 0;
+
+    if (state.zLiftStyle === 'mirror') {
+      const baseThickness = Math.max(
+        satelliteThickness,
+        layerThicknesses[0],
+      );
+      const baseMeta = { hierarchyT: 0, polarity: 0 };
+
+      addHexSatelliteRing(
+        0,
+        satelliteThickness,
+        baseMeta,
+      );
+
+      if (state.complexity === 'complex') {
+        const outerRadius = 2.02;
+        for (let i = 0; i < 12; i += 1) {
+          const angle = (i / 12) * TAU + Math.PI / 12;
+          addCenteredPrism(
+            Math.cos(angle) * outerRadius,
+            Math.sin(angle) * outerRadius,
+            0,
+            0.15,
+            6,
+            satelliteThickness,
+            i % 2 ? Math.PI / 6 : 0,
+            'hex-outer-satellite',
+            baseMeta,
+          );
+        }
+      }
+
+      addCenteredPrism(
+        0,
+        0,
+        0,
+        layers[0][0],
+        6,
+        layerThicknesses[0],
+        layers[0][1],
+        'hex-layer-0-of-' + layers.length,
+        { hierarchyT: 0.15, polarity: 0 },
+      );
+
+      let topSurface = baseThickness * 0.5;
+
+      for (let index = 1; index < layers.length; index += 1) {
+        const thickness = layerThicknesses[index];
+        const z = topSurface + gap + thickness * 0.5;
+        const hierarchyT = index / layers.length;
+        const regionId =
+          'hex-layer-' + index + '-of-' + layers.length;
+
+        addCenteredPrism(
+          0, 0, z,
+          layers[index][0], 6, thickness, layers[index][1],
+          regionId,
+          { hierarchyT, polarity: 0 },
+        );
+        addCenteredPrism(
+          0, 0, -z,
+          layers[index][0], 6, thickness, layers[index][1],
+          regionId,
+          { hierarchyT, polarity: 0 },
+        );
+
+        topSurface = z + thickness * 0.5;
+      }
+
+      const crownZ = topSurface + gap + centerHeight * 0.5;
+      for (const sign of [-1, 1]) {
+        addCenteredPrism(
+          0,
+          0,
+          sign * crownZ,
+          0.026,
+          12,
+          centerHeight,
+          0,
+          'hex-center',
+          { hierarchyT: 1, polarity: 0 },
+        );
+      }
+      return;
+    }
+
     const thicknesses = [
       satelliteThickness,
       ...layerThicknesses,
@@ -4616,6 +4758,19 @@
       ui.input.disabled = !enabled;
       ui.row.classList.toggle('is-disabled', !enabled);
     }
+
+    const meta = PRESET_META[state.preset] || PRESET_META.square;
+    const zLiftEnabled = meta.kind !== 'architecture' && !locked;
+    zLiftButtons.forEach((button) => {
+      button.disabled = !zLiftEnabled;
+      button.title = zLiftEnabled
+        ? (
+          button.dataset.zlift === 'mirror'
+            ? 'Experimental reflection-symmetric Z lift'
+            : 'Single outer-to-inner hierarchy spanning the Z axis'
+        )
+        : 'Architecture keeps its intrinsic vertical orientation';
+    });
   }
 
   function updateUI() {
@@ -4669,6 +4824,7 @@
     state.preset = 'square';
     state.complexity = 'complex';
     state.spacingStyle = 'compact';
+    state.zLiftStyle = 'hierarchy';
 
     state.projection = 'perspective';
     state.colorMode = 'classic';
@@ -4801,6 +4957,18 @@
         button,
         'spacingStyle',
         'spacing',
+      );
+    });
+  });
+
+  zLiftButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      if (button.disabled) return;
+      rebuildFromChoice(
+        zLiftButtons,
+        button,
+        'zLiftStyle',
+        'zlift',
       );
     });
   });
