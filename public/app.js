@@ -623,17 +623,12 @@
     const base = [];
     for (let gx = -2; gx <= 2; gx += 1) {
       for (let gy = -2; gy <= 2; gy += 1) {
-        if (Math.abs(gx) + Math.abs(gy) <= 2) base.push([gx, gy]);
+        if (complex || Math.abs(gx) + Math.abs(gy) <= 2) {
+          base.push([gx, gy]);
+        }
       }
     }
     base.push([3,0],[-3,0],[0,3],[0,-3]);
-
-    if (complex) {
-      base.push(
-        [2,1],[2,-1],[-2,1],[-2,-1],
-        [1,2],[1,-2],[-1,2],[-1,-2],
-      );
-    }
     return base;
   }
 
@@ -647,51 +642,36 @@
     resetGeometry();
     const complex = state.complexity === 'complex';
     const size = 0.34;
-    const spacing = 0.47;
+    const spacing = size;
 
-    // The ground mandala is a thin central layer.
     for (const [gx, gy] of squareBaseCells(complex)) {
-      addCenteredCube(gx * spacing, gy * spacing, 0, size * 0.46, 0);
+      addCenteredCube(gx * spacing, gy * spacing, 0, size, 0);
     }
 
-    // Structures that occupy the same 2D plan separate into mirrored ±Z tiers.
-    const secondZ = 0.42;
+    const secondZ = 0.48;
     for (const sign of [-1, 1]) {
       for (const [gx, gy] of squareSecondCells(complex)) {
         addCenteredCube(gx * spacing, gy * spacing, sign * secondZ, size, 0);
       }
     }
 
-    const crownZ = 0.88;
+    const crownZ = 0.96;
     for (const sign of [-1, 1]) {
-      addCenteredCube(0, 0, sign * crownZ, size * 0.78, Math.PI / 4);
+      addCenteredCube(0, 0, sign * crownZ, size * 0.74, Math.PI / 4);
 
       const baseZ = sign > 0
-        ? crownZ + size * 0.39
-        : -crownZ - size * 0.39;
+        ? crownZ + size * 0.37
+        : -crownZ - size * 0.37;
+
       addPolygonPyramid(
         0,
         0,
         baseZ,
-        size * 0.34,
+        size * 0.31,
         4,
-        sign * size * 0.62,
+        sign * size * 0.58,
         Math.PI / 4,
       );
-    }
-
-    if (complex) {
-      const diagonalRadius = spacing * 2.65;
-      for (let i = 0; i < 4; i += 1) {
-        const angle = Math.PI / 4 + i * Math.PI / 2;
-        addCenteredCube(
-          Math.cos(angle) * diagonalRadius,
-          Math.sin(angle) * diagonalRadius,
-          0,
-          size * 0.42,
-          Math.PI / 4,
-        );
-      }
     }
   }
 
@@ -699,7 +679,7 @@
     resetGeometry();
     const complex = state.complexity === 'complex';
     const size = 0.34;
-    const spacing = 0.47;
+    const spacing = size;
 
     for (const [gx, gy] of squareBaseCells(complex)) {
       addCube(gx * spacing, gy * spacing, 0, size, 0);
@@ -710,50 +690,39 @@
     }
 
     addCube(0, 0, size * 2, size, 0);
-    // Roof begins exactly on the top face of the supporting cube and is
-    // slightly narrower, so it reads as a roof rather than penetrating it.
-    addPyramid(0, 0, size * 3, size * 0.96, size * 1.08, 0);
+    addPyramid(0, 0, size * 3, size * 0.92, size * 1.02, 0);
 
     for (const [gx, gy] of [[3,0],[-3,0],[0,3],[0,-3]]) {
       addPyramid(
         gx * spacing,
         gy * spacing,
         size,
-        size * 0.74,
-        size * 0.68,
+        size * 0.70,
+        size * 0.64,
         0,
       );
-    }
-
-    if (complex) {
-      for (const [gx, gy] of [[2,2],[2,-2],[-2,2],[-2,-2]]) {
-        addPyramid(
-          gx * spacing,
-          gy * spacing,
-          0,
-          size * 0.68,
-          size * 0.58,
-          Math.PI / 4,
-        );
-      }
     }
   }
 
   function yantraLayerSpecs() {
     return state.complexity === 'complex'
       ? [
-          [1.48, -Math.PI / 2],
-          [1.28, Math.PI / 2],
-          [1.08, -Math.PI / 2],
-          [0.88, Math.PI / 2],
-          [0.68, -Math.PI / 2],
-          [0.48, Math.PI / 2],
+          [1.46, -Math.PI / 2],
+          [1.30,  Math.PI / 2],
+          [1.15, -Math.PI / 2],
+          [1.00,  Math.PI / 2],
+          [0.85, -Math.PI / 2],
+          [0.70,  Math.PI / 2],
+          [0.56, -Math.PI / 2],
+          [0.43,  Math.PI / 2],
+          [0.31, -Math.PI / 2],
         ]
       : [
-          [1.42, -Math.PI / 2],
-          [1.04, Math.PI / 2],
-          [0.72, -Math.PI / 2],
-          [0.46, Math.PI / 2],
+          [1.40, -Math.PI / 2],
+          [1.10,  Math.PI / 2],
+          [0.82, -Math.PI / 2],
+          [0.58,  Math.PI / 2],
+          [0.36, -Math.PI / 2],
         ];
   }
 
@@ -761,64 +730,22 @@
     resetGeometry();
 
     const layers = yantraLayerSpecs();
-    const baseThickness = 0.10;
-    const zStep = 0.28;
+    const zStep = state.complexity === 'complex' ? 0.23 : 0.30;
 
     layers.forEach(([radius, rotation], index) => {
       if (index === 0) {
-        addCenteredPrism(0, 0, 0, radius, 3, baseThickness, rotation);
-      } else {
-        const z = index * zStep;
-        const thickness = 0.11 + index * 0.012;
-        addCenteredPrism(0, 0, z, radius, 3, thickness, rotation);
-        addCenteredPrism(0, 0, -z, radius, 3, thickness, rotation);
+        addCenteredPrism(0, 0, 0, radius, 3, 0.10, rotation);
+        return;
       }
+
+      const z = index * zStep;
+      const thickness = 0.10;
+      addCenteredPrism(0, 0, z, radius, 3, thickness, rotation);
+      addCenteredPrism(0, 0, -z, radius, 3, thickness, rotation);
     });
 
-    const innerRadius = layers[layers.length - 1][0] * 0.56;
-    const crownZ = layers.length * zStep + 0.08;
-    addBipyramid(0, 0, 0, innerRadius * 0.58, 3, 0.24, -Math.PI / 2);
-
-    for (const sign of [-1, 1]) {
-      addCenteredPrism(
-        0,
-        0,
-        sign * crownZ,
-        innerRadius,
-        3,
-        0.12,
-        layers[layers.length - 1][1],
-      );
-    }
-
-    const satelliteCount = state.complexity === 'complex' ? 12 : 6;
-    const ringRadius = state.complexity === 'complex' ? 1.38 : 1.24;
-    const satelliteRadius = state.complexity === 'complex' ? 0.19 : 0.23;
-
-    for (let i = 0; i < satelliteCount; i += 1) {
-      const angle = (i / satelliteCount) * TAU - Math.PI / 2;
-      const cx = Math.cos(angle) * ringRadius;
-      const cy = Math.sin(angle) * ringRadius;
-      const rotation = angle + Math.PI / 2 + (i % 2 ? Math.PI : 0);
-      addCenteredPrism(cx, cy, 0, satelliteRadius, 3, 0.14, rotation);
-    }
-
-    if (state.complexity === 'complex') {
-      for (let i = 0; i < 6; i += 1) {
-        const angle = (i / 6) * TAU - Math.PI / 2;
-        const cx = Math.cos(angle) * 0.82;
-        const cy = Math.sin(angle) * 0.82;
-        addBipyramid(
-          cx,
-          cy,
-          0,
-          0.15,
-          3,
-          0.22,
-          angle + Math.PI / 2,
-        );
-      }
-    }
+    const innerRadius = layers[layers.length - 1][0] * 0.46;
+    addBipyramid(0, 0, 0, innerRadius, 3, 0.20, -Math.PI / 2);
   }
 
   function buildYantraTemple() {
@@ -826,10 +753,10 @@
     const layers = yantraLayerSpecs();
 
     let zCursor = 0;
-    const layerHeight = 0.12;
-    const layerGap = 0.025;
+    const layerHeight = 0.10;
+    const layerGap = 0.035;
 
-    layers.forEach(([radius, rotation]) => {
+    for (const [radius, rotation] of layers) {
       addPrism(
         0,
         0,
@@ -840,50 +767,17 @@
         rotation,
       );
       zCursor += layerHeight + layerGap;
-    });
+    }
 
     addPolygonPyramid(
       0,
       0,
       zCursor,
-      0.31,
+      layers[layers.length - 1][0] * 0.46,
       3,
-      0.44,
+      0.40,
       -Math.PI / 2,
     );
-
-    const satelliteCount = state.complexity === 'complex' ? 12 : 6;
-    const ringRadius = state.complexity === 'complex' ? 1.38 : 1.24;
-    const satelliteRadius = state.complexity === 'complex' ? 0.19 : 0.23;
-
-    for (let i = 0; i < satelliteCount; i += 1) {
-      const angle = (i / satelliteCount) * TAU - Math.PI / 2;
-      const cx = Math.cos(angle) * ringRadius;
-      const cy = Math.sin(angle) * ringRadius;
-      const rotation = angle + Math.PI / 2 + (i % 2 ? Math.PI : 0);
-      addPrism(cx, cy, 0, satelliteRadius, 3, 0.17, rotation);
-    }
-
-    if (state.complexity === 'complex') {
-      for (let i = 0; i < 6; i += 1) {
-        const angle = (i / 6) * TAU - Math.PI / 2;
-        const cx = Math.cos(angle) * 0.82;
-        const cy = Math.sin(angle) * 0.82;
-        const rotation = angle + Math.PI / 2;
-
-        // Every elevated roof has an explicit supporting prism.
-        addPrism(cx, cy, 0, 0.18, 3, 0.30, rotation);
-        addPolygonPyramid(
-          cx,
-          cy,
-          0.30,
-          0.16,
-          3,
-          0.26,
-          rotation,
-        );
-      }
-    }
   }
 
   function hexLayerSpecs() {
@@ -902,15 +796,16 @@
   }
 
   function addHexSatelliteRing(centerZ) {
+    const ringRadius = 1.58;
     for (let i = 0; i < 6; i += 1) {
       const angle = (i / 6) * TAU;
       addCenteredPrism(
-        Math.cos(angle) * 1.08,
-        Math.sin(angle) * 1.08,
+        Math.cos(angle) * ringRadius,
+        Math.sin(angle) * ringRadius,
         centerZ,
-        0.28,
+        0.22,
         6,
-        0.2,
+        0.18,
         Math.PI / 6,
       );
     }
@@ -925,16 +820,17 @@
     layers.forEach(([radius, rotation], index) => {
       if (index === 0) {
         addCenteredPrism(0, 0, 0, radius, 6, 0.10, rotation);
-      } else {
-        const z = index * zStep;
-        const thickness = 0.12;
-        addCenteredPrism(0, 0, z, radius, 6, thickness, rotation);
-        addCenteredPrism(0, 0, -z, radius, 6, thickness, rotation);
+        return;
       }
+
+      const z = index * zStep;
+      addCenteredPrism(0, 0, z, radius, 6, 0.11, rotation);
+      addCenteredPrism(0, 0, -z, radius, 6, 0.11, rotation);
     });
 
-    const crownRadius = layers[layers.length - 1][0] * 0.62;
-    const crownZ = layers.length * zStep + 0.04;
+    const crownRadius = layers[layers.length - 1][0] * 0.55;
+    const crownZ = layers.length * zStep + 0.05;
+
     for (const sign of [-1, 1]) {
       addCenteredPrism(
         0,
@@ -942,7 +838,7 @@
         sign * crownZ,
         crownRadius,
         6,
-        0.13,
+        0.12,
         Math.PI / 6,
       );
     }
@@ -950,29 +846,17 @@
     addHexSatelliteRing(0);
 
     if (state.complexity === 'complex') {
+      const outerRadius = 2.02;
       for (let i = 0; i < 12; i += 1) {
         const angle = (i / 12) * TAU + Math.PI / 12;
         addCenteredPrism(
-          Math.cos(angle) * 1.55,
-          Math.sin(angle) * 1.55,
+          Math.cos(angle) * outerRadius,
+          Math.sin(angle) * outerRadius,
           0,
-          0.17,
+          0.15,
           6,
-          0.12,
+          0.13,
           i % 2 ? Math.PI / 6 : 0,
-        );
-      }
-
-      for (let i = 0; i < 6; i += 1) {
-        const angle = (i / 6) * TAU;
-        addBipyramid(
-          Math.cos(angle) * 0.72,
-          Math.sin(angle) * 0.72,
-          0,
-          0.16,
-          6,
-          0.22,
-          Math.PI / 6,
         );
       }
     }
@@ -983,10 +867,10 @@
 
     const layers = hexLayerSpecs();
     let zCursor = 0;
-    const layerHeight = 0.13;
-    const layerGap = 0.025;
+    const layerHeight = 0.12;
+    const layerGap = 0.035;
 
-    layers.forEach(([radius, rotation]) => {
+    for (const [radius, rotation] of layers) {
       addPrism(
         0,
         0,
@@ -997,59 +881,44 @@
         rotation,
       );
       zCursor += layerHeight + layerGap;
-    });
+    }
 
     addPolygonPyramid(
       0,
       0,
       zCursor,
-      0.33,
+      layers[layers.length - 1][0] * 0.55,
       6,
-      0.40,
+      0.38,
       Math.PI / 6,
     );
 
+    const ringRadius = 1.58;
     for (let i = 0; i < 6; i += 1) {
       const angle = (i / 6) * TAU;
       addPrism(
-        Math.cos(angle) * 1.08,
-        Math.sin(angle) * 1.08,
+        Math.cos(angle) * ringRadius,
+        Math.sin(angle) * ringRadius,
         0,
-        0.28,
+        0.22,
         6,
-        0.20,
+        0.18,
         Math.PI / 6,
       );
     }
 
     if (state.complexity === 'complex') {
+      const outerRadius = 2.02;
       for (let i = 0; i < 12; i += 1) {
         const angle = (i / 12) * TAU + Math.PI / 12;
         addPrism(
-          Math.cos(angle) * 1.55,
-          Math.sin(angle) * 1.55,
+          Math.cos(angle) * outerRadius,
+          Math.sin(angle) * outerRadius,
           0,
-          0.17,
-          6,
           0.15,
-          i % 2 ? Math.PI / 6 : 0,
-        );
-      }
-
-      for (let i = 0; i < 6; i += 1) {
-        const angle = (i / 6) * TAU;
-        const cx = Math.cos(angle) * 0.72;
-        const cy = Math.sin(angle) * 0.72;
-
-        addPrism(cx, cy, 0, 0.19, 6, 0.32, Math.PI / 6);
-        addPolygonPyramid(
-          cx,
-          cy,
-          0.32,
-          0.17,
           6,
-          0.25,
-          Math.PI / 6,
+          0.13,
+          i % 2 ? Math.PI / 6 : 0,
         );
       }
     }
