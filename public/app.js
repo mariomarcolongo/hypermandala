@@ -13,8 +13,14 @@
 (() => {
   'use strict';
 
+  const solidCanvas = document.getElementById('solidLayer');
   const canvas = document.getElementById('mandala');
   const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
+  const gl = solidCanvas.getContext('webgl2', {
+    alpha: true,
+    antialias: true,
+    premultipliedAlpha: false,
+  });
   const basisCanvas = document.getElementById('basisCanvas');
   const basisCtx = basisCanvas.getContext('2d');
   const previewCanvases = {
@@ -141,6 +147,64 @@
   const rotationUI = {};
   const scaleUI = {};
   const geometryStats = { maxPlanRadius: 1 };
+
+  function compileGlShader(type, source) {
+    if (!gl) return null;
+    const shader = gl.createShader(type);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+      console.warn('Hypermandala solid shader failed:', gl.getShaderInfoLog(shader));
+      gl.deleteShader(shader);
+      return null;
+    }
+    return shader;
+  }
+
+  function createSolidRenderer() {
+    if (!gl) return null;
+
+    const vertexShader = compileGlShader(gl.VERTEX_SHADER, `#version 300 es
+      in vec3 aPosition;
+      in vec4 aColor;
+      out vec4 vColor;
+      void main() {
+        gl_Position = vec4(aPosition, 1.0);
+        vColor = aColor;
+      }
+    `);
+
+    const fragmentShader = compileGlShader(gl.FRAGMENT_SHADER, `#version 300 es
+      precision highp float;
+      in vec4 vColor;
+      out vec4 outColor;
+      void main() {
+        outColor = vColor;
+      }
+    `);
+
+    if (!vertexShader || !fragmentShader) return null;
+
+    const program = gl.createProgram();
+    gl.attachShader(program, vertexShader);
+    gl.attachShader(program, fragmentShader);
+    gl.linkProgram(program);
+
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      console.warn('Hypermandala solid program failed:', gl.getProgramInfoLog(program));
+      return null;
+    }
+
+    const buffer = gl.createBuffer();
+    return {
+      program,
+      buffer,
+      aPosition: gl.getAttribLocation(program, 'aPosition'),
+      aColor: gl.getAttribLocation(program, 'aColor'),
+    };
+  }
+
+  const solidRenderer = createSolidRenderer();
 
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
   const mix = (a, b, t) => a + (b - a) * t;
