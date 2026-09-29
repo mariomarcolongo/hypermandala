@@ -132,7 +132,7 @@ The current Canvas renderer uses painter-style face sorting rather than a per-pi
 
 ### Square / palace family
 
-Classic uses the common Tibetan Buddhist five-family directional scheme: **center white, east blue, south yellow, west red, north green**. The screen follows the common painted orientation with east at the bottom, south at the left, west at the top, and north at the right.
+Classic uses the common Tibetan Buddhist five-family directional scheme: **center white, east blue, south yellow, west red, north green**. The 2D screen follows the common painted orientation with east at the bottom, south at the left, west at the top, and north at the right.
 
 References:
 - Rubin Museum / Project Himalayan Art: https://rubinmuseum.org/projecthimalayanart/glossary/buddha-families/
@@ -140,15 +140,15 @@ References:
 
 ### Yantra family
 
-Classic uses one documented Sri-Chakra-inspired sequence: red bindu, white central triangle, red and blue successive triangle/cakra circuits, and a yellow outer surround. Historical Sri Yantra color treatments vary, so this is presented as one documented tradition-inspired scheme rather than the single authentic palette.
+Classic uses one documented Sri-Chakra-inspired sequence: red bindu, white central triangle, successive red/blue triangle circuits, and a yellow outer surround. Historical Sri Yantra color treatments vary, so this is one documented tradition-inspired scheme rather than a claim that there is one universal authentic palette.
 
-The current Yantra geometry uses the defining idea of alternating upward/downward triangles and, in Complex mode, nine centered triangles. It is not claimed to be a ritual-grade Sri Chakra reconstruction.
+Complex mode uses nine centered alternating triangles (four upward / five downward in the overall grammar), echoing the defining nine-triangle Sri Chakra structure. It is still an interactive geometric interpretation rather than a ritual-grade reconstruction.
 
 ### Hex family
 
 Hex is a modern geometric mandala preset, not a canonical Tibetan or Sri Chakra form. Classic therefore borrows the Tibetan five-color directional vocabulary as a visual adaptation only.
 
-Across Classic mode, face orientation changes **brightness**, not hue. This makes 3D/4D sides distinguishable without overriding the family-specific color assignment.
+Across Classic mode, face orientation changes **brightness**, not hue. This helps distinguish 3D/4D sides without overriding the family-specific color assignment.
 
 ## Controls
 
