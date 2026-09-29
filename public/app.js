@@ -176,7 +176,7 @@
 
     projection: 'perspective',
     colorMode: 'classic',
-    renderMode: 'solid-edges',
+    renderMode: 'solid',
 
     rotations: { xw: 0, yw: 0, zw: 0, xy: 0, xz: 0, yz: 0 },
     auto: { xw: false, yw: false, zw: false, xy: false, xz: false, yz: false },
@@ -2631,7 +2631,7 @@
 
     // Classic is a showcase palette: reveal the colored faces immediately.
     if (mode === 'classic' && state.renderMode === 'wire') {
-      setRenderMode('solid-edges');
+      setRenderMode('solid');
     }
   }
 
