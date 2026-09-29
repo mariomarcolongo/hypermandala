@@ -1671,24 +1671,44 @@
 
   function stupaLayerSpecs() {
     const complex = state.complexity === 'complex';
-    const layers = complex
+
+    const raw = complex
       ? [
-          { kind: 'square', size: 2.50 },
-          { kind: 'square', size: 2.02 },
-          { kind: 'square', size: 1.58 },
-          { kind: 'polygon', radius: 0.64, sides: 16 },
-          { kind: 'polygon', radius: 0.48, sides: 16 },
+          { kind: 'square', size: 2.28, height: 0.12 },
+          { kind: 'square', size: 1.98, height: 0.12 },
+          { kind: 'square', size: 1.68, height: 0.11 },
+          { kind: 'polygon', radius: 0.78, sides: 20, height: 0.10 },
+          { kind: 'polygon', radius: 0.88, sides: 20, height: 0.11 },
+          { kind: 'polygon', radius: 0.82, sides: 20, height: 0.11 },
+          { kind: 'polygon', radius: 0.70, sides: 20, height: 0.10 },
+          { kind: 'polygon', radius: 0.54, sides: 20, height: 0.10 },
+          { kind: 'square', size: 0.58, height: 0.11 },
+          { kind: 'polygon', radius: 0.34, sides: 16, height: 0.07 },
+          { kind: 'polygon', radius: 0.29, sides: 16, height: 0.07 },
+          { kind: 'polygon', radius: 0.24, sides: 16, height: 0.07 },
+          { kind: 'polygon', radius: 0.19, sides: 16, height: 0.07 },
+          { kind: 'polygon', radius: 0.14, sides: 16, height: 0.07 },
+          { kind: 'polygon', radius: 0.10, sides: 16, height: 0.07 },
+          { kind: 'polygon', radius: 0.065, sides: 12, height: 0.18, center: true },
         ]
       : [
-          { kind: 'square', size: 2.30 },
-          { kind: 'square', size: 1.72 },
-          { kind: 'polygon', radius: 0.58, sides: 16 },
-          { kind: 'polygon', radius: 0.42, sides: 16 },
+          { kind: 'square', size: 2.20, height: 0.14 },
+          { kind: 'square', size: 1.82, height: 0.13 },
+          { kind: 'polygon', radius: 0.72, sides: 18, height: 0.11 },
+          { kind: 'polygon', radius: 0.82, sides: 18, height: 0.13 },
+          { kind: 'polygon', radius: 0.64, sides: 18, height: 0.12 },
+          { kind: 'square', size: 0.52, height: 0.12 },
+          { kind: 'polygon', radius: 0.28, sides: 14, height: 0.09 },
+          { kind: 'polygon', radius: 0.20, sides: 14, height: 0.09 },
+          { kind: 'polygon', radius: 0.12, sides: 14, height: 0.09 },
+          { kind: 'polygon', radius: 0.065, sides: 12, height: 0.17, center: true },
         ];
 
-    return layers.map((layer, index) => ({
+    return raw.map((layer, index) => ({
       ...layer,
-      regionId: 'stupa-layer-' + index + '-of-' + layers.length,
+      regionId: layer.center
+        ? 'stupa-center'
+        : 'stupa-layer-' + index + '-of-' + raw.length,
     }));
   }
 
@@ -1720,17 +1740,6 @@
         );
       }
     });
-
-    addPlanRegularPolygon(
-      0,
-      0,
-      state.complexity === 'complex' ? 0.20 : 0.18,
-      20,
-      0,
-      true,
-      'stupa-center',
-      100,
-    );
   }
 
   function borobudurSpec() {
@@ -1738,40 +1747,64 @@
 
     return complex
       ? {
-          squares: [2.80, 2.45, 2.10, 1.75, 1.40],
-          circles: [0.78, 0.61, 0.45],
+          squares: [2.82, 2.58, 2.34, 2.10, 1.86],
+          circles: [0.82, 0.66, 0.50],
           satelliteCounts: [32, 24, 16],
-          satelliteRadii: [0.70, 0.54, 0.39],
-          satelliteSizes: [0.035, 0.034, 0.032],
-          centerRadius: 0.20,
+          satelliteRadii: [0.72, 0.58, 0.44],
+          satelliteSizes: [0.055, 0.050, 0.046],
+          centerRadius: 0.22,
         }
       : {
-          squares: [2.55, 2.05, 1.55],
-          circles: [0.72, 0.50],
+          squares: [2.60, 2.20, 1.80],
+          circles: [0.78, 0.55],
           satelliteCounts: [16, 8],
-          satelliteRadii: [0.65, 0.43],
-          satelliteSizes: [0.045, 0.040],
-          centerRadius: 0.19,
+          satelliteRadii: [0.68, 0.47],
+          satelliteSizes: [0.066, 0.058],
+          centerRadius: 0.21,
         };
+  }
+
+  function borobudurSmallStupaProfile(radius) {
+    return [
+      { radius, height: radius * 0.72 },
+      { radius: radius * 0.82, height: radius * 1.05 },
+      { radius: radius * 0.48, height: radius * 0.92 },
+    ];
+  }
+
+  function borobudurCentralProfile(radius) {
+    return [
+      { radius: radius * 0.92, height: 0.07 },
+      { radius: radius * 1.18, height: 0.13 },
+      { radius, height: 0.12 },
+      { radius: radius * 0.70, height: 0.11 },
+      { radius: radius * 0.42, height: 0.20 },
+    ];
   }
 
   function addBorobudurSatellitePlanRing(spec, ringIndex) {
     const count = spec.satelliteCounts[ringIndex];
     const ringRadius = spec.satelliteRadii[ringIndex];
     const radius = spec.satelliteSizes[ringIndex];
+    const profile = borobudurSmallStupaProfile(radius);
 
     for (let i = 0; i < count; i += 1) {
       const angle = (i / count) * TAU;
-      addPlanRegularPolygon(
-        Math.cos(angle) * ringRadius,
-        Math.sin(angle) * ringRadius,
-        radius,
-        8,
-        Math.PI / 8,
-        true,
-        'borobudur-stupa-' + ringIndex,
-        60 + ringIndex,
-      );
+      const cx = Math.cos(angle) * ringRadius;
+      const cy = Math.sin(angle) * ringRadius;
+
+      profile.forEach((part, partIndex) => {
+        addPlanRegularPolygon(
+          cx,
+          cy,
+          part.radius,
+          8,
+          Math.PI / 8,
+          true,
+          'borobudur-stupa-' + ringIndex,
+          60 + ringIndex * 5 + partIndex,
+        );
+      });
     }
   }
 
@@ -1805,16 +1838,18 @@
       addBorobudurSatellitePlanRing(spec, index);
     });
 
-    addPlanRegularPolygon(
-      0,
-      0,
-      spec.centerRadius,
-      24,
-      Math.PI / 24,
-      true,
-      'borobudur-center',
-      100,
-    );
+    borobudurCentralProfile(spec.centerRadius).forEach((part, index) => {
+      addPlanRegularPolygon(
+        0,
+        0,
+        part.radius,
+        24,
+        Math.PI / 24,
+        true,
+        'borobudur-center',
+        100 + index,
+      );
+    });
   }
 
   function addLayerCentered(layer, centerZ, height, regionId = layer.regionId) {
@@ -1856,46 +1891,62 @@
   function buildStupaTemple() {
     resetGeometry();
     const layers = stupaLayerSpecs();
-    const gap = state.spacingStyle === 'separated' ? 0.06 : 0;
-    const height = 0.14;
+    const gap = state.spacingStyle === 'separated' ? 0.035 : 0;
     let z = 0;
 
     for (const layer of layers) {
-      addLayerBase(layer, z, height);
-      z += height + gap;
+      if (layer.kind === 'square') {
+        addSquarePrismBase(
+          z,
+          layer.size,
+          layer.height,
+          layer.regionId,
+        );
+      } else {
+        addPrism(
+          0,
+          0,
+          z,
+          layer.radius,
+          layer.sides,
+          layer.height,
+          0,
+          layer.regionId,
+        );
+      }
+      z += layer.height + gap;
     }
-
-    const center = {
-      kind: 'polygon',
-      radius: state.complexity === 'complex' ? 0.20 : 0.18,
-      sides: 20,
-      regionId: 'stupa-center',
-    };
-    addLayerBase(center, z, 0.24);
   }
 
   function addBorobudurSatelliteModules(
     spec,
     ringIndex,
-    centerZ,
-    height,
+    baseZ,
   ) {
     const count = spec.satelliteCounts[ringIndex];
     const ringRadius = spec.satelliteRadii[ringIndex];
     const radius = spec.satelliteSizes[ringIndex];
+    const profile = borobudurSmallStupaProfile(radius);
 
     for (let i = 0; i < count; i += 1) {
       const angle = (i / count) * TAU;
-      addCenteredPrism(
-        Math.cos(angle) * ringRadius,
-        Math.sin(angle) * ringRadius,
-        centerZ,
-        radius,
-        8,
-        height,
-        Math.PI / 8,
-        'borobudur-stupa-' + ringIndex,
-      );
+      const cx = Math.cos(angle) * ringRadius;
+      const cy = Math.sin(angle) * ringRadius;
+      let z = baseZ;
+
+      for (const part of profile) {
+        addPrism(
+          cx,
+          cy,
+          z,
+          part.radius,
+          8,
+          part.height,
+          Math.PI / 8,
+          'borobudur-stupa-' + ringIndex,
+        );
+        z += part.height;
+      }
     }
   }
 
@@ -1904,10 +1955,9 @@
   function buildBorobudurTemple() {
     resetGeometry();
     const spec = borobudurSpec();
-    const gap = state.spacingStyle === 'separated' ? 0.045 : 0;
-    const squareHeight = 0.13;
-    const circleHeight = 0.11;
-    const satelliteHeight = 0.10;
+    const gap = state.spacingStyle === 'separated' ? 0.035 : 0;
+    const squareHeight = 0.115;
+    const circleHeight = 0.085;
     let z = 0;
 
     spec.squares.forEach((size, index) => {
@@ -1935,23 +1985,25 @@
       addBorobudurSatelliteModules(
         spec,
         index,
-        z + circleHeight + satelliteHeight * 0.5,
-        satelliteHeight,
+        z + circleHeight,
       );
 
-      z += circleHeight + satelliteHeight + gap;
+      z += circleHeight + 0.10 + gap;
     });
 
-    addPrism(
-      0,
-      0,
-      z,
-      spec.centerRadius,
-      24,
-      0.30,
-      Math.PI / 24,
-      'borobudur-center',
-    );
+    for (const part of borobudurCentralProfile(spec.centerRadius)) {
+      addPrism(
+        0,
+        0,
+        z,
+        part.radius,
+        24,
+        part.height,
+        Math.PI / 24,
+        'borobudur-center',
+      );
+      z += part.height;
+    }
   }
 
   function buildPlanForPreset() {
