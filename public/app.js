@@ -1333,6 +1333,232 @@
     );
   }
 
+  function yantraSubdivisionSource(piece) {
+    return (
+      piece.regionId?.startsWith('sri-shiva-')
+      || piece.regionId?.startsWith('sri-shakti-')
+      || piece.regionId?.startsWith('kali-triangle-')
+      || piece.regionId === 'matangi-shiva'
+      || piece.regionId === 'matangi-shakti'
+    );
+  }
+
+  function segmentIntersection2D(a, b, c, d, epsilon = 1e-8) {
+    const rx = b[0] - a[0];
+    const ry = b[1] - a[1];
+    const sx = d[0] - c[0];
+    const sy = d[1] - c[1];
+    const denom = rx * sy - ry * sx;
+
+    if (Math.abs(denom) < epsilon) return null;
+
+    const qx = c[0] - a[0];
+    const qy = c[1] - a[1];
+    const t = (qx * sy - qy * sx) / denom;
+    const u = (qx * ry - qy * rx) / denom;
+
+    if (
+      t < -epsilon || t > 1 + epsilon
+      || u < -epsilon || u > 1 + epsilon
+    ) return null;
+
+    return {
+      t: clamp(t, 0, 1),
+      u: clamp(u, 0, 1),
+      point: [
+        a[0] + rx * clamp(t, 0, 1),
+        a[1] + ry * clamp(t, 0, 1),
+      ],
+    };
+  }
+
+  function splitSegmentsAtIntersections(segments) {
+    const parameters = segments.map(() => [0, 1]);
+
+    for (let i = 0; i < segments.length; i += 1) {
+      for (let j = i + 1; j < segments.length; j += 1) {
+        const hit = segmentIntersection2D(
+          segments[i][0], segments[i][1],
+          segments[j][0], segments[j][1],
+        );
+        if (!hit) continue;
+        parameters[i].push(hit.t);
+        parameters[j].push(hit.u);
+      }
+    }
+
+    const result = [];
+    const seen = new Set();
+
+    segments.forEach((segment, index) => {
+      const [a, b] = segment;
+      const ts = [...new Set(
+        parameters[index].map((t) => Number(t.toFixed(8))),
+      )].sort((x, y) => x - y);
+
+      for (let i = 0; i < ts.length - 1; i += 1) {
+        const t0 = ts[i];
+        const t1 = ts[i + 1];
+        if (t1 - t0 < 1e-7) continue;
+
+        const p0 = [
+          a[0] + (b[0] - a[0]) * t0,
+          a[1] + (b[1] - a[1]) * t0,
+        ];
+        const p1 = [
+          a[0] + (b[0] - a[0]) * t1,
+          a[1] + (b[1] - a[1]) * t1,
+        ];
+
+        const k0 = p0.map((v) => v.toFixed(5)).join(',');
+        const k1 = p1.map((v) => v.toFixed(5)).join(',');
+        const key = k0 < k1 ? k0 + '|' + k1 : k1 + '|' + k0;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        result.push([p0, p1]);
+      }
+    });
+
+    return result;
+  }
+
+  function pointInConvexPolygon(point, polygon, epsilon = 1e-7) {
+    let sign = 0;
+
+    for (let i = 0; i < polygon.length; i += 1) {
+      const a = polygon[i];
+      const b = polygon[(i + 1) % polygon.length];
+      const cross =
+        (b[0] - a[0]) * (point[1] - a[1])
+        - (b[1] - a[1]) * (point[0] - a[0]);
+
+      if (Math.abs(cross) <= epsilon) continue;
+      const nextSign = Math.sign(cross);
+      if (!sign) sign = nextSign;
+      else if (sign !== nextSign) return false;
+    }
+
+    return true;
+  }
+
+  function clipSegmentToConvexPolygon(segment, polygon) {
+    const [a, b] = segment;
+    const ts = [0, 1];
+
+    for (let i = 0; i < polygon.length; i += 1) {
+      const c = polygon[i];
+      const d = polygon[(i + 1) % polygon.length];
+      const hit = segmentIntersection2D(a, b, c, d);
+      if (hit) ts.push(hit.t);
+    }
+
+    const sorted = [...new Set(
+      ts.map((t) => Number(t.toFixed(8))),
+    )].sort((x, y) => x - y);
+
+    const clipped = [];
+    for (let i = 0; i < sorted.length - 1; i += 1) {
+      const t0 = sorted[i];
+      const t1 = sorted[i + 1];
+      if (t1 - t0 < 1e-7) continue;
+      const tm = (t0 + t1) * 0.5;
+      const mid = [
+        a[0] + (b[0] - a[0]) * tm,
+        a[1] + (b[1] - a[1]) * tm,
+      ];
+      if (!pointInConvexPolygon(mid, polygon)) continue;
+
+      clipped.push([
+        [
+          a[0] + (b[0] - a[0]) * t0,
+          a[1] + (b[1] - a[1]) * t0,
+        ],
+        [
+          a[0] + (b[0] - a[0]) * t1,
+          a[1] + (b[1] - a[1]) * t1,
+        ],
+      ]);
+    }
+
+    return clipped;
+  }
+
+  function pointOnSegment2D(point, a, b, epsilon = 1e-6) {
+    const cross =
+      (b[0] - a[0]) * (point[1] - a[1])
+      - (b[1] - a[1]) * (point[0] - a[0]);
+    if (Math.abs(cross) > epsilon) return false;
+
+    const dot =
+      (point[0] - a[0]) * (point[0] - b[0])
+      + (point[1] - a[1]) * (point[1] - b[1]);
+    return dot <= epsilon;
+  }
+
+  function segmentOnPolygonBoundary(segment, polygon) {
+    return polygon.some((a, index) => {
+      const b = polygon[(index + 1) % polygon.length];
+      return (
+        pointOnSegment2D(segment[0], a, b)
+        && pointOnSegment2D(segment[1], a, b)
+      );
+    });
+  }
+
+  function yantraSubdivisionNetwork(pieces) {
+    const sources = pieces.filter(yantraSubdivisionSource);
+    const raw = [];
+
+    for (const piece of sources) {
+      for (let i = 0; i < piece.points.length; i += 1) {
+        raw.push([
+          piece.points[i],
+          piece.points[(i + 1) % piece.points.length],
+        ]);
+      }
+    }
+
+    return splitSegmentsAtIntersections(raw);
+  }
+
+  function detailSegmentsForPiece(piece, network) {
+    const result = [];
+    const seen = new Set();
+
+    for (const segment of network) {
+      for (const clipped of clipSegmentToConvexPolygon(
+        segment,
+        piece.points,
+      )) {
+        if (segmentOnPolygonBoundary(clipped, piece.points)) continue;
+
+        const length = Math.hypot(
+          clipped[1][0] - clipped[0][0],
+          clipped[1][1] - clipped[0][1],
+        );
+        if (length < 0.012) continue;
+
+        const k0 = clipped[0].map((v) => v.toFixed(5)).join(',');
+        const k1 = clipped[1].map((v) => v.toFixed(5)).join(',');
+        const key = k0 < k1 ? k0 + '|' + k1 : k1 + '|' + k0;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        result.push(clipped);
+      }
+    }
+
+    return result;
+  }
+
+  function addPlanDetailEdge(a, b) {
+    planEdges.push({
+      a: [a[0], a[1], 0, 0],
+      b: [b[0], b[1], 0, 0],
+      axis: 'n',
+      detail: true,
+    });
+  }
+
   function footprintPrismData(points, baseZ, height) {
     const footprint = points.map((p) => [p[0], p[1]]);
     const n = footprint.length;
