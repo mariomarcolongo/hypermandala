@@ -25,7 +25,9 @@
   const basisCtx = basisCanvas.getContext('2d');
   const previewCanvases = {
     square: document.getElementById('previewSquare'),
-    yantra: document.getElementById('previewYantra'),
+    sriyantra: document.getElementById('previewSriYantra'),
+    kaliyantra: document.getElementById('previewKaliYantra'),
+    matangiyantra: document.getElementById('previewMatangiYantra'),
     hex: document.getElementById('previewHex'),
     stupa: document.getElementById('previewStupa'),
     borobudur: document.getElementById('previewBorobudur'),
@@ -137,6 +139,31 @@
     center: '#d1a27d',
   };
 
+  const SRI_COLORS = {
+    bhupura: '#d4a843',
+    lotus16: '#d895a5',
+    lotus8: '#efe0ad',
+    shiva: '#4669ad',
+    shakti: '#c94b40',
+    bindu: '#b92f2f',
+  };
+
+  const KALI_COLORS = {
+    bhupura: '#3b2527',
+    lotus: '#b7444b',
+    triangle: '#25171a',
+    triangleAlt: '#7f252d',
+    bindu: '#d8ad4d',
+  };
+
+  const MATANGI_COLORS = {
+    bhupura: '#5d6840',
+    lotus: '#d7839e',
+    shiva: '#b99948',
+    shakti: '#3e7655',
+    bindu: '#d7aa3b',
+  };
+
   const CLASSIC_SHADE = {
     x: 0.93,
     y: 0.98,
@@ -167,10 +194,20 @@
       plan: 'square mandala',
       spatial: 'symmetric mandala',
     },
-    yantra: {
+    sriyantra: {
       kind: 'symmetric',
-      plan: 'yantra plan',
-      spatial: 'symmetric yantra',
+      plan: 'Sri Yantra plan',
+      spatial: 'Sri Yantra meru-like form',
+    },
+    kaliyantra: {
+      kind: 'symmetric',
+      plan: 'Kali Yantra plan',
+      spatial: 'symmetric Kali Yantra',
+    },
+    matangiyantra: {
+      kind: 'symmetric',
+      plan: 'Matangi Yantra plan',
+      spatial: 'symmetric Matangi Yantra',
     },
     hex: {
       kind: 'symmetric',
@@ -386,13 +423,26 @@
     if (regionId === 'square-west') return hexToRgb(TIBETAN_COLORS.west);
     if (regionId === 'square-north') return hexToRgb(TIBETAN_COLORS.north);
 
-    if (regionId === 'yantra-center') return hexToRgb('#b92f2f');
-    if (regionId?.startsWith('yantra-layer-')) {
-      const parts = regionId.split('-');
-      const index = Number(parts[2]);
-      const count = Number(parts[4]);
-      return yantraLayerRgb(index, count);
+    if (regionId === 'sri-bhupura') return hexToRgb(SRI_COLORS.bhupura);
+    if (regionId === 'sri-lotus16') return hexToRgb(SRI_COLORS.lotus16);
+    if (regionId === 'sri-lotus8') return hexToRgb(SRI_COLORS.lotus8);
+    if (regionId?.startsWith('sri-shiva-')) return hexToRgb(SRI_COLORS.shiva);
+    if (regionId?.startsWith('sri-shakti-')) return hexToRgb(SRI_COLORS.shakti);
+    if (regionId === 'sri-bindu') return hexToRgb(SRI_COLORS.bindu);
+
+    if (regionId === 'kali-bhupura') return hexToRgb(KALI_COLORS.bhupura);
+    if (regionId === 'kali-lotus') return hexToRgb(KALI_COLORS.lotus);
+    if (regionId?.startsWith('kali-triangle-')) {
+      const index = Number(regionId.split('-')[2]);
+      return hexToRgb(index % 2 ? KALI_COLORS.triangleAlt : KALI_COLORS.triangle);
     }
+    if (regionId === 'kali-bindu') return hexToRgb(KALI_COLORS.bindu);
+
+    if (regionId === 'matangi-bhupura') return hexToRgb(MATANGI_COLORS.bhupura);
+    if (regionId === 'matangi-lotus') return hexToRgb(MATANGI_COLORS.lotus);
+    if (regionId === 'matangi-shiva') return hexToRgb(MATANGI_COLORS.shiva);
+    if (regionId === 'matangi-shakti') return hexToRgb(MATANGI_COLORS.shakti);
+    if (regionId === 'matangi-bindu') return hexToRgb(MATANGI_COLORS.bindu);
 
     if (regionId === 'hex-center') return hexToRgb(HEX_CENTER);
     if (regionId === 'hex-satellite') return hexToRgb(HEX_SATELLITE);
