@@ -188,8 +188,10 @@
     return hexToRgb(SRI_CHAKRA_COLORS[band]);
   }
 
-  function tibetanDirectionalColor(x, y, radiusNorm) {
-    if (radiusNorm < 0.18) return hexToRgb(TIBETAN_COLORS.center);
+  function tibetanDirectionalColor(x, y, centroidRadiusNorm) {
+    if (centroidRadiusNorm < 0.22) {
+      return hexToRgb(TIBETAN_COLORS.center);
+    }
 
     if (Math.abs(y) >= Math.abs(x)) {
       return hexToRgb(y >= 0 ? TIBETAN_COLORS.east : TIBETAN_COLORS.west);
@@ -197,9 +199,16 @@
     return hexToRgb(x < 0 ? TIBETAN_COLORS.south : TIBETAN_COLORS.north);
   }
 
-  function classicBaseColor(x, y, radiusNorm) {
-    if (state.preset === 'yantra') return sriChakraBandColor(radiusNorm);
-    return tibetanDirectionalColor(x, y, radiusNorm);
+  function classicBaseColor(x, y, bandRadiusNorm, centroidRadiusNorm) {
+    if (state.preset === 'yantra') {
+      return sriChakraBandColor(bandRadiusNorm);
+    }
+
+    return tibetanDirectionalColor(
+      x,
+      y,
+      centroidRadiusNorm ?? bandRadiusNorm,
+    );
   }
 
   function updateGeometryStats() {
@@ -1122,8 +1131,13 @@
       return sum + Math.hypot(point[0], point[1]);
     }, 0) / face.indices.length;
 
-    const radiusNorm = clamp(
+    const bandRadiusNorm = clamp(
       meanRadius / geometryStats.maxPlanRadius,
+      0,
+      1,
+    );
+    const centroidRadiusNorm = clamp(
+      Math.hypot(centroid[0], centroid[1]) / geometryStats.maxPlanRadius,
       0,
       1,
     );
@@ -1131,7 +1145,8 @@
     const base = classicBaseColor(
       centroid[0],
       centroid[1],
-      radiusNorm,
+      bandRadiusNorm,
+      centroidRadiusNorm,
     );
 
     const orientationShade = CLASSIC_SHADE[face.axis] || 1;
@@ -1165,14 +1180,24 @@
       0,
     ) / face.length;
 
-    const radiusNorm = clamp(
+    const bandRadiusNorm = clamp(
       meanRadius / geometryStats.maxPlanRadius,
+      0,
+      1,
+    );
+    const centroidRadiusNorm = clamp(
+      Math.hypot(cx, cy) / geometryStats.maxPlanRadius,
       0,
       1,
     );
 
     return rgbCss(
-      classicBaseColor(cx, cy, radiusNorm),
+      classicBaseColor(
+        cx,
+        cy,
+        bandRadiusNorm,
+        centroidRadiusNorm,
+      ),
     );
   }
 
@@ -1228,25 +1253,29 @@
           + Math.hypot(edge.b[0], edge.b[1])
         ) * 0.5;
 
-        const radiusNorm = clamp(
+        const bandRadiusNorm = clamp(
           meanRadius / geometryStats.maxPlanRadius,
+          0,
+          1,
+        );
+        const centroidRadiusNorm = clamp(
+          Math.hypot(mx, my) / geometryStats.maxPlanRadius,
           0,
           1,
         );
 
         color = rgbCss(
-          classicBaseColor(mx, my, radiusNorm),
+          classicBaseColor(
+            mx,
+            my,
+            bandRadiusNorm,
+            centroidRadiusNorm,
+          ),
         );
         width = 1.35;
       }
 
-      drawLine(
-        a,
-        b,
-        color,
-        width,
-        alpha * 0.94,
-      );
+      drawLine(a, b, color, width, alpha * 0.94);
     }
   }
 
