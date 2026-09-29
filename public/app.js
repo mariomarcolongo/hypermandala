@@ -1644,29 +1644,14 @@
 
   function classicFaceRgb(face, module) {
     const centroid = faceCentroid(face, module);
-    const meanRadius = face.indices.reduce((sum, index) => {
-      const point = module.vertices[index];
-      return sum + Math.hypot(point[0], point[1]);
-    }, 0) / face.indices.length;
-
-    const bandRadiusNorm = clamp(
-      meanRadius / geometryStats.maxPlanRadius,
-      0,
-      1,
-    );
-    const centroidRadiusNorm = clamp(
-      Math.hypot(centroid[0], centroid[1]) / geometryStats.maxPlanRadius,
-      0,
-      1,
-    );
-
-    const base = classicBaseColor(
+    const base = classicRegionRgb(
+      module.regionId,
       centroid[0],
       centroid[1],
-      bandRadiusNorm,
-      centroidRadiusNorm,
     );
 
+    // Region hue is invariant across 2D/3D/4D. Orientation changes only
+    // brightness so the geometry remains readable.
     const orientationShade = CLASSIC_SHADE[face.axis] || 1;
     return shadeRgb(base, orientationShade);
   }
@@ -1700,31 +1685,19 @@
   }
 
   function classicPlanColor(face) {
-    const cx = face.reduce((sum, p) => sum + p[0], 0) / face.length;
-    const cy = face.reduce((sum, p) => sum + p[1], 0) / face.length;
-    const meanRadius = face.reduce(
-      (sum, p) => sum + Math.hypot(p[0], p[1]),
-      0,
-    ) / face.length;
+    let cx = 0;
+    let cy = 0;
 
-    const bandRadiusNorm = clamp(
-      meanRadius / geometryStats.maxPlanRadius,
-      0,
-      1,
-    );
-    const centroidRadiusNorm = clamp(
-      Math.hypot(cx, cy) / geometryStats.maxPlanRadius,
-      0,
-      1,
-    );
+    for (const point of face) {
+      cx += point[0];
+      cy += point[1];
+    }
+
+    cx /= face.length;
+    cy /= face.length;
 
     return rgbCss(
-      classicBaseColor(
-        cx,
-        cy,
-        bandRadiusNorm,
-        centroidRadiusNorm,
-      ),
+      classicRegionRgb(face.regionId, cx, cy),
     );
   }
 
@@ -1740,7 +1713,13 @@
   function drawPlanFaces(alpha) {
     if (state.renderMode === 'wire' || alpha <= 0.001) return;
 
-    const sorted = [...planFaces].sort((a, b) => rawPolygonArea(b) - rawPolygonArea(a));
+    const sorted = [...planFaces].sort((a, b) => {
+      const orderA = a.paintOrder ?? 0;
+      const orderB = b.paintOrder ?? 0;
+      if (orderA !== orderB) return orderA - orderB;
+      return rawPolygonArea(b) - rawPolygonArea(a);
+    });
+
     for (const face of sorted) {
       const points = face.map(projectToScreen);
       if (Math.abs(polygonArea2D(points)) < 0.2) continue;
@@ -1751,12 +1730,18 @@
         else ctx.lineTo(p.x, p.y);
       });
       ctx.closePath();
+
       ctx.fillStyle = state.colorMode === 'axis'
         ? '#d9dde4'
         : state.colorMode === 'classic'
           ? classicPlanColor(face)
           : '#c9b995';
-      ctx.globalAlpha = alpha * (state.colorMode === 'classic' ? 0.76 : 0.16);
+
+      // Classic regions are opaque at rest. This prevents overlapping
+      // translucent polygons from inventing colors that don't exist in 3D.
+      ctx.globalAlpha = state.colorMode === 'classic'
+        ? alpha
+        : alpha * 0.16;
       ctx.fill();
       ctx.globalAlpha = 1;
     }
@@ -1773,36 +1758,13 @@
       let width = 1.15;
 
       if (state.colorMode === 'classic') {
-        const mx = (edge.a[0] + edge.b[0]) * 0.5;
-        const my = (edge.a[1] + edge.b[1]) * 0.5;
-        const meanRadius = (
-          Math.hypot(edge.a[0], edge.a[1])
-          + Math.hypot(edge.b[0], edge.b[1])
-        ) * 0.5;
-
-        const bandRadiusNorm = clamp(
-          meanRadius / geometryStats.maxPlanRadius,
-          0,
-          1,
-        );
-        const centroidRadiusNorm = clamp(
-          Math.hypot(mx, my) / geometryStats.maxPlanRadius,
-          0,
-          1,
-        );
-
-        color = rgbCss(
-          classicBaseColor(
-            mx,
-            my,
-            bandRadiusNorm,
-            centroidRadiusNorm,
-          ),
-        );
-        width = 1.35;
+        color = state.renderMode === 'wire'
+          ? 'rgba(242,238,226,.90)'
+          : '#1d1714';
+        width = state.renderMode === 'wire' ? 1.2 : 1.35;
       }
 
-      drawLine(a, b, color, width, alpha * 0.94);
+      drawLine(a, b, color, width, alpha * 0.96);
     }
   }
 
