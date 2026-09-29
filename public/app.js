@@ -607,43 +607,111 @@
       .join('|');
   }
 
-  function reflectedModule(module, sx, sy, sz, sw) {
+  const AXIS_NAMES = ['x', 'y', 'z', 'w'];
+  const AXIS_INDEX = { x: 0, y: 1, z: 2, w: 3 };
+  const XYZ_PERMUTATIONS = [
+    [0,1,2], [0,2,1],
+    [1,0,2], [1,2,0],
+    [2,0,1], [2,1,0],
+  ];
+
+  function transformModuleSymmetry(
+    module,
+    permutation,
+    signs,
+    hyperOnly = false,
+  ) {
+    const inverse = [0, 0, 0, 0];
+    for (let outputAxis = 0; outputAxis < 4; outputAxis += 1) {
+      inverse[permutation[outputAxis]] = outputAxis;
+    }
+
+    const mapAxis = (axis) => {
+      if (!(axis in AXIS_INDEX)) return axis;
+      return AXIS_NAMES[inverse[AXIS_INDEX[axis]]];
+    };
+
     return {
+      hyperOnly: hyperOnly || Boolean(module.hyperOnly),
       vertices: module.vertices.map((point) => [
-        point[0] * sx,
-        point[1] * sy,
-        point[2] * sz,
-        point[3] * sw,
+        point[permutation[0]] * signs[0],
+        point[permutation[1]] * signs[1],
+        point[permutation[2]] * signs[2],
+        point[permutation[3]] * signs[3],
       ]),
-      edges: module.edges.map((edge) => ({ ...edge })),
+      edges: module.edges.map((edge) => ({
+        ...edge,
+        axis: mapAxis(edge.axis),
+        wLayer: hyperOnly ? 0 : edge.wLayer,
+      })),
       faces: module.faces.map((face) => ({
         ...face,
         indices: [...face.indices],
+        axis: mapAxis(face.axis),
+        wLayer: hyperOnly ? 0 : face.wLayer,
+        bridge: hyperOnly ? false : face.bridge,
       })),
     };
   }
 
-  function enforceFullCoordinateReflectionSymmetry() {
-    const source = [...modules];
-    const seen = new Set(source.map(moduleSignature));
+  function enforceAxisIsotropicSymmetry() {
+    const seed = [...modules];
+    const seen = new Set();
+    const spatial = [];
     const signs = [-1, 1];
 
-    for (const module of source) {
-      for (const sx of signs) {
-        for (const sy of signs) {
-          for (const sz of signs) {
-            for (const sw of signs) {
-              const reflected = reflectedModule(module, sx, sy, sz, sw);
-              const signature = moduleSignature(reflected);
+    // 3D: signed permutations of X/Y/Z (the full octahedral coordinate group).
+    for (const module of seed) {
+      for (const xyz of XYZ_PERMUTATIONS) {
+        const permutation = [xyz[0], xyz[1], xyz[2], 3];
 
+        for (const sx of signs) {
+          for (const sy of signs) {
+            for (const sz of signs) {
+              const transformed = transformModuleSymmetry(
+                module,
+                permutation,
+                [sx, sy, sz, 1],
+                false,
+              );
+              const signature = moduleSignature(transformed);
               if (seen.has(signature)) continue;
               seen.add(signature);
-              modules.push(reflected);
+              spatial.push(transformed);
             }
           }
         }
       }
     }
+
+    // 4D: S4/S3 has four cosets. Because the spatial set above is already
+    // invariant under signed XYZ permutations and each extrusion is ±W
+    // symmetric, adding the three W-axis swaps closes the set under signed
+    // permutations of X/Y/Z/W without generating 384 copies per seed module.
+    const hyper = [...spatial];
+    const wSwaps = [
+      [3,1,2,0],
+      [0,3,2,1],
+      [0,1,3,2],
+    ];
+
+    for (const module of spatial) {
+      for (const permutation of wSwaps) {
+        const transformed = transformModuleSymmetry(
+          module,
+          permutation,
+          [1,1,1,1],
+          true,
+        );
+        const signature = moduleSignature(transformed);
+        if (seen.has(signature)) continue;
+        seen.add(signature);
+        hyper.push(transformed);
+      }
+    }
+
+    modules.length = 0;
+    modules.push(...hyper);
   }
 
   function clearPlan() {
@@ -1092,7 +1160,7 @@
     }
 
     if (state.formStyle === 'symmetric') {
-      enforceFullCoordinateReflectionSymmetry();
+      enforceAxisIsotropicSymmetry();
     }
   }
 
@@ -1198,6 +1266,22 @@
       depth: p3[2],
       w: p4[3],
     };
+  }
+
+  function moduleEmergence(module) {
+    return module.hyperOnly ? smoother(state.wMix) : 1;
+  }
+
+  function projectModulePoint(module, source) {
+    const emergence = moduleEmergence(module);
+    if (emergence >= 0.9999) return projectToScreen(source);
+
+    return projectToScreen([
+      source[0] * emergence,
+      source[1] * emergence,
+      source[2] * emergence,
+      source[3],
+    ]);
   }
 
   function axisColor(axis) {
@@ -1438,7 +1522,13 @@
   }
 
   function faceWorldKey(module, face) {
-    return face.indices
+    const transitionGroup = state.wMix >= 0.999
+      ? ''
+      : module.hyperOnly
+        ? 'hyper|'
+        : 'spatial|';
+
+    return transitionGroup + face.indices
       .map((index) => module.vertices[index]
         .map(symmetryCoord)
         .join(','))
@@ -1465,6 +1555,9 @@
     const counts = new Map();
 
     for (const module of modules) {
+      const moduleAmount = moduleEmergence(module);
+      if (moduleAmount <= 0.002) continue;
+
       for (const face of module.faces) {
         const visibility = faceVisibility(face);
         if (visibility <= 0.002) continue;
@@ -1478,17 +1571,17 @@
     const data = [];
 
     for (const entry of entries) {
-      // Shared coincident faces are internal to the assembled mandala volume.
-      // Removing both sides prevents z-fighting and color flashes.
       if ((counts.get(entry.key) || 0) > 1) continue;
 
       const points = entry.face.indices
-        .map((index) => projectToScreen(entry.module.vertices[index]));
+        .map((index) => projectModulePoint(
+          entry.module,
+          entry.module.vertices[index],
+        ));
 
       if (points.length < 3 || Math.abs(polygonArea2D(points)) < 0.45) continue;
 
       const rgb = faceFillRgb(entry.face, entry.module);
-      const faceAlpha = clamp(alpha * entry.visibility, 0, 1);
 
       for (let i = 1; i < points.length - 1; i += 1) {
         const tri = [points[0], points[i], points[i + 1]];
@@ -1503,7 +1596,7 @@
             rgb.r / 255,
             rgb.g / 255,
             rgb.b / 255,
-            faceAlpha,
+            1,
           );
         }
       }
@@ -1545,9 +1638,7 @@
     gl.depthFunc(gl.LEQUAL);
     gl.depthMask(true);
 
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-
+    gl.disable(gl.BLEND);
     gl.disable(gl.CULL_FACE);
     gl.drawArrays(gl.TRIANGLES, 0, data.length / 7);
 
@@ -1560,15 +1651,27 @@
     const rendered = [];
 
     for (const module of modules) {
+      const moduleAmount = moduleEmergence(module);
+      if (moduleAmount <= 0.002) continue;
+
       for (const face of module.faces) {
         const visibility = faceVisibility(face);
         if (visibility <= 0.002) continue;
 
-        const points = face.indices.map((index) => projectToScreen(module.vertices[index]));
+        const points = face.indices.map((index) => projectModulePoint(
+          module,
+          module.vertices[index],
+        ));
         if (Math.abs(polygonArea2D(points)) < 0.45) continue;
 
         const depth = points.reduce((sum, p) => sum + p.depth, 0) / points.length;
-        rendered.push({ face, module, points, depth, visibility });
+        rendered.push({
+          face,
+          module,
+          points,
+          depth,
+          visibility: visibility * moduleAmount,
+        });
       }
     }
 
@@ -1583,11 +1686,9 @@
       ctx.closePath();
 
       ctx.fillStyle = faceFillColor(item.face, item.module);
-      // Solid means solid: avoid cumulative translucent overdraw, which made
-      // 4D face projections create false bands and strange colors.
       ctx.globalAlpha = item.visibility >= 0.995
         ? 1
-        : clamp(item.visibility * 1.15, 0, 1);
+        : clamp(item.visibility, 0, 1);
       ctx.fill();
       ctx.globalAlpha = 1;
     }
@@ -1599,12 +1700,15 @@
     const rendered = [];
 
     for (const module of modules) {
+      const moduleAmount = moduleEmergence(module);
+      if (moduleAmount <= 0.002) continue;
+
       for (const edge of module.edges) {
-        const visibility = edgeVisibility(edge);
+        const visibility = edgeVisibility(edge) * moduleAmount;
         if (visibility <= 0.002) continue;
 
-        const a = projectToScreen(module.vertices[edge.a]);
-        const b = projectToScreen(module.vertices[edge.b]);
+        const a = projectModulePoint(module, module.vertices[edge.a]);
+        const b = projectModulePoint(module, module.vertices[edge.b]);
         const dx = b.x - a.x;
         const dy = b.y - a.y;
         if (dx * dx + dy * dy < 0.25) continue;
@@ -1664,13 +1768,18 @@
       : 'rgba(245,239,225,.70)';
 
     for (const module of modules) {
+      const moduleAmount = moduleEmergence(module);
+      if (moduleAmount <= 0.002) continue;
+
       for (const vertex of module.vertices) {
-        const p = projectToScreen(vertex);
+        const p = projectModulePoint(module, vertex);
         const key = Math.round(p.x * 2) + ':' + Math.round(p.y * 2);
         if (seen.has(key)) continue;
         seen.add(key);
 
-        ctx.globalAlpha = alpha * (0.2 + state.wMix * 0.13);
+        ctx.globalAlpha = alpha
+          * moduleAmount
+          * (0.2 + state.wMix * 0.13);
         ctx.beginPath();
         ctx.arc(p.x, p.y, 0.95, 0, TAU);
         ctx.fill();
