@@ -977,21 +977,35 @@
     const size = 0.34;
     const spacing = size;
 
-    // Base layer: exactly the square cells drawn in 2D.
     for (const [gx, gy] of squareBaseCells(complex)) {
-      addCenteredCube(gx * spacing, gy * spacing, 0, size, 0);
+      const cx = gx * spacing;
+      const cy = gy * spacing;
+      addCenteredCube(
+        cx,
+        cy,
+        0,
+        size,
+        0,
+        squareRegionId(cx, cy),
+      );
     }
 
-    // Repeated higher-dimensional structure is allowed only where the same
-    // footprint already exists in 2D.
     const secondZ = separated ? size * 1.65 : size;
     for (const sign of [-1, 1]) {
       for (const [gx, gy] of squareSecondCells(complex)) {
-        addCenteredCube(gx * spacing, gy * spacing, sign * secondZ, size, 0);
+        const cx = gx * spacing;
+        const cy = gy * spacing;
+        addCenteredCube(
+          cx,
+          cy,
+          sign * secondZ,
+          size,
+          0,
+          squareRegionId(cx, cy),
+        );
       }
     }
 
-    // The central diamond is explicitly present in the 2D plan.
     const diamondSize = size * 0.72;
     const diamondZ = separated
       ? secondZ + size * 1.15
@@ -1004,6 +1018,7 @@
         sign * diamondZ,
         diamondSize,
         Math.PI / 4,
+        'square-center',
       );
     }
 
@@ -1014,7 +1029,14 @@
         : diamondZ + diamondSize * 0.5 + innerSize * 0.5;
 
       for (const sign of [-1, 1]) {
-        addCenteredCube(0, 0, sign * innerZ, innerSize, 0);
+        addCenteredCube(
+          0,
+          0,
+          sign * innerZ,
+          innerSize,
+          0,
+          'square-center',
+        );
       }
     }
   }
@@ -1028,28 +1050,64 @@
     const gap = separated ? 0.10 : 0;
 
     for (const [gx, gy] of squareBaseCells(complex)) {
-      addCube(gx * spacing, gy * spacing, 0, size, 0);
+      const cx = gx * spacing;
+      const cy = gy * spacing;
+      addCube(
+        cx,
+        cy,
+        0,
+        size,
+        0,
+        squareRegionId(cx, cy),
+      );
     }
 
     const secondBase = size + gap;
     for (const [gx, gy] of squareSecondCells(complex)) {
-      addCube(gx * spacing, gy * spacing, secondBase, size, 0);
+      const cx = gx * spacing;
+      const cy = gy * spacing;
+      addCube(
+        cx,
+        cy,
+        secondBase,
+        size,
+        0,
+        squareRegionId(cx, cy),
+      );
     }
 
     const thirdBase = secondBase + size + gap;
-    addCube(0, 0, thirdBase, size, 0);
+    addCube(
+      0,
+      0,
+      thirdBase,
+      size,
+      0,
+      'square-center',
+    );
 
-    const roofBase = thirdBase + size + gap;
-    addPyramid(0, 0, roofBase, size * 0.92, size * 1.02, 0);
+    // The crown uses the central diamond already present in the 2D plan.
+    const diamondSize = size * 0.72;
+    const diamondBase = thirdBase + size + gap;
+    addCube(
+      0,
+      0,
+      diamondBase,
+      diamondSize,
+      Math.PI / 4,
+      'square-center',
+    );
 
-    for (const [gx, gy] of [[3,0],[-3,0],[0,3],[0,-3]]) {
-      addPyramid(
-        gx * spacing,
-        gy * spacing,
-        secondBase,
-        size * 0.70,
-        size * 0.64,
+    if (complex) {
+      const innerSize = size * 0.46;
+      const innerBase = diamondBase + diamondSize + gap;
+      addCube(
         0,
+        0,
+        innerBase,
+        innerSize,
+        0,
+        'square-center',
       );
     }
   }
@@ -1082,23 +1140,71 @@
     const layers = yantraLayerSpecs();
     const separated = state.spacingStyle === 'separated';
     const thickness = 0.10;
+    const centerHeight = 0.12;
     const zStep = separated
       ? (state.complexity === 'complex' ? 0.24 : 0.31)
       : thickness;
 
     layers.forEach(([radius, rotation], index) => {
+      const regionId =
+        'yantra-layer-' + index + '-of-' + layers.length;
+
       if (index === 0) {
-        addCenteredPrism(0, 0, 0, radius, 3, thickness, rotation);
+        addCenteredPrism(
+          0,
+          0,
+          0,
+          radius,
+          3,
+          thickness,
+          rotation,
+          regionId,
+        );
         return;
       }
 
       const z = index * zStep;
-      addCenteredPrism(0, 0, z, radius, 3, thickness, rotation);
-      addCenteredPrism(0, 0, -z, radius, 3, thickness, rotation);
+      addCenteredPrism(
+        0,
+        0,
+        z,
+        radius,
+        3,
+        thickness,
+        rotation,
+        regionId,
+      );
+      addCenteredPrism(
+        0,
+        0,
+        -z,
+        radius,
+        3,
+        thickness,
+        rotation,
+        regionId,
+      );
     });
 
-    // The bindu is an explicit 2D element, so its lift uses the same footprint.
-    addCenteredPrism(0, 0, 0, 0.028, 12, thickness, 0);
+    // The bindu becomes the culminating central element while retaining the
+    // exact same 2D footprint. Mandala mode mirrors it below to preserve ±Z.
+    const lastZ = (layers.length - 1) * zStep;
+    const crownGap = separated ? 0.10 : 0;
+    const crownZ =
+      lastZ + thickness * 0.5 + centerHeight * 0.5 + crownGap;
+
+    for (const sign of [-1, 1]) {
+      addCenteredPrism(
+        0,
+        0,
+        sign * crownZ,
+        0.028,
+        12,
+        centerHeight,
+        0,
+        'yantra-center',
+      );
+    }
   }
 
   function buildYantraTemple() {
@@ -1110,7 +1216,7 @@
     const layerHeight = 0.10;
     const layerGap = separated ? 0.035 : 0;
 
-    for (const [radius, rotation] of layers) {
+    layers.forEach(([radius, rotation], index) => {
       addPrism(
         0,
         0,
@@ -1119,18 +1225,21 @@
         3,
         layerHeight,
         rotation,
+        'yantra-layer-' + index + '-of-' + layers.length,
       );
       zCursor += layerHeight + layerGap;
-    }
+    });
 
-    addPolygonPyramid(
+    // Temple culmination: the same bindu footprint, elevated on top.
+    addPrism(
       0,
       0,
       zCursor,
-      layers[layers.length - 1][0] * 0.46,
-      3,
-      0.40,
-      -Math.PI / 2,
+      0.028,
+      12,
+      0.14,
+      0,
+      'yantra-center',
     );
   }
 
@@ -1161,6 +1270,7 @@
         6,
         0.18,
         Math.PI / 6,
+        'hex-satellite',
       );
     }
   }
@@ -1172,22 +1282,54 @@
     const separated = state.spacingStyle === 'separated';
     const baseThickness = 0.10;
     const layerThickness = 0.11;
+    const centerHeight = 0.12;
+    let lastPositiveZ = 0;
 
     layers.forEach(([radius, rotation], index) => {
+      const regionId =
+        'hex-layer-' + index + '-of-' + layers.length;
+
       if (index === 0) {
-        addCenteredPrism(0, 0, 0, radius, 6, baseThickness, rotation);
+        addCenteredPrism(
+          0,
+          0,
+          0,
+          radius,
+          6,
+          baseThickness,
+          rotation,
+          regionId,
+        );
         return;
       }
 
       const compactZ = (baseThickness + layerThickness) * 0.5
         + (index - 1) * layerThickness;
       const z = separated ? index * 0.32 : compactZ;
+      lastPositiveZ = z;
 
-      addCenteredPrism(0, 0, z, radius, 6, layerThickness, rotation);
-      addCenteredPrism(0, 0, -z, radius, 6, layerThickness, rotation);
+      addCenteredPrism(
+        0,
+        0,
+        z,
+        radius,
+        6,
+        layerThickness,
+        rotation,
+        regionId,
+      );
+      addCenteredPrism(
+        0,
+        0,
+        -z,
+        radius,
+        6,
+        layerThickness,
+        rotation,
+        regionId,
+      );
     });
 
-    // Satellite rings are exactly the ones visible in the 2D plan.
     addHexSatelliteRing(0);
 
     if (state.complexity === 'complex') {
@@ -1202,11 +1344,29 @@
           6,
           0.13,
           i % 2 ? Math.PI / 6 : 0,
+          'hex-outer-satellite',
         );
       }
     }
 
-    addCenteredPrism(0, 0, 0, 0.026, 12, baseThickness, 0);
+    const topThickness =
+      layers.length > 1 ? layerThickness : baseThickness;
+    const crownGap = separated ? 0.10 : 0;
+    const crownZ =
+      lastPositiveZ + topThickness * 0.5 + centerHeight * 0.5 + crownGap;
+
+    for (const sign of [-1, 1]) {
+      addCenteredPrism(
+        0,
+        0,
+        sign * crownZ,
+        0.026,
+        12,
+        centerHeight,
+        0,
+        'hex-center',
+      );
+    }
   }
 
   function buildHexTemple() {
@@ -1218,7 +1378,7 @@
     const layerHeight = 0.12;
     const layerGap = separated ? 0.035 : 0;
 
-    for (const [radius, rotation] of layers) {
+    layers.forEach(([radius, rotation], index) => {
       addPrism(
         0,
         0,
@@ -1227,18 +1387,22 @@
         6,
         layerHeight,
         rotation,
+        'hex-layer-' + index + '-of-' + layers.length,
       );
       zCursor += layerHeight + layerGap;
-    }
+    });
 
-    addPolygonPyramid(
+    // The central mark becomes the crown instead of introducing a pyramid
+    // whose collapsed spokes do not exist in the 2D hex mandala.
+    addPrism(
       0,
       0,
       zCursor,
-      layers[layers.length - 1][0] * 0.55,
-      6,
-      0.38,
-      Math.PI / 6,
+      0.026,
+      12,
+      0.14,
+      0,
+      'hex-center',
     );
 
     const ringRadius = 1.58;
@@ -1252,6 +1416,7 @@
         6,
         0.18,
         Math.PI / 6,
+        'hex-satellite',
       );
     }
 
@@ -1267,6 +1432,7 @@
           6,
           0.13,
           i % 2 ? Math.PI / 6 : 0,
+          'hex-outer-satellite',
         );
       }
     }
