@@ -35,6 +35,7 @@
   const presetButtons = [...document.querySelectorAll('[data-preset]')];
   const complexityButtons = [...document.querySelectorAll('[data-complexity]')];
   const formButtons = [...document.querySelectorAll('[data-form]')];
+  const spacingButtons = [...document.querySelectorAll('[data-spacing]')];
 
   const rotationRows = document.getElementById('rotationRows');
   const scaleRows = document.getElementById('scaleRows');
@@ -107,6 +108,7 @@
     preset: 'square',
     complexity: 'simple',
     formStyle: 'symmetric',
+    spacingStyle: 'compact',
 
     projection: 'perspective',
     colorMode: 'form',
@@ -650,6 +652,7 @@
   function buildSquareSymmetric() {
     resetGeometry();
     const complex = state.complexity === 'complex';
+    const separated = state.spacingStyle === 'separated';
     const size = 0.34;
     const spacing = size;
 
@@ -657,20 +660,24 @@
       addCenteredCube(gx * spacing, gy * spacing, 0, size, 0);
     }
 
-    const secondZ = 0.48;
+    const secondZ = separated ? 0.48 : size;
     for (const sign of [-1, 1]) {
       for (const [gx, gy] of squareSecondCells(complex)) {
         addCenteredCube(gx * spacing, gy * spacing, sign * secondZ, size, 0);
       }
     }
 
-    const crownZ = 0.96;
+    const crownSize = size * 0.74;
+    const crownZ = separated
+      ? 0.96
+      : secondZ + size * 0.5 + crownSize * 0.5;
+
     for (const sign of [-1, 1]) {
-      addCenteredCube(0, 0, sign * crownZ, size * 0.74, Math.PI / 4);
+      addCenteredCube(0, 0, sign * crownZ, crownSize, Math.PI / 4);
 
       const baseZ = sign > 0
-        ? crownZ + size * 0.37
-        : -crownZ - size * 0.37;
+        ? crownZ + crownSize * 0.5
+        : -crownZ - crownSize * 0.5;
 
       addPolygonPyramid(
         0,
@@ -687,25 +694,31 @@
   function buildSquareTemple() {
     resetGeometry();
     const complex = state.complexity === 'complex';
+    const separated = state.spacingStyle === 'separated';
     const size = 0.34;
     const spacing = size;
+    const gap = separated ? 0.10 : 0;
 
     for (const [gx, gy] of squareBaseCells(complex)) {
       addCube(gx * spacing, gy * spacing, 0, size, 0);
     }
 
+    const secondBase = size + gap;
     for (const [gx, gy] of squareSecondCells(complex)) {
-      addCube(gx * spacing, gy * spacing, size, size, 0);
+      addCube(gx * spacing, gy * spacing, secondBase, size, 0);
     }
 
-    addCube(0, 0, size * 2, size, 0);
-    addPyramid(0, 0, size * 3, size * 0.92, size * 1.02, 0);
+    const thirdBase = secondBase + size + gap;
+    addCube(0, 0, thirdBase, size, 0);
+
+    const roofBase = thirdBase + size + gap;
+    addPyramid(0, 0, roofBase, size * 0.92, size * 1.02, 0);
 
     for (const [gx, gy] of [[3,0],[-3,0],[0,3],[0,-3]]) {
       addPyramid(
         gx * spacing,
         gy * spacing,
-        size,
+        secondBase,
         size * 0.70,
         size * 0.64,
         0,
@@ -739,16 +752,19 @@
     resetGeometry();
 
     const layers = yantraLayerSpecs();
-    const zStep = state.complexity === 'complex' ? 0.23 : 0.30;
+    const separated = state.spacingStyle === 'separated';
+    const thickness = 0.10;
+    const zStep = separated
+      ? (state.complexity === 'complex' ? 0.23 : 0.30)
+      : thickness;
 
     layers.forEach(([radius, rotation], index) => {
       if (index === 0) {
-        addCenteredPrism(0, 0, 0, radius, 3, 0.10, rotation);
+        addCenteredPrism(0, 0, 0, radius, 3, thickness, rotation);
         return;
       }
 
       const z = index * zStep;
-      const thickness = 0.10;
       addCenteredPrism(0, 0, z, radius, 3, thickness, rotation);
       addCenteredPrism(0, 0, -z, radius, 3, thickness, rotation);
     });
@@ -760,10 +776,11 @@
   function buildYantraTemple() {
     resetGeometry();
     const layers = yantraLayerSpecs();
+    const separated = state.spacingStyle === 'separated';
 
     let zCursor = 0;
     const layerHeight = 0.10;
-    const layerGap = 0.035;
+    const layerGap = separated ? 0.035 : 0;
 
     for (const [radius, rotation] of layers) {
       addPrism(
@@ -824,21 +841,33 @@
     resetGeometry();
 
     const layers = hexLayerSpecs();
-    const zStep = 0.30;
+    const separated = state.spacingStyle === 'separated';
+    const baseThickness = 0.10;
+    const layerThickness = 0.11;
+
+    let lastPositiveZ = 0;
 
     layers.forEach(([radius, rotation], index) => {
       if (index === 0) {
-        addCenteredPrism(0, 0, 0, radius, 6, 0.10, rotation);
+        addCenteredPrism(0, 0, 0, radius, 6, baseThickness, rotation);
         return;
       }
 
-      const z = index * zStep;
-      addCenteredPrism(0, 0, z, radius, 6, 0.11, rotation);
-      addCenteredPrism(0, 0, -z, radius, 6, 0.11, rotation);
+      const z = separated
+        ? index * 0.30
+        : (baseThickness + layerThickness) * 0.5
+          + (index - 1) * layerThickness;
+
+      lastPositiveZ = z;
+      addCenteredPrism(0, 0, z, radius, 6, layerThickness, rotation);
+      addCenteredPrism(0, 0, -z, radius, 6, layerThickness, rotation);
     });
 
     const crownRadius = layers[layers.length - 1][0] * 0.55;
-    const crownZ = layers.length * zStep + 0.05;
+    const crownThickness = 0.12;
+    const crownZ = separated
+      ? layers.length * 0.30 + 0.05
+      : lastPositiveZ + layerThickness * 0.5 + crownThickness * 0.5;
 
     for (const sign of [-1, 1]) {
       addCenteredPrism(
@@ -847,7 +876,7 @@
         sign * crownZ,
         crownRadius,
         6,
-        0.12,
+        crownThickness,
         Math.PI / 6,
       );
     }
@@ -875,9 +904,10 @@
     resetGeometry();
 
     const layers = hexLayerSpecs();
+    const separated = state.spacingStyle === 'separated';
     let zCursor = 0;
     const layerHeight = 0.12;
-    const layerGap = 0.035;
+    const layerGap = separated ? 0.035 : 0;
 
     for (const [radius, rotation] of layers) {
       addPrism(
@@ -1947,6 +1977,17 @@
         button,
         'formStyle',
         'form',
+      );
+    });
+  });
+
+  spacingButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      rebuildFromChoice(
+        spacingButtons,
+        button,
+        'spacingStyle',
+        'spacing',
       );
     });
   });
