@@ -118,6 +118,10 @@ button { color: inherit; }
   background: rgba(255,255,255,.095);
   color: var(--text);
 }
+.segmented button.is-target {
+  background: rgba(255,255,255,.055);
+  color: var(--text);
+}
 .dimension-switcher button.is-target { color: var(--text); background: rgba(255,255,255,.055); }
 .dimension-switcher button:disabled { cursor: default; opacity: .55; }
 
