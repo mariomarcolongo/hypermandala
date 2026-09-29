@@ -55,10 +55,11 @@ The small **projected basis** gizmo shows how the X, Y, Z, and W basis direction
 
 ## Projection
 
-Two 4D → 3D projection modes are available:
+Three projection modes are available:
 
 - **Perspective** — a virtual 4D camera sits along W; geometry farther away in W projects smaller.
-- **Orthographic** — W is flattened without perspective scaling.
+- **Orthographic** — W is flattened without perspective scaling while the 3D camera remains perspective.
+- **Isometric** — W is orthographically flattened and the 3D result uses a true isometric camera (45° yaw, 35.264° pitch) with orthographic screen projection, so X/Y/Z have equal foreshortening.
 
 Mouse drag now rotates the object in the same spatial planes exposed by the controls: horizontal drag changes **XZ**, vertical drag changes **YZ**, and Shift-drag changes **XY**. The corresponding sliders update live. XW/YW/ZW remain explicit 4D rotations because an ordinary 2D drag does not uniquely specify a fourth-dimensional rotation. The wheel zooms.
 
@@ -111,6 +112,29 @@ A sixfold family built from concentric and satellite hexagons:
 
 The complex version adds a twelve-module outer ring while preserving the same 2D↔3D↔4D region identities.
 
+### Stupa
+
+A deliberately isometric-friendly sacred-architecture family:
+
+- nested square terraces transition into polygonal upper rings;
+- a central stupa footprint becomes the culminating element;
+- Mandala mirrors the vertical sequence around ±Z;
+- Temple stacks the exact same footprints upward;
+- 4D is the same W extrusion used by the other families.
+
+Its Classic palette uses warm earth, saffron, ivory and gold tones. It is a geometric stupa-inspired family rather than a reconstruction of one specific historic monument.
+
+### Borobudur-inspired
+
+A simplified geometric family based on the recognizable vertical grammar of Borobudur in Central Java.
+
+UNESCO describes Borobudur as five concentric square terraces, three circular platforms and a monumental central stupa, with 72 openwork stupas on the circular platforms:
+https://whc.unesco.org/en/list/592
+
+**Complex** preserves that 5 + 3 structure and uses the documented 32 + 24 + 16 distribution of satellite stupas (72 total). **Simple** reduces the count to keep interaction and 4D projection readable.
+
+The model is explicitly **Borobudur-inspired**, not an archaeological reconstruction: reliefs, balustrades, openwork lattice detail and sculptural ornament are abstracted into clean geometric footprints.
+
 ### Complexity
 
 Each family has **Simple** and **Complex** variants. Complexity changes the generated geometry itself rather than merely adding decoration, so the extra structure participates in 3D and 4D transformations.
@@ -121,9 +145,9 @@ The primitive vocabulary deliberately remains limited—polygons, prisms, pyrami
 
 Three render modes are available:
 
-- **Wire** — structural edges only; this remains the default because it makes dimensional emergence easiest to follow.
+- **Wire** — structural edges only.
 - **Solid** — projected polygon faces without edge overlay.
-- **Solid + edges** — opaque faces plus dark, non-transparent structural edges. The edges remain fully opaque once a dimension has emerged, while new Z/W edges still fade in during dimensional transitions.
+- **Solid + edges** — opaque faces plus dark, non-transparent structural edges; this is now the default because it makes the Classic family identity immediately legible. The edges remain fully opaque once a dimension has emerged, while new Z/W edges still fade in during dimensional transitions.
 
 The solid layer uses **WebGL2 with a real depth buffer**. Projected faces are triangulated and depth-tested per pixel rather than painter-sorted as whole polygons. Coincident shared faces are removed before rendering to prevent z-fighting.
 
@@ -137,7 +161,7 @@ Wireframe and interaction overlays remain on the existing Canvas layer. If WebGL
 
 - **Form** — restrained neutral material.
 - **Axis** — X red, Y green, Z blue, W gold.
-- **Classic** — semantic mandala-region colors that remain the same across 2D, 3D and 4D.
+- **Classic** — semantic mandala-region colors that remain the same across 2D, 3D and 4D; this is now the default color mode.
 
 Classic no longer computes color independently from polygon overlap or camera position. Every 2D region and every 3D/4D primitive derived from it carries the same stable region ID. Higher-dimensional face orientation may change **brightness only**; it never changes the region's base hue.
 
@@ -168,27 +192,35 @@ Hex uses a native concentric palette rather than forcing a square directional sy
 
 Hex is a modern geometric mandala preset, so this is a deliberately coherent radial palette rather than a claim of historical liturgical rules.
 
+### Stupa family
+
+Classic uses warm earth and saffron for the lower terraces, lighter ivory tones toward the upper rings, and a gold central crown. This is a coherent stupa-inspired presentation rather than a claim of a universal traditional stupa palette.
+
+### Borobudur-inspired family
+
+Classic uses restrained volcanic-stone / warm-gray terraces, progressively lighter circular platforms and satellite stupas, with a subtle warm central-stupa accent. The goal is recognizability and architectural hierarchy rather than decorative rainbow coloring.
+
 ### 2D overlap rule
 
 Classic 2D regions are painted **opaquely** in deterministic outer→inner order. Overlapping polygons therefore do not mix alpha and invent muddy colors. The visible 2D result follows the same hierarchy as the top surfaces of the 3D construction.
 
 ## Controls
 
-- **Mandala dock** — choose Square, Yantra, or Hex using the compact library at lower left.
-- **Persistent 2D previews** — all three mandala families are shown at the same time, using the current complexity setting, so the previews help you choose rather than only confirming the current choice.
+- **Mandala dock** — choose Square, Yantra, Hex, Stupa, or Borobudur.
+- **Persistent 2D previews** — all five families are shown at the same time, using the current complexity and Classic palette, so the previews help you choose rather than only confirming the current choice.
 - **Complexity** — choose Simple or Complex generated geometry.
 - **Form** — **Mandala** by default for exact 2D→3D→4D correspondence, or **Temple** for an architectural interpretation. Switching between them folds through the shared 2D plan.
 - **Spacing** — **Compact** by default, where neighboring Z layers touch; **Separated** preserves the airy exploded-layer look.
-- **Rendering** — Wire, Solid, or Solid + edges.
+- **Rendering** — Wire, Solid, or Solid + edges; Solid + edges is the default.
 - **2D / 3D / 4D** — automatic dimensional transitions.
 - **Drag** — XY rotation in 2D; XZ/YZ object rotation in 3D/4D, with the sliders updating live. Shift-drag gives XY twist.
 - **Wheel / trackpad** — zoom.
 - **Rotation planes** — rotate the object in 4D.
 - **A** — autorotate an individual plane.
 - **Dimension stretch** — manually scale X/Y/Z/W; 1 is normal and 0 collapses that coordinate.
-- **Projection** — perspective or orthographic.
-- **Color** — Form, Axis, or Classic Mandala.
-- **Reset** — restore rotations, scale, camera, projection, and color.
+- **Projection** — Perspective, Orthographic, or true Isometric.
+- **Color** — Form, Axis, or Classic; Classic is the default.
+- **Reset** — restore rotations, scale, camera, Perspective projection, Classic color, and Solid + edges.
 
 Keyboard: `2`, `3`, `4` switch dimensions; `R` resets.
 
@@ -230,6 +262,8 @@ The 2D plan is the source of truth for **both Mandala and Temple**.
 - Square uses exact touching square footprints plus its central diamond/inner-square guides.
 - Yantra uses the alternating triangle circuits plus bindu.
 - Hex uses concentric hexagons, satellite rings, and center.
+- Stupa uses the same nested square/ring/center footprints in Mandala and Temple.
+- Borobudur uses the same square terraces, circular platforms, satellite-stupa footprints, and central stupa in both forms.
 - Temple changes Z arrangement only; it cannot introduce a new XY footprint.
 
 The Yantra and Hex center marks are promoted into culminating Z elements. In Mandala mode they appear at both ±Z extrema; in Temple they form the top crown. Their XY footprint is unchanged, so dimensional collapse remains exact.
