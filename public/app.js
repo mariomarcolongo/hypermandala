@@ -52,20 +52,32 @@
     w: '#f0c45c',
   };
 
-  const CLASSIC_PALETTE = [
-    '#efe2b3', // ivory / gold center
-    '#b83d32', // vermilion
-    '#dda633', // saffron
-    '#168c80', // teal
-    '#3452a3', // lapis / indigo outer
+  const TIBETAN_COLORS = {
+    center: '#f4efe1',
+    east: '#315db5',
+    south: '#d8ae35',
+    west: '#b64238',
+    north: '#31906a',
+  };
+
+  const SRI_CHAKRA_COLORS = [
+    '#b92f2f',
+    '#f3efe5',
+    '#c7473d',
+    '#315aa5',
+    '#bd4136',
+    '#355aa0',
+    '#c94b40',
+    '#4968aa',
+    '#d7ad39',
   ];
 
-  const CLASSIC_ORIENTATION = {
-    x: '#b84c3d',
-    y: '#2f9b82',
-    z: '#e8c660',
-    w: '#7253a8',
-    n: '#d9a33d',
+  const CLASSIC_SHADE = {
+    x: 0.93,
+    y: 0.98,
+    z: 1.08,
+    w: 0.86,
+    n: 1.00,
   };
 
   const ROTATION_CONFIG = [
@@ -168,12 +180,26 @@
     };
   }
 
-  function classicBandColor(radiusNorm) {
+  function sriChakraBandColor(radiusNorm) {
     const band = Math.min(
-      CLASSIC_PALETTE.length - 1,
-      Math.floor(clamp(radiusNorm, 0, 0.9999) * CLASSIC_PALETTE.length),
+      SRI_CHAKRA_COLORS.length - 1,
+      Math.floor(clamp(radiusNorm, 0, 0.9999) * SRI_CHAKRA_COLORS.length),
     );
-    return hexToRgb(CLASSIC_PALETTE[band]);
+    return hexToRgb(SRI_CHAKRA_COLORS[band]);
+  }
+
+  function tibetanDirectionalColor(x, y, radiusNorm) {
+    if (radiusNorm < 0.18) return hexToRgb(TIBETAN_COLORS.center);
+
+    if (Math.abs(y) >= Math.abs(x)) {
+      return hexToRgb(y >= 0 ? TIBETAN_COLORS.east : TIBETAN_COLORS.west);
+    }
+    return hexToRgb(x < 0 ? TIBETAN_COLORS.south : TIBETAN_COLORS.north);
+  }
+
+  function classicBaseColor(x, y, radiusNorm) {
+    if (state.preset === 'yantra') return sriChakraBandColor(radiusNorm);
+    return tibetanDirectionalColor(x, y, radiusNorm);
   }
 
   function updateGeometryStats() {
@@ -266,13 +292,6 @@
     }
 
     modules.push({ vertices, edges, faces });
-
-    addPlanFace(footprint);
-    for (let i = 0; i < footprint.length; i += 1) {
-      const planAxis = footprint.length === 4 ? (i % 2 === 0 ? 'x' : 'y') : 'n';
-      addPlanEdge(footprint[i], footprint[(i + 1) % footprint.length], planAxis);
-    }
-    for (const edge of planExtra) addPlanEdge(edge[0], edge[1], 'n');
   }
 
   function cubeData(cx, cy, baseZ, size, rotation = 0) {
@@ -499,6 +518,105 @@
     planFaces.length = 0;
     planEdgeKeys.clear();
     planFaceKeys.clear();
+  }
+
+  function clearPlan() {
+    planEdges.length = 0;
+    planFaces.length = 0;
+    planEdgeKeys.clear();
+    planFaceKeys.clear();
+  }
+
+  function addPlanLoop(points, fill = true) {
+    if (fill) addPlanFace(points);
+    for (let i = 0; i < points.length; i += 1) {
+      addPlanEdge(points[i], points[(i + 1) % points.length], 'n');
+    }
+  }
+
+  function addPlanRegularPolygon(cx, cy, radius, sides, rotation = 0, fill = true) {
+    const points = polygonFootprint(cx, cy, radius, sides, rotation);
+    addPlanLoop(points, fill);
+  }
+
+  function addPlanSquareCell(cx, cy, size, rotation = 0, fill = true) {
+    const h = size / 2;
+    const points = [
+      [-h,-h], [h,-h], [h,h], [-h,h],
+    ].map(([x, y]) => {
+      const rotated = rotateXYPoint(x, y, rotation);
+      return [cx + rotated[0], cy + rotated[1]];
+    });
+    addPlanLoop(points, fill);
+  }
+
+  function addPlanPoint(cx, cy, radius = 0.026) {
+    addPlanRegularPolygon(cx, cy, radius, 12, 0, true);
+  }
+
+  function buildSquarePlan() {
+    clearPlan();
+    const size = 0.34;
+    const spacing = size;
+    const complex = state.complexity === 'complex';
+
+    for (const [gx, gy] of squareBaseCells(complex)) {
+      addPlanSquareCell(gx * spacing, gy * spacing, size, 0, true);
+    }
+
+    addPlanSquareCell(0, 0, size * 0.72, Math.PI / 4, false);
+    if (complex) addPlanSquareCell(0, 0, size * 0.46, 0, false);
+  }
+
+  function buildYantraPlan() {
+    clearPlan();
+    for (const [radius, rotation] of yantraLayerSpecs()) {
+      addPlanRegularPolygon(0, 0, radius, 3, rotation, false);
+    }
+    addPlanPoint(0, 0, 0.028);
+  }
+
+  function buildHexPlan() {
+    clearPlan();
+    for (const [radius, rotation] of hexLayerSpecs()) {
+      addPlanRegularPolygon(0, 0, radius, 6, rotation, false);
+    }
+
+    const ringRadius = 1.58;
+    for (let i = 0; i < 6; i += 1) {
+      const angle = (i / 6) * TAU;
+      addPlanRegularPolygon(
+        Math.cos(angle) * ringRadius,
+        Math.sin(angle) * ringRadius,
+        0.22,
+        6,
+        Math.PI / 6,
+        false,
+      );
+    }
+
+    if (state.complexity === 'complex') {
+      const outerRadius = 2.02;
+      for (let i = 0; i < 12; i += 1) {
+        const angle = (i / 12) * TAU + Math.PI / 12;
+        addPlanRegularPolygon(
+          Math.cos(angle) * outerRadius,
+          Math.sin(angle) * outerRadius,
+          0.15,
+          6,
+          i % 2 ? Math.PI / 6 : 0,
+          false,
+        );
+      }
+    }
+
+    addPlanPoint(0, 0);
+  }
+
+  function buildPlanForPreset() {
+    if (state.preset === 'yantra') buildYantraPlan();
+    else if (state.preset === 'hex') buildHexPlan();
+    else buildSquarePlan();
   }
 
   function squareBaseCells(complex) {
@@ -953,6 +1071,7 @@
 
   function buildActiveMandala() {
     buildGeometryForCurrentChoice();
+    buildPlanForPreset();
     updateGeometryStats();
     drawAllPreviews();
     updateGeometryStats();
@@ -1443,11 +1562,13 @@
     for (const preset of ['square', 'yantra', 'hex']) {
       state.preset = preset;
       buildGeometryForCurrentChoice();
+      buildPlanForPreset();
       drawPreviewToCanvas(previewCanvases[preset]);
     }
 
     state.preset = selectedPreset;
     buildGeometryForCurrentChoice();
+    buildPlanForPreset();
   }
 
   function basisPoint(source) {
