@@ -29,12 +29,17 @@
     hex: document.getElementById('previewHex'),
     stupa: document.getElementById('previewStupa'),
     borobudur: document.getElementById('previewBorobudur'),
+    castel: document.getElementById('previewCastel'),
+    kukulkan: document.getElementById('previewKukulkan'),
+    lalibela: document.getElementById('previewLalibela'),
   };
 
   const dimensionValue = document.getElementById('dimensionValue');
   const dimensionStatus = document.getElementById('dimensionStatus');
   const hint = document.getElementById('hint');
   const resetAllButton = document.getElementById('resetAll');
+  const geometricFormsDock = document.getElementById('geometricFormsDock');
+  const toggleGeometricForms = document.getElementById('toggleGeometricForms');
 
   const dimensionButtons = [...document.querySelectorAll('[data-dimension]')];
   const projectionButtons = [...document.querySelectorAll('[data-projection]')];
@@ -110,6 +115,28 @@
 
   const BOROBUDUR_CENTER = '#d7bd78';
 
+  const CASTEL_COLORS = {
+    wall: '#d5c39d',
+    inner: '#bba47e',
+    tower: '#a88e68',
+    accent: '#b96855',
+  };
+
+  const KUKULKAN_COLORS = [
+    '#b9aa83',
+    '#c5b58b',
+    '#d0c095',
+    '#dacba5',
+    '#e5d8b8',
+  ];
+
+  const LALIBELA_COLORS = {
+    court: '#6e4a3d',
+    body: '#9a6049',
+    roof: '#b87958',
+    center: '#d1a27d',
+  };
+
   const CLASSIC_SHADE = {
     x: 0.93,
     y: 0.98,
@@ -159,6 +186,21 @@
       kind: 'architecture',
       plan: 'Borobudur geometric plan',
       spatial: 'Borobudur architecture',
+    },
+    castel: {
+      kind: 'architecture',
+      plan: 'octagonal castle plan',
+      spatial: 'Castel del Monte form',
+    },
+    kukulkan: {
+      kind: 'architecture',
+      plan: 'step-pyramid plan',
+      spatial: 'Kukulcán pyramid form',
+    },
+    lalibela: {
+      kind: 'architecture',
+      plan: 'cruciform rock-hewn plan',
+      spatial: 'Bete Giyorgis form',
     },
   };
 
@@ -402,6 +444,34 @@
           Math.min(index, BOROBUDUR_STUPA_COLORS.length - 1)
         ],
       );
+    }
+
+    if (regionId === 'castel-wall') return hexToRgb(CASTEL_COLORS.wall);
+    if (regionId === 'castel-inner') return hexToRgb(CASTEL_COLORS.inner);
+    if (regionId === 'castel-tower') return hexToRgb(CASTEL_COLORS.tower);
+    if (regionId === 'castel-accent') return hexToRgb(CASTEL_COLORS.accent);
+
+    if (regionId?.startsWith('kukulkan-level-')) {
+      const index = Number(regionId.split('-')[2]);
+      return hexToRgb(
+        KUKULKAN_COLORS[Math.min(index, KUKULKAN_COLORS.length - 1)],
+      );
+    }
+    if (regionId === 'kukulkan-stair') return hexToRgb('#8f7d5e');
+    if (regionId === 'kukulkan-temple') return hexToRgb('#eee1bd');
+
+    if (regionId === 'lalibela-court') return hexToRgb(LALIBELA_COLORS.court);
+    if (regionId === 'lalibela-body') return hexToRgb(LALIBELA_COLORS.body);
+    if (regionId === 'lalibela-roof') return hexToRgb(LALIBELA_COLORS.roof);
+    if (regionId === 'lalibela-center') return hexToRgb(LALIBELA_COLORS.center);
+
+    if (regionId?.startsWith('square-ring-')) {
+      const index = Number(regionId.split('-')[2]);
+      return hexToRgb(['#d1af49','#4968aa','#c94b40','#f0e4c2'][index % 4]);
+    }
+    if (regionId?.startsWith('square-gate-')) {
+      const direction = regionId.slice('square-gate-'.length);
+      return classicRegionRgb('square-' + direction, fallbackX, fallbackY);
     }
 
     // Fallback is only for legacy/unclassified geometry.
