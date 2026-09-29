@@ -3244,6 +3244,7 @@
 
     const points = [];
     for (const edge of planEdges) points.push(edge.a, edge.b);
+    for (const face of planFaces) points.push(...face);
 
     const minX = Math.min(...points.map((p) => p[0]));
     const maxX = Math.max(...points.map((p) => p[0]));
@@ -3252,7 +3253,11 @@
 
     const spanX = Math.max(0.01, maxX - minX);
     const spanY = Math.max(0.01, maxY - minY);
-    const scale = Math.min((width - 14) / spanX, (height - 14) / spanY);
+    const padding = 18;
+    const scale = Math.min(
+      (width - padding) / spanX,
+      (height - padding) / spanY,
+    );
     const cx = (minX + maxX) * 0.5;
     const cy = (minY + maxY) * 0.5;
 
@@ -3313,7 +3318,16 @@
   function drawAllPreviews() {
     const selectedPreset = state.preset;
 
-    for (const preset of ['square', 'yantra', 'hex', 'stupa', 'borobudur']) {
+    for (const preset of [
+      'square',
+      'yantra',
+      'hex',
+      'stupa',
+      'borobudur',
+      'castel',
+      'kukulkan',
+      'lalibela',
+    ]) {
       state.preset = preset;
       buildPlanForPreset();
       drawPreviewToCanvas(previewCanvases[preset]);
@@ -3809,6 +3823,14 @@
   resetAllButton.addEventListener('click', () => {
     resetAll();
     hideHint();
+  });
+
+  toggleGeometricForms?.addEventListener('click', () => {
+    const collapsed = geometricFormsDock.classList.toggle('is-collapsed');
+    toggleGeometricForms.setAttribute('aria-expanded', String(!collapsed));
+    toggleGeometricForms.title = collapsed
+      ? 'Expand geometric forms'
+      : 'Collapse geometric forms';
   });
 
   canvas.addEventListener('pointerdown', (event) => {
