@@ -775,10 +775,7 @@
     if (regionId === 'matangi-shiva') return 1;
     if (regionId === 'matangi-shakti') return -1;
 
-    if (regionId?.startsWith('kali-triangle-')) {
-      const index = Number(regionId.split('-')[2]);
-      return index % 2 === 0 ? -1 : 1;
-    }
+    if (regionId?.startsWith('kali-triangle-')) return -1;
 
     return 0;
   }
@@ -795,7 +792,12 @@
     );
   }
 
-  function fourthDimensionProfile(vertices3, baseHalf, regionId) {
+  function fourthDimensionProfile(
+    vertices3,
+    baseHalf,
+    regionId,
+    liftMeta = null,
+  ) {
     const meta = PRESET_META[state.preset] || PRESET_META.square;
 
     const centroid = vertices3.reduce(
@@ -808,16 +810,9 @@
     ).map((value) => value / vertices3.length);
 
     const z = centroid[2];
-    const absZ = Math.abs(z);
-    const zSign = z > 1e-7 ? 1 : z < -1e-7 ? -1 : 0;
-    const hierarchy = clamp(absZ / 1.25, 0, 1);
     const central = isCentralRegion(regionId);
 
     if (meta.kind === 'architecture') {
-      // Architecture keeps a W-reflection symmetry, but the higher /
-      // more central parts are allowed more fourth-dimensional extent.
-      // Real-world gravity/material constraints therefore do not cap the
-      // hyperform's expression of hierarchy.
       const upward = clamp(Math.max(0, z) / 1.55, 0, 1);
       const centerBoost = central ? 1.28 : 1;
       return {
@@ -830,28 +825,42 @@
       };
     }
 
-    // Symmetric forms use an experimental 4D double-Meru lift.
-    // Z hierarchy becomes diagonal Z/W hierarchy, while yantra polarity
-    // separates complementary triangle families along W.
-    const polarity = regionPolarity(regionId);
-    const polarityOffset = polarity * (0.08 + 0.08 * hierarchy);
-    const hierarchyOffset = absZ * 0.68;
-    const center = zSign
-      ? zSign * (hierarchyOffset + polarityOffset)
-      : polarity * 0.08;
+    // For free geometric forms, Z already carries the single outer→inner
+    // ascent. W gets a different semantic role: polarity/duality where
+    // present, and hierarchy-dependent extent otherwise.
+    const hierarchy = clamp(
+      liftMeta?.hierarchyT
+        ?? ((z + 1.2) / 2.4),
+      0,
+      1,
+    );
+    const polarity = liftMeta?.polarity ?? regionPolarity(regionId);
 
-    const centerBoost = central ? 1.5 : 1;
+    // Separation is strongest in the middle of the journey and converges
+    // again at outer boundary and final center/bindu.
+    const envelope = Math.sin(Math.PI * hierarchy);
+    const center = central
+      ? 0
+      : polarity * 0.32 * envelope;
+
+    const extentShape =
+      0.42
+      + 0.42 * envelope
+      + (central ? 0.32 : 0);
+
     const half = Math.max(
-      central ? 0.075 : 0.025,
-      baseHalf * (0.38 + hierarchy * 0.52) * centerBoost,
+      central ? 0.08 : 0.025,
+      baseHalf * extentShape,
     );
 
     return {
       center,
       half,
+      hierarchy,
+      polarity,
       kind: polarity
-        ? 'hierarchy-polarity'
-        : 'hierarchy',
+        ? 'polarity-convergence'
+        : 'hierarchy-extent',
     };
   }
 
@@ -863,11 +872,13 @@
     footprint,
     planExtra = [],
     regionId = 'unclassified',
+    liftMeta = null,
   ) {
     const wProfile = fourthDimensionProfile(
       vertices3,
       wHalf,
       regionId,
+      liftMeta,
     );
 
     const vertices = [];
@@ -889,6 +900,7 @@
           a: edge.a + offset,
           b: edge.b + offset,
           axis: edge.axis,
+          detail: Boolean(edge.detail),
           wLayer: layer === 0 ? -1 : 1,
         });
       }
@@ -912,6 +924,7 @@
         axis: 'w',
         wLayer: 0,
         bridge: true,
+        detailBridge: Boolean(edge.detail),
       });
     }
 
