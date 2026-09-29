@@ -1265,7 +1265,7 @@
     const size = 0.34;
     const spacing = size;
 
-    for (const [gx, gy] of squareBaseCells(false)) {
+    for (const [gx, gy] of squareBaseCells()) {
       const cx = gx * spacing;
       const cy = gy * spacing;
       addPlanSquareCell(
@@ -2019,11 +2019,11 @@
     else buildSquarePlan();
   }
 
-  function squareBaseCells(complex) {
+  function squareBaseCells() {
     const base = [];
     for (let gx = -2; gx <= 2; gx += 1) {
       for (let gy = -2; gy <= 2; gy += 1) {
-        if (complex || Math.abs(gx) + Math.abs(gy) <= 2) {
+        if (Math.abs(gx) + Math.abs(gy) <= 2) {
           base.push([gx, gy]);
         }
       }
@@ -2032,10 +2032,8 @@
     return base;
   }
 
-  function squareSecondCells(complex) {
-    return complex
-      ? [[0,0],[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]
-      : [[0,0],[1,0],[-1,0],[0,1],[0,-1]];
+  function squareSecondCells() {
+    return [[0,0],[1,0],[-1,0],[0,1],[0,-1]];
   }
 
   function buildSquareComplexMandala() {
@@ -2082,7 +2080,7 @@
     const size = 0.34;
     const spacing = size;
 
-    for (const [gx, gy] of squareBaseCells(false)) {
+    for (const [gx, gy] of squareBaseCells()) {
       const cx = gx * spacing;
       const cy = gy * spacing;
       addCenteredCube(
@@ -2097,7 +2095,7 @@
 
     const secondZ = separated ? size * 1.65 : size;
     for (const sign of [-1, 1]) {
-      for (const [gx, gy] of squareSecondCells(false)) {
+      for (const [gx, gy] of squareSecondCells()) {
         const cx = gx * spacing;
         const cy = gy * spacing;
         addCenteredCube(
