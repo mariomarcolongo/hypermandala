@@ -1,6 +1,6 @@
 /*
  * Hypermandala — dimensional mandala explorer.
- * 2D plans expand into 3D primitive structures and symmetric 4D W-extrusions.
+ * 2D plans expand into hierarchy-aware 3D forms and semantic 4D W lifts.
  *
  * Independent implementation inspired by the interaction model of
  * Tarek Sherif's Tesseract Explorer (MIT):
@@ -50,6 +50,8 @@
   const presetButtons = [...document.querySelectorAll('[data-preset]')];
   const complexityButtons = [...document.querySelectorAll('[data-complexity]')];
   const spacingButtons = [...document.querySelectorAll('[data-spacing]')];
+  const liftButtons = [...document.querySelectorAll('[data-lift]')];
+  const liftOption = document.getElementById('liftOption');
 
   const rotationRows = document.getElementById('rotationRows');
   const scaleRows = document.getElementById('scaleRows');
@@ -252,6 +254,7 @@
     preset: 'square',
     complexity: 'complex',
     spacingStyle: 'compact',
+    liftMode: 'hierarchy',
 
     projection: 'perspective',
     colorMode: 'classic',
@@ -297,6 +300,7 @@
       preset: state.preset,
       complexity: state.complexity,
       spacingStyle: state.spacingStyle,
+      liftMode: state.liftMode,
       dimension: state.dimension,
       projection: state.projection,
       colorMode: state.colorMode,
@@ -357,6 +361,9 @@
     }
     if (['compact', 'separated'].includes(saved.spacingStyle)) {
       state.spacingStyle = saved.spacingStyle;
+    }
+    if (['hierarchy', 'mirror'].includes(saved.liftMode)) {
+      state.liftMode = saved.liftMode;
     }
 
     const dimension = Number(saved.dimension);
@@ -422,6 +429,12 @@
       button.classList.toggle(
         'is-active',
         button.dataset.spacing === state.spacingStyle,
+      );
+    });
+    liftButtons.forEach((button) => {
+      button.classList.toggle(
+        'is-active',
+        button.dataset.lift === state.liftMode,
       );
     });
     projectionButtons.forEach((button) => {
@@ -4616,6 +4629,13 @@
       ui.input.disabled = !enabled;
       ui.row.classList.toggle('is-disabled', !enabled);
     }
+
+    const meta = PRESET_META[state.preset] || PRESET_META.square;
+    const liftEnabled = meta.kind !== 'architecture' && !locked;
+    liftOption?.classList.toggle('is-disabled', !liftEnabled);
+    liftButtons.forEach((button) => {
+      button.disabled = !liftEnabled;
+    });
   }
 
   function updateUI() {
@@ -4634,7 +4654,10 @@
       if (state.dimension === 2) {
         dimensionStatus.textContent = meta.plan;
       } else if (state.dimension === 3) {
-        dimensionStatus.textContent = meta.spatial;
+        dimensionStatus.textContent =
+          meta.kind !== 'architecture' && state.liftMode === 'mirror'
+            ? 'reflection-symmetric Z lift'
+            : meta.spatial;
       } else {
         dimensionStatus.textContent =
           meta.kind === 'architecture'
@@ -4669,6 +4692,7 @@
     state.preset = 'square';
     state.complexity = 'complex';
     state.spacingStyle = 'compact';
+    state.liftMode = 'hierarchy';
 
     state.projection = 'perspective';
     state.colorMode = 'classic';
@@ -4802,6 +4826,20 @@
         'spacingStyle',
         'spacing',
       );
+    });
+  });
+
+  liftButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const meta = PRESET_META[state.preset] || PRESET_META.square;
+      if (meta.kind === 'architecture') return;
+      rebuildFromChoice(
+        liftButtons,
+        button,
+        'liftMode',
+        'lift',
+      );
+      updateUI();
     });
   });
 
