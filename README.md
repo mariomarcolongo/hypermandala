@@ -20,7 +20,7 @@ Families then divide naturally:
 In every case:
 
 - **2D → 3D:** every non-zero XY edge in the 3D object must already exist in the 2D geometric plan, and every 2D plan edge must be represented by the collapsed 3D object.
-- **3D → 4D:** the intrinsic 3D object is extruded symmetrically through W, so W=0 returns the same 3D object.
+- **3D → 4D:** the intrinsic 3D object receives a family-aware W lift. Collapsing W to 0 still returns the same 3D object exactly, but W now encodes hierarchy, polarity and centrality instead of acting as generic uniform thickness.
 
 The project therefore preserves identity instead of manufacturing a second interpretation of every object.
 
@@ -46,6 +46,15 @@ Hypermandala supports rotations in all six coordinate planes:
 
 The XW/YW/ZW rotations are the ones that most directly reveal the fourth coordinate.
 
+The fourth coordinate now has semantic structure:
+
+- symmetric geometric forms map 3D hierarchy into W as well as Z;
+- mirrored ±Z partners receive mirrored W placement;
+- Sri/Matangi complementary triangle families separate by polarity in W;
+- Kali triangle levels alternate polarity in W;
+- bindu/central culmination regions receive the strongest fourth-dimensional emphasis;
+- architectural families stay centered on W=0 but gain greater W extent toward higher/central hierarchy, preserving W-reflection symmetry.
+
 Each rotation plane also has an **A** button for autorotation.
 
 The small **projected basis** gizmo shows how the X, Y, Z, and W basis directions appear after the current 4D rotation and projection.
@@ -58,7 +67,7 @@ Three projection modes are available:
 - **Orthographic** — W is flattened without perspective scaling while the 3D camera remains perspective.
 - **Isometric** — W is orthographically flattened and the 3D result uses a true isometric camera (45° yaw, 35.264° pitch) with orthographic screen projection, so X/Y/Z have equal foreshortening.
 
-Mouse drag now rotates the object in the same spatial planes exposed by the controls: horizontal drag changes **XZ**, vertical drag changes **YZ**, and Shift-drag changes **XY**. The corresponding sliders update live. XW/YW/ZW remain explicit 4D rotations because an ordinary 2D drag does not uniquely specify a fourth-dimensional rotation. The wheel zooms.
+Mouse drag remains tied to the same object-rotation planes shown in the controls. In 3D/4D, horizontal drag now combines **XY spin + XZ tilt**, while vertical drag changes **YZ**. This keeps XY visibly responsive instead of hiding it behind a modifier. Shift-drag remains a pure **XY** gesture. The corresponding sliders update live. XW/YW/ZW remain explicit 4D rotations because an ordinary 2D drag does not uniquely specify a fourth-dimensional rotation. The wheel zooms.
 
 ## Dimension stretch
 
@@ -93,8 +102,8 @@ Its core uses nine interlocking triangles — four upward and five downward — 
 
 - **Simple**: nine-triangle core + 8-petal lotus + 16-petal lotus + four-gated bhupura + bindu.
 - **Complex**: the same identity-preserving core plus the fuller triple bhupura and concentric enclosure detail.
-- 3D: each exact 2D footprint is lifted symmetrically through ±Z in a meru-like hierarchy.
-- 4D: the same intrinsic 3D structure is extruded through W.
+- 3D: each exact 2D footprint is lifted symmetrically through ±Z in a meru-like hierarchy, with layer thickness increasing subtly toward the center/bindu rather than using uniform slabs.
+- 4D: the double-Meru continues into W. Upward/downward triangle polarity affects W placement, mirrored ±Z partners remain mirrored in W, and the bindu becomes the strongest 4D culmination.
 
 Geometry references:
 - https://sriyantrageometry.com/
@@ -125,8 +134,9 @@ A sixfold symmetric family:
 
 - concentric and satellite hexagons in 2D;
 - symmetric stepped hexagonal structure through ±Z;
+- layer thickness increases inward rather than remaining uniform;
 - the center becomes the culminating element at both Z extrema;
-- the same regions are extruded through W in 4D.
+- the 4D lift carries that hierarchy into W while preserving the lower-dimensional collapse.
 
 The complex version adds a twelve-module outer ring while preserving exact dimensional identity.
 
@@ -273,7 +283,7 @@ Classic 2D regions are painted **opaquely** in deterministic outer→inner order
 - **Spacing** — **Compact** by default. Compact means hierarchy levels are physically contiguous rather than merely close; **Separated** intentionally introduces air between levels.
 - **Rendering** — Solid (default: visible black edges only), Solid + wireframe (full structural overlay), or Wire.
 - **2D / 3D / 4D** — automatic dimensional transitions.
-- **Drag** — XY rotation in 2D; XZ/YZ object rotation in 3D/4D, with the sliders updating live. Shift-drag gives XY twist.
+- **Drag** — XY rotation in 2D; in 3D/4D, horizontal motion gives XY spin + XZ tilt and vertical motion gives YZ tilt. Shift-drag gives pure XY. Sliders update live.
 - **Wheel / trackpad** — zoom.
 - **Rotation planes** — rotate the object in 4D.
 - **A** — autorotate an individual plane.
@@ -319,7 +329,7 @@ The 2D geometric plan is the source of truth for every family.
 
 - Every non-zero XY edge in 3D must exist in the 2D plan.
 - Every 2D plan edge must be represented by the collapsed 3D form.
-- 4D is a symmetric W extrusion of the intrinsic 3D object, so W collapse returns that object exactly.
+- 4D uses a family-aware W lift rather than uniform extrusion. W collapse still returns the intrinsic 3D object exactly.
 - Symmetric forms may mirror geometry through ±Z.
 - Architectural forms may privilege +Z when upward hierarchy is intrinsic to the architecture.
 - An architectural family does **not** receive a fake symmetric counterpart, and a symmetric family does **not** receive a fake architectural counterpart.
@@ -348,14 +358,18 @@ For **reference architecture**, real buildings anchor recognizable topology, pro
 
 For **non-architectural geometric forms**, the lift should express the internal logic of the plan rather than behave like arbitrary stacked slabs:
 
-- hierarchy determines elevation;
+- hierarchy determines elevation and layer thickness;
 - center and periphery remain meaningful;
 - opposite directions are treated symmetrically when the form permits it;
-- repeated elements at one hierarchy level share the same elevation;
+- repeated elements at one hierarchy level share elevation and dimensional extent;
 - Compact introduces **no accidental air gaps** between consecutive hierarchy levels;
-- the bindu or central culmination remains geometrically privileged.
+- the bindu or central culmination remains geometrically privileged;
+- 4D W placement continues the hierarchy instead of merely adding thickness;
+- complementary yantra polarities may separate along W while preserving mirrored partners.
 
-The yantra lift is therefore an experimental **double-Meru** construction: the 2D yantra is the equatorial plan, and its hierarchy rises continuously in both +Z and −Z. This deliberately maximizes reflection symmetry in the unrestricted Hypermandala space. Traditional Śrīcakra practice also includes a one-sided pyramidal **Meru** form in which the same plan is elevated toward the bindu, but historical sources do not provide one universal set of Meru proportions.
+The yantra lift is therefore an experimental **double-Meru** construction: the 2D yantra is the equatorial plan, and its hierarchy rises continuously in both +Z and −Z. In 4D, that hierarchy continues diagonally into W; mirrored Z partners receive mirrored W placement, and complementary triangle families can separate along W. This deliberately uses the unrestricted Hypermandala space to express symmetry and polarity rather than physical construction constraints. Traditional Śrīcakra practice also includes a one-sided pyramidal **Meru** form in which the same plan is elevated toward the bindu, but historical sources do not provide one universal set of Meru proportions.
+
+For **reference architecture**, recognizable 3D structure remains anchored to the real object. The 4D lift is freer: modules stay centered on W=0 to preserve reflection symmetry, while higher/central architectural elements receive greater W extent. In other words, 3D respects the building; 4D is allowed to express the building's hierarchy without gravity, material cost or engineering limits.
 
 References:
 - https://www.sriyantrageometry.com/sources
