@@ -1,6 +1,6 @@
 /*
  * Hypermandala — dimensional mandala explorer.
- * 2D plans expand into 3D primitive structures and symmetric 4D W-extrusions.
+ * 2D plans unfold into hierarchy-aware 3D forms and semantic 4D projections.
  *
  * Independent implementation inspired by the interaction model of
  * Tarek Sherif's Tesseract Explorer (MIT):
@@ -50,6 +50,7 @@
   const presetButtons = [...document.querySelectorAll('[data-preset]')];
   const complexityButtons = [...document.querySelectorAll('[data-complexity]')];
   const spacingButtons = [...document.querySelectorAll('[data-spacing]')];
+  const zLiftButtons = [...document.querySelectorAll('[data-zlift]')];
 
   const rotationRows = document.getElementById('rotationRows');
   const scaleRows = document.getElementById('scaleRows');
@@ -252,6 +253,7 @@
     preset: 'square',
     complexity: 'complex',
     spacingStyle: 'compact',
+    zLiftStyle: 'hierarchy',
 
     projection: 'perspective',
     colorMode: 'classic',
@@ -297,6 +299,7 @@
       preset: state.preset,
       complexity: state.complexity,
       spacingStyle: state.spacingStyle,
+      zLiftStyle: state.zLiftStyle,
       dimension: state.dimension,
       projection: state.projection,
       colorMode: state.colorMode,
@@ -357,6 +360,9 @@
     }
     if (['compact', 'separated'].includes(saved.spacingStyle)) {
       state.spacingStyle = saved.spacingStyle;
+    }
+    if (['hierarchy', 'mirror'].includes(saved.zLiftStyle)) {
+      state.zLiftStyle = saved.zLiftStyle;
     }
 
     const dimension = Number(saved.dimension);
@@ -422,6 +428,12 @@
       button.classList.toggle(
         'is-active',
         button.dataset.spacing === state.spacingStyle,
+      );
+    });
+    zLiftButtons.forEach((button) => {
+      button.classList.toggle(
+        'is-active',
+        button.dataset.zlift === state.zLiftStyle,
       );
     });
     projectionButtons.forEach((button) => {
@@ -4616,6 +4628,19 @@
       ui.input.disabled = !enabled;
       ui.row.classList.toggle('is-disabled', !enabled);
     }
+
+    const meta = PRESET_META[state.preset] || PRESET_META.square;
+    const zLiftEnabled = meta.kind !== 'architecture' && !locked;
+    zLiftButtons.forEach((button) => {
+      button.disabled = !zLiftEnabled;
+      button.title = zLiftEnabled
+        ? (
+          button.dataset.zlift === 'mirror'
+            ? 'Experimental reflection-symmetric Z lift'
+            : 'Single outer-to-inner hierarchy spanning the Z axis'
+        )
+        : 'Architecture keeps its intrinsic vertical orientation';
+    });
   }
 
   function updateUI() {
@@ -4669,6 +4694,7 @@
     state.preset = 'square';
     state.complexity = 'complex';
     state.spacingStyle = 'compact';
+    state.zLiftStyle = 'hierarchy';
 
     state.projection = 'perspective';
     state.colorMode = 'classic';
@@ -4801,6 +4827,18 @@
         button,
         'spacingStyle',
         'spacing',
+      );
+    });
+  });
+
+  zLiftButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      if (button.disabled) return;
+      rebuildFromChoice(
+        zLiftButtons,
+        button,
+        'zLiftStyle',
+        'zlift',
       );
     });
   });
