@@ -456,7 +456,11 @@
       { label: 'W', vector: [0,0,0,0.8], color: COLORS.w, min: 4 },
     ];
 
-    const active = axes.filter((axis) => state.dimension >= axis.min || state.requestedDimension >= axis.min);
+    const active = axes.filter((axis) => (
+      axis.min === 2
+      || (axis.min === 3 && state.zMix > 0.025)
+      || (axis.min === 4 && state.wMix > 0.025)
+    ));
     const points = active.map((axis) => ({ axis, p: basisPoint(axis.vector) }));
     let max = 0.01;
     for (const item of points) max = Math.max(max, Math.hypot(item.p[0], item.p[1]));
