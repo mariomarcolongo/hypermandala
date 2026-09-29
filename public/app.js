@@ -1117,24 +1117,32 @@
 
   function classicFaceColor(face, module, depth) {
     const centroid = faceCentroid(face, module);
+    const meanRadius = face.indices.reduce((sum, index) => {
+      const point = module.vertices[index];
+      return sum + Math.hypot(point[0], point[1]);
+    }, 0) / face.indices.length;
+
     const radiusNorm = clamp(
-      Math.hypot(centroid[0], centroid[1]) / geometryStats.maxPlanRadius,
+      meanRadius / geometryStats.maxPlanRadius,
       0,
       1,
     );
 
-    const base = classicBandColor(radiusNorm);
-    const orientation = hexToRgb(
-      CLASSIC_ORIENTATION[face.axis] || CLASSIC_ORIENTATION.n,
+    const base = classicBaseColor(
+      centroid[0],
+      centroid[1],
+      radiusNorm,
     );
 
-    // Orientation should clarify form without overriding radial mandala bands.
-    const tintStrength = face.axis === 'w' ? 0.18 : 0.10;
-    const tinted = mixRgb(base, orientation, tintStrength);
-
+    const orientationShade = CLASSIC_SHADE[face.axis] || 1;
     const depthNorm = clamp((depth + 1.8) / 3.8, 0, 1);
-    const shaded = shadeRgb(tinted, 0.90 + depthNorm * 0.17);
-    return rgbCss(shaded);
+
+    return rgbCss(
+      shadeRgb(
+        base,
+        orientationShade * (0.94 + depthNorm * 0.10),
+      ),
+    );
   }
 
   function faceFillColor(face, module, depth) {
@@ -1152,12 +1160,20 @@
   function classicPlanColor(face) {
     const cx = face.reduce((sum, p) => sum + p[0], 0) / face.length;
     const cy = face.reduce((sum, p) => sum + p[1], 0) / face.length;
+    const meanRadius = face.reduce(
+      (sum, p) => sum + Math.hypot(p[0], p[1]),
+      0,
+    ) / face.length;
+
     const radiusNorm = clamp(
-      Math.hypot(cx, cy) / geometryStats.maxPlanRadius,
+      meanRadius / geometryStats.maxPlanRadius,
       0,
       1,
     );
-    return rgbCss(classicBandColor(radiusNorm));
+
+    return rgbCss(
+      classicBaseColor(cx, cy, radiusNorm),
+    );
   }
 
   function edgeStrokeColor(axis) {
@@ -1200,7 +1216,31 @@
     for (const edge of planEdges) {
       const a = projectToScreen(edge.a);
       const b = projectToScreen(edge.b);
-      drawLine(a, b, axisColor(edge.axis), 1.15, alpha * 0.92);
+
+      let color = axisColor(edge.axis);
+      let width = 1.15;
+
+      if (state.colorMode === 'classic') {
+        const mx = (edge.a[0] + edge.b[0]) * 0.5;
+        const my = (edge.a[1] + edge.b[1]) * 0.5;
+        const meanRadius = (
+          Math.hypot(edge.a[0], edge.a[1])
+          + Math.hypot(edge.b[0], edge.b[1])
+        ) * 0.5;
+
+        const radiusNorm = clamp(
+          meanRadius / geometryStats.maxPlanRadius,
+          0,
+          1,
+        );
+
+        color = rgbCss(
+          classicBaseColor(mx, my, radiusNorm),
+        );
+        width = 1.35;
+      }
+
+      drawLine(a, b, color, width, alpha * 0.94);
     }
   }
 
