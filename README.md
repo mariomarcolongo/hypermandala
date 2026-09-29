@@ -1,6 +1,6 @@
 # Hypermandala
 
-**Sacred 2D plans unfolding into their intrinsic 3D forms and 4D projections.**
+**Geometric 2D plans unfolding into their intrinsic 3D forms and 4D projections.**
 
 Hypermandala is a dependency-free Canvas visualization. Its interaction model is inspired by [Tarek Sherif's Tesseract Explorer](https://github.com/tsherif/tesseract-explorer): the 4D object is manipulated in 4D space, projected into 3D, and then viewed with an ordinary 3D camera.
 
@@ -10,16 +10,16 @@ No source code from Tesseract Explorer is required by Hypermandala; the implemen
 
 Hypermandala no longer treats **Mandala** and **Temple** as interchangeable modes. Each family has one intrinsic 3D identity.
 
-The common source is the **2D sacred plan**: a centered, hierarchical, radially or axially organized figure with mandala-like structure. The 2D view is not a disposable footprint; it is the geometric source of truth.
+The common source is the **2D geometric plan**: a centered, hierarchical, radially or axially organized figure with mandala-like structure. The 2D view is not a disposable footprint; it is the geometric source of truth.
 
 Families then divide naturally:
 
-- **Symmetric sacred geometry** — Square, Yantra and Hex remain balanced through the added Z dimension. Their 3D construction is reflected through ±Z rather than forced into an architectural “up” direction.
-- **Sacred architecture** — Stupa and Borobudur rise in +Z because vertical hierarchy is intrinsic to the object itself.
+- **Symmetric forms** — Square, Yantra and Hex remain balanced through the added Z dimension. Their 3D construction is reflected through ±Z rather than forced into an architectural “up” direction.
+- **Architecture** — Stupa and Borobudur rise in +Z because vertical hierarchy is intrinsic to the object itself.
 
 In every case:
 
-- **2D → 3D:** every non-zero XY edge in the 3D object must already exist in the 2D sacred plan, and every 2D plan edge must be represented by the collapsed 3D object.
+- **2D → 3D:** every non-zero XY edge in the 3D object must already exist in the 2D geometric plan, and every 2D plan edge must be represented by the collapsed 3D object.
 - **3D → 4D:** the intrinsic 3D object is extruded symmetrically through W, so W=0 returns the same 3D object.
 
 The project therefore preserves identity instead of manufacturing a second interpretation of every object.
@@ -27,7 +27,7 @@ The project therefore preserves identity instead of manufacturing a second inter
 Dimensional transitions remain staged:
 
 ```
-sacred plan → intrinsic form → hyperform
+geometric plan → intrinsic form → hyperform
 2D            3D             4D
 ```
 
@@ -73,13 +73,13 @@ The former **Axis scale** control is now labeled **Dimension stretch**:
 
 This is independent of the 2D / 3D / 4D buttons: the buttons perform the canonical dimensional transition, while Dimension stretch is a manual inspection tool.
 
-## Sacred-form families
+## Geometric-form families
 
 Hypermandala uses multiple geometry generators. Every family shares the same dimensional engine and six-plane 4D rotations, but its 3D geometry is determined by what the family actually represents.
 
 ### Square Mandala
 
-A square/palace sacred-geometric family:
+A square/palace symmetric family:
 
 - modular square cells and central guides in 2D;
 - a balanced ±Z construction in 3D;
@@ -89,7 +89,7 @@ Its plan uses a centered diamond arrangement with four cardinal extensions and a
 
 ### Triangle Yantra
 
-A yantra-inspired sacred-geometric family built from alternating upward/downward equilateral triangles:
+A yantra-inspired symmetric family built from alternating upward/downward equilateral triangles:
 
 - nested triangular circuits plus the central bindu;
 - symmetric ±Z triangular-prism structure in 3D;
@@ -98,7 +98,7 @@ A yantra-inspired sacred-geometric family built from alternating upward/downward
 
 ### Hexagonal Mandala
 
-A sixfold sacred-geometric family:
+A sixfold symmetric family:
 
 - concentric and satellite hexagons in 2D;
 - symmetric stepped hexagonal structure through ±Z;
@@ -109,7 +109,7 @@ The complex version adds a twelve-module outer ring while preserving exact dimen
 
 ### Stupa
 
-A sacred-architectural family:
+An architectural family:
 
 - nested square terraces transition into polygonal upper rings;
 - the 2D plan is still centered, concentric and mandala-like;
@@ -121,7 +121,7 @@ Its Classic palette uses warm earth, saffron, ivory and gold tones. It is a geom
 
 ### Borobudur-inspired
 
-A simplified sacred-architectural family based on Borobudur's recognizable concentric plan and stepped vertical hierarchy.
+A simplified architectural family based on Borobudur's recognizable concentric plan and stepped vertical hierarchy.
 
 UNESCO describes Borobudur as five concentric square terraces, three circular platforms and a monumental central stupa, with 72 openwork stupas on the circular platforms:
 https://whc.unesco.org/en/list/592
@@ -140,11 +140,11 @@ A future preset should not be added merely because its 3D object is famous or vi
 - repeated modules or directional structure;
 - a clear relationship between center and periphery.
 
-That is why sacred architecture can belong in Hypermandala: the plan itself carries the geometric logic from which the 3D object grows.
+That is why architecture can belong in Hypermandala: the plan itself carries the geometric logic from which the 3D object grows.
 
 ### Complexity
 
-Each family has **Simple** and **Complex** variants. “Simple” is relative: both versions must remain structurally meaningful sacred plans. Complexity changes the generated geometry itself rather than merely adding decoration, so the extra structure participates in 3D and 4D transformations.
+Each family has **Simple** and **Complex** variants. “Simple” is relative: both versions must remain structurally meaningful geometric plans. Complexity changes the generated geometry itself rather than merely adding decoration, so the extra structure participates in 3D and 4D transformations.
 
 ## Rendering
 
@@ -158,7 +158,7 @@ The solid layer uses **WebGL2 with a real depth buffer**. Projected faces are tr
 
 Solid faces are now genuinely opaque in the GPU renderer: blending is disabled while depth writing is enabled. Higher-dimensional geometry emerges by changing its geometry/scale rather than by stacking depth-writing translucent faces. This removes the depth/alpha interaction that caused color popping and flashing.
 
-Face colors are intrinsic to the face family/orientation and no longer brighten or darken according to camera depth. Axis coloring remains tied to X/Y/Z/W orientation while Classic coloring remains tied to semantic sacred-plan regions.
+Face colors are intrinsic to the face family/orientation and no longer brighten or darken according to camera depth. Axis coloring remains tied to X/Y/Z/W orientation while Classic coloring remains tied to semantic plan regions.
 
 Wireframe and interaction overlays remain on the existing Canvas layer. If WebGL2 is unavailable, Hypermandala falls back to the older Canvas face renderer.
 
@@ -211,7 +211,7 @@ Classic 2D regions are painted **opaquely** in deterministic outer→inner order
 
 ## Controls
 
-- **Sacred forms** — choose Square, Yantra, Hex, Stupa, or Borobudur.
+- **Geometric forms** — choose Square, Yantra, Hex, Stupa, or Borobudur.
 - **Persistent 2D previews** — all five families are shown at the same time, using the current complexity and Classic palette, so the previews help you choose rather than only confirming the current choice.
 - **Complexity** — choose Simple or Complex generated geometry.
 - **Spacing** — **Compact** by default, where neighboring Z layers touch; **Separated** preserves the airy exploded-layer look.
@@ -256,25 +256,25 @@ The workflow at `.github/workflows/pages.yml` publishes `public` once GitHub Pag
 GNU Affero General Public License v3.0 or later. See [`LICENSE`](./LICENSE).
 
 
-## Sacred-plan construction rules
+## Geometric-plan construction rules
 
-The 2D sacred plan is the source of truth for every family.
+The 2D geometric plan is the source of truth for every family.
 
 - Every non-zero XY edge in 3D must exist in the 2D plan.
 - Every 2D plan edge must be represented by the collapsed 3D form.
 - 4D is a symmetric W extrusion of the intrinsic 3D object, so W collapse returns that object exactly.
-- Symmetric families may mirror geometry through ±Z.
-- Architectural families may privilege +Z when upward hierarchy is intrinsic to the architecture.
-- An architectural family does **not** receive a fake symmetric “Mandala mode”, and a sacred-geometric family does **not** receive a fake architectural “Temple mode”.
+- Symmetric forms may mirror geometry through ±Z.
+- Architectural forms may privilege +Z when upward hierarchy is intrinsic to the architecture.
+- An architectural family does **not** receive a fake symmetric counterpart, and a symmetric family does **not** receive a fake architectural counterpart.
 - The 2D source must remain a rich centered/hierarchical composition rather than a trivial silhouette.
 
 Current intrinsic mapping:
 
-- Square → symmetric sacred geometry.
-- Yantra → symmetric sacred geometry.
-- Hex → symmetric sacred geometry.
-- Stupa → sacred architecture.
-- Borobudur → sacred architecture.
+- Square → symmetric form.
+- Yantra → symmetric form.
+- Hex → symmetric form.
+- Stupa → architectural form.
+- Borobudur → architectural form.
 
 The Yantra and Hex center marks are promoted into culminating ±Z elements. Stupa and Borobudur instead use their central footprints as the top architectural crown.
 
@@ -283,6 +283,6 @@ The Yantra and Hex center marks are promoted into culminating ±Z elements. Stup
 Spacing is a real geometric control again:
 
 - **Compact** is the default. Symmetric families keep mirrored Z layers close/touching; architectural families keep adjacent terraces touching.
-- **Separated** moves layers farther apart while leaving the XY sacred plan unchanged.
+- **Separated** moves layers farther apart while leaving the XY geometric plan unchanged.
 
-The 2D sacred plan itself never changes when spacing changes.
+The 2D geometric plan itself never changes when spacing changes.

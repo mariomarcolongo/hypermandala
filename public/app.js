@@ -152,12 +152,12 @@
     },
     stupa: {
       kind: 'architecture',
-      plan: 'stupa sacred plan',
+      plan: 'stupa geometric plan',
       spatial: 'stupa architecture',
     },
     borobudur: {
       kind: 'architecture',
-      plan: 'Borobudur sacred plan',
+      plan: 'Borobudur geometric plan',
       spatial: 'Borobudur architecture',
     },
   };
