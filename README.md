@@ -21,7 +21,7 @@ The family-specific lift is therefore the default. Symmetry is the symmetry nati
 
 ### Temple form — optional
 
-**Temple** is an architectural interpretation of the same 2D mandala plan. It intentionally gives Z a preferred upward direction and may use pyramids/stepped levels where Mandala uses a symmetric lift.
+**Temple** is an architectural interpretation of the **same exact 2D mandala plan**. It intentionally gives Z a preferred upward direction, but it now uses only footprints already present in the 2D figure. A Temple may stack those footprints into stepped levels, but it no longer introduces pyramid spokes or roof outlines that disappear when returning to 2D.
 
 Mandala families keep their **native planar symmetry** rather than being forced into full X/Y/Z isotropy. Square, Yantra, and Hex do not generally admit an all-axis-isotropic 3D realization while preserving the exact original 2D mandala.
 
@@ -91,23 +91,25 @@ Its plan uses a symmetric diamond arrangement with four cardinal extensions and 
 
 ### Triangle Yantra
 
-A more classical yantra-inspired family built from alternating upward/downward equilateral triangles:
+A yantra-inspired family built from alternating upward/downward equilateral triangles:
 
-- nested triangular plans;
-- triangular prisms and triangular pyramids in 3D;
-- those prisms extruded through W in 4D.
+- nested triangular plans plus the central bindu;
+- triangular prisms in 3D;
+- the bindu becomes the culminating central element in 3D;
+- the same region identities are extruded through W in 4D.
 
-The complex version adds denser nested triangles, an outer ring of triangular modules, and six elevated satellite peaks.
+Mandala mode mirrors the culminating bindu at ±Z; Temple places the bindu at the top of the stepped construction.
 
 ### Hexagonal Mandala
 
 A sixfold family built from concentric and satellite hexagons:
 
-- hexagonal rings in 2D;
-- stepped hexagonal prisms and pyramids in 3D;
-- W-extruded hexagonal 4D prisms.
+- concentric and satellite hexagons in 2D;
+- stepped hexagonal prisms in 3D;
+- the center becomes the culminating element in 3D;
+- the same regions are extruded through W in 4D.
 
-The complex version adds a twelve-module outer ring and six elevated satellite shrines.
+The complex version adds a twelve-module outer ring while preserving the same 2D↔3D↔4D region identities.
 
 ### Complexity
 
@@ -135,29 +137,40 @@ Wireframe and interaction overlays remain on the existing Canvas layer. If WebGL
 
 - **Form** — restrained neutral material.
 - **Axis** — X red, Y green, Z blue, W gold.
-- **Classic** — family-specific traditional or tradition-inspired rules rather than a generic rainbow.
+- **Classic** — semantic mandala-region colors that remain the same across 2D, 3D and 4D.
+
+Classic no longer computes color independently from polygon overlap or camera position. Every 2D region and every 3D/4D primitive derived from it carries the same stable region ID. Higher-dimensional face orientation may change **brightness only**; it never changes the region's base hue.
 
 ### Square / palace family
 
-Classic uses the common Tibetan Buddhist five-family directional scheme: **center white, east blue, south yellow, west red, north green**. The 2D screen follows the common painted orientation with east at the bottom, south at the left, west at the top, and north at the right.
-
-References:
-- Rubin Museum / Project Himalayan Art: https://rubinmuseum.org/projecthimalayanart/glossary/buddha-families/
-- Rubin Museum, *The Mandala: A Guide to Transformation*: https://rubinmuseum.org/the-mandala-a-guide-to-transformation/
+Square uses the Tibetan-inspired five-direction vocabulary already used by Hypermandala: **center white, east blue, south yellow, west red, north green**. All cubes or higher-dimensional faces derived from a given square cell inherit that same base hue.
 
 ### Yantra family
 
-Classic uses one documented Sri-Chakra-inspired sequence: red bindu, white central triangle, successive red/blue triangle circuits, and a yellow outer surround. Historical Sri Yantra color treatments vary, so this is one documented tradition-inspired scheme rather than a claim that there is one universal authentic palette.
+Yantra colors are assigned by circuit:
 
-Complex mode uses nine centered alternating triangles (four upward / five downward in the overall grammar), echoing the defining nine-triangle Sri Chakra structure. It is still an interactive geometric interpretation rather than a ritual-grade reconstruction.
+- outer surround — saffron/yellow;
+- successive triangle circuits — alternating blue and red families;
+- innermost triangle — white;
+- bindu — red.
+
+The exact historical treatment of Sri Yantra colors varies, so this remains explicitly Sri-Chakra-inspired rather than a claim of one universal canonical palette.
 
 ### Hex family
 
-Hex is a modern geometric mandala preset, not a canonical Tibetan or Sri Chakra form. Classic therefore borrows the Tibetan five-color directional vocabulary as a visual adaptation only.
+Hex uses a native concentric palette rather than forcing a square directional system onto a sixfold figure:
 
-Across Classic mode, face orientation changes **brightness**, not hue. This helps distinguish 3D/4D sides without overriding the family-specific color assignment.
+- outer central ring — lapis/indigo;
+- successive inward rings — teal, saffron, then vermilion where present;
+- center — pale gold/ivory;
+- first satellite ring — green/teal;
+- complex outer satellite ring — crimson/violet.
 
-Yantra and Hex now also define actual **2D plan faces**, not only colored outlines, so Solid / Solid + edges and Classic can fill their triangular and hexagonal regions in the 2D view.
+Hex is a modern geometric mandala preset, so this is a deliberately coherent radial palette rather than a claim of historical liturgical rules.
+
+### 2D overlap rule
+
+Classic 2D regions are painted **opaquely** in deterministic outer→inner order. Overlapping polygons therefore do not mix alpha and invent muddy colors. The visible 2D result follows the same hierarchy as the top surfaces of the 3D construction.
 
 ## Controls
 
@@ -209,16 +222,17 @@ GNU Affero General Public License v3.0 or later. See [`LICENSE`](./LICENSE).
 
 ## Mandala construction rules
 
-The 2D mandala is generated independently from the 3D/4D primitive footprints. Higher-dimensional roofs, upper tiers, satellites, and W extrusions can no longer inject arbitrary lines into the 2D plan.
+The 2D plan is the source of truth for **both Mandala and Temple**.
 
-- **Square** uses exact touching square cells on one modular lattice, so shared boundaries coincide.
-- **Yantra** uses only the centered alternating triangle field plus the bindu; decorative satellite triangles that spilled outside the field were removed.
-- **Hex** uses concentric hexagons and satellite rings whose radii are chosen so they do not intersect the central structure or one another.
+- Every non-zero XY edge in either 3D form must exist in the 2D plan.
+- Every 2D plan edge must be represented by the collapsed 3D form.
+- 4D is constructed by symmetric W extrusion of those 3D primitives, so W collapse returns the same 3D object.
+- Square uses exact touching square footprints plus its central diamond/inner-square guides.
+- Yantra uses the alternating triangle circuits plus bindu.
+- Hex uses concentric hexagons, satellite rings, and center.
+- Temple changes Z arrangement only; it cannot introduce a new XY footprint.
 
-The higher-dimensional forms reuse those same measurements. Extra Z/W structure may be hidden by dimensional compression, but it should emerge from the mandala rather than retroactively changing its 2D geometry.
-
-Temple remains an optional architectural interpretation. Its levels and roofs are separated and supported rather than overlapping or penetrating one another.
-
+The Yantra and Hex center marks are promoted into culminating Z elements. In Mandala mode they appear at both ±Z extrema; in Temple they form the top crown. Their XY footprint is unchanged, so dimensional collapse remains exact.
 
 ## 3D spacing
 
