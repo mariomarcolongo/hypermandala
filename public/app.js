@@ -1996,6 +1996,15 @@
         ? alpha
         : alpha * 0.16;
       ctx.fill();
+
+      if (state.colorMode === 'classic') {
+        ctx.globalAlpha = alpha * 0.96;
+        ctx.strokeStyle = '#1d1714';
+        ctx.lineWidth = 1.25;
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+      }
+
       ctx.globalAlpha = 1;
     }
   }
@@ -2014,7 +2023,7 @@
         color = state.renderMode === 'wire'
           ? 'rgba(242,238,226,.90)'
           : '#1d1714';
-        width = state.renderMode === 'wire' ? 1.2 : 1.35;
+        width = state.renderMode === 'wire' ? 1.2 : 1.55;
       }
 
       drawLine(a, b, color, width, alpha * 0.96);
@@ -2357,8 +2366,12 @@
       y: height * 0.5 + (p[1] - cy) * scale,
     });
 
-    const sortedFaces = [...planFaces]
-      .sort((a, b) => rawPolygonArea(b) - rawPolygonArea(a));
+    const sortedFaces = [...planFaces].sort((a, b) => {
+      const orderA = a.paintOrder ?? 0;
+      const orderB = b.paintOrder ?? 0;
+      if (orderA !== orderB) return orderA - orderB;
+      return rawPolygonArea(b) - rawPolygonArea(a);
+    });
 
     for (const face of sortedFaces) {
       const projected = face.map(map);
@@ -2371,15 +2384,26 @@
       previewCtx.fillStyle = state.colorMode === 'classic'
         ? classicPlanColor(face)
         : 'rgba(225,218,201,.055)';
-      previewCtx.globalAlpha = state.colorMode === 'classic' ? 0.82 : 1;
+      previewCtx.globalAlpha = state.colorMode === 'classic' ? 0.92 : 1;
       previewCtx.fill();
+
+      if (state.colorMode === 'classic') {
+        previewCtx.globalAlpha = 0.96;
+        previewCtx.strokeStyle = '#1d1714';
+        previewCtx.lineWidth = 1.1;
+        previewCtx.lineJoin = 'round';
+        previewCtx.stroke();
+      }
+
       previewCtx.globalAlpha = 1;
     }
 
     previewCtx.lineCap = 'round';
     previewCtx.lineJoin = 'round';
-    previewCtx.strokeStyle = 'rgba(240,237,228,.80)';
-    previewCtx.lineWidth = 1;
+    previewCtx.strokeStyle = state.colorMode === 'classic'
+      ? '#1d1714'
+      : 'rgba(240,237,228,.80)';
+    previewCtx.lineWidth = state.colorMode === 'classic' ? 1.05 : 1;
 
     for (const edge of planEdges) {
       const a = map(edge.a);
