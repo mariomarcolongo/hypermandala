@@ -1366,7 +1366,7 @@
 
     // Let the new dimension visibly separate before the viewpoint tilts.
     // This preserves the feeling that the volume grows out of the 2D mandala.
-    const viewMix = smoother(clamp((state.zMix - 0.30) / 0.70, 0, 1));
+    const viewMix = smoother(clamp((state.zMix - 0.62) / 0.38, 0, 1));
 
     const yaw = state.cameraYaw * viewMix;
     let c = Math.cos(yaw);
@@ -1404,19 +1404,33 @@
   }
 
   function moduleEmergence(module) {
-    return module.hyperOnly ? smoother(state.wMix) : 1;
+    if (module.stage === 3) {
+      return smoother(clamp((state.zMix - 0.03) / 0.97, 0, 1));
+    }
+    if (module.stage === 4) {
+      return smoother(clamp((state.wMix - 0.03) / 0.97, 0, 1));
+    }
+    if (module.hyperOnly) return smoother(state.wMix);
+    return 1;
   }
 
   function projectModulePoint(module, source) {
     const emergence = moduleEmergence(module);
-    if (emergence >= 0.9999) return projectToScreen(source);
 
-    return projectToScreen([
-      source[0] * emergence,
-      source[1] * emergence,
-      source[2] * emergence,
-      source[3],
-    ]);
+    if (
+      emergence >= 0.9999
+      || !module.center
+      || (module.stage !== 3 && module.stage !== 4)
+    ) {
+      return projectToScreen(source);
+    }
+
+    const animated = module.center.map((centerValue, axis) => {
+      const local = source[axis] - centerValue;
+      return centerValue + local * emergence;
+    });
+
+    return projectToScreen(animated);
   }
 
   function axisColor(axis) {
@@ -1947,7 +1961,7 @@
     // Keep the originating mandala visible while the new dimension separates.
     // It only fades late in the transition, so the viewer can follow where
     // every emerging volume came from.
-    const planFade = smoother(clamp((state.zMix - 0.58) / 0.42, 0, 1));
+    const planFade = smoother(clamp((state.zMix - 0.72) / 0.28, 0, 1));
     const planAlpha = 1 - planFade;
 
     // Faces arrive after the first geometric separation; edges lead the motion.
@@ -2231,7 +2245,7 @@
       toZ,
       toW,
       start: performance.now(),
-      duration: reducedMotion ? 80 : 1750,
+      duration: reducedMotion ? 80 : 2150,
     };
   }
 
