@@ -192,27 +192,27 @@
     square: {
       kind: 'symmetric',
       plan: 'square mandala',
-      spatial: 'symmetric mandala',
+      spatial: 'hierarchical mandala',
     },
     sriyantra: {
       kind: 'symmetric',
       plan: 'Sri Yantra plan',
-      spatial: 'Sri Yantra meru-like form',
+      spatial: 'Sri Yantra hierarchy',
     },
     kaliyantra: {
       kind: 'symmetric',
       plan: 'Kali Yantra plan',
-      spatial: 'symmetric Kali Yantra',
+      spatial: 'Kali Yantra hierarchy',
     },
     matangiyantra: {
       kind: 'symmetric',
       plan: 'Matangi Yantra plan',
-      spatial: 'symmetric Matangi Yantra',
+      spatial: 'Matangi Yantra hierarchy',
     },
     hex: {
       kind: 'symmetric',
       plan: 'hexagonal mandala',
-      spatial: 'symmetric mandala',
+      spatial: 'hierarchical hex mandala',
     },
     stupa: {
       kind: 'architecture',
@@ -775,10 +775,7 @@
     if (regionId === 'matangi-shiva') return 1;
     if (regionId === 'matangi-shakti') return -1;
 
-    if (regionId?.startsWith('kali-triangle-')) {
-      const index = Number(regionId.split('-')[2]);
-      return index % 2 === 0 ? -1 : 1;
-    }
+    if (regionId?.startsWith('kali-triangle-')) return -1;
 
     return 0;
   }
@@ -795,7 +792,12 @@
     );
   }
 
-  function fourthDimensionProfile(vertices3, baseHalf, regionId) {
+  function fourthDimensionProfile(
+    vertices3,
+    baseHalf,
+    regionId,
+    liftMeta = null,
+  ) {
     const meta = PRESET_META[state.preset] || PRESET_META.square;
 
     const centroid = vertices3.reduce(
@@ -808,16 +810,9 @@
     ).map((value) => value / vertices3.length);
 
     const z = centroid[2];
-    const absZ = Math.abs(z);
-    const zSign = z > 1e-7 ? 1 : z < -1e-7 ? -1 : 0;
-    const hierarchy = clamp(absZ / 1.25, 0, 1);
     const central = isCentralRegion(regionId);
 
     if (meta.kind === 'architecture') {
-      // Architecture keeps a W-reflection symmetry, but the higher /
-      // more central parts are allowed more fourth-dimensional extent.
-      // Real-world gravity/material constraints therefore do not cap the
-      // hyperform's expression of hierarchy.
       const upward = clamp(Math.max(0, z) / 1.55, 0, 1);
       const centerBoost = central ? 1.28 : 1;
       return {
@@ -830,28 +825,42 @@
       };
     }
 
-    // Symmetric forms use an experimental 4D double-Meru lift.
-    // Z hierarchy becomes diagonal Z/W hierarchy, while yantra polarity
-    // separates complementary triangle families along W.
-    const polarity = regionPolarity(regionId);
-    const polarityOffset = polarity * (0.08 + 0.08 * hierarchy);
-    const hierarchyOffset = absZ * 0.68;
-    const center = zSign
-      ? zSign * (hierarchyOffset + polarityOffset)
-      : polarity * 0.08;
+    // For free geometric forms, Z already carries the single outer→inner
+    // ascent. W gets a different semantic role: polarity/duality where
+    // present, and hierarchy-dependent extent otherwise.
+    const hierarchy = clamp(
+      liftMeta?.hierarchyT
+        ?? ((z + 1.2) / 2.4),
+      0,
+      1,
+    );
+    const polarity = liftMeta?.polarity ?? regionPolarity(regionId);
 
-    const centerBoost = central ? 1.5 : 1;
+    // Separation is strongest in the middle of the journey and converges
+    // again at outer boundary and final center/bindu.
+    const envelope = Math.sin(Math.PI * hierarchy);
+    const center = central
+      ? 0
+      : polarity * 0.32 * envelope;
+
+    const extentShape =
+      0.42
+      + 0.42 * envelope
+      + (central ? 0.32 : 0);
+
     const half = Math.max(
-      central ? 0.075 : 0.025,
-      baseHalf * (0.38 + hierarchy * 0.52) * centerBoost,
+      central ? 0.08 : 0.025,
+      baseHalf * extentShape,
     );
 
     return {
       center,
       half,
+      hierarchy,
+      polarity,
       kind: polarity
-        ? 'hierarchy-polarity'
-        : 'hierarchy',
+        ? 'polarity-convergence'
+        : 'hierarchy-extent',
     };
   }
 
@@ -863,11 +872,13 @@
     footprint,
     planExtra = [],
     regionId = 'unclassified',
+    liftMeta = null,
   ) {
     const wProfile = fourthDimensionProfile(
       vertices3,
       wHalf,
       regionId,
+      liftMeta,
     );
 
     const vertices = [];
@@ -889,6 +900,7 @@
           a: edge.a + offset,
           b: edge.b + offset,
           axis: edge.axis,
+          detail: Boolean(edge.detail),
           wLayer: layer === 0 ? -1 : 1,
         });
       }
@@ -912,6 +924,7 @@
         axis: 'w',
         wLayer: 0,
         bridge: true,
+        detailBridge: Boolean(edge.detail),
       });
     }
 
@@ -1055,6 +1068,7 @@
     height,
     rotation = 0,
     regionId = 'unclassified',
+    liftMeta = null,
   ) {
     const data = prismData(cx, cy, baseZ, radius, sides, height, rotation);
     const center = [cx, cy];
@@ -1068,6 +1082,7 @@
       data.footprint,
       spokes,
       regionId,
+      liftMeta,
     );
   }
 
@@ -1080,6 +1095,7 @@
     height,
     rotation = 0,
     regionId = 'unclassified',
+    liftMeta = null,
   ) {
     addPrism(
       cx,
@@ -1090,6 +1106,7 @@
       height,
       rotation,
       regionId,
+      liftMeta,
     );
   }
 
@@ -1333,7 +1350,238 @@
     );
   }
 
-  function footprintPrismData(points, baseZ, height) {
+  function yantraSubdivisionSource(piece) {
+    return (
+      piece.regionId?.startsWith('sri-shiva-')
+      || piece.regionId?.startsWith('sri-shakti-')
+      || piece.regionId?.startsWith('kali-triangle-')
+      || piece.regionId === 'matangi-shiva'
+      || piece.regionId === 'matangi-shakti'
+    );
+  }
+
+  function segmentIntersection2D(a, b, c, d, epsilon = 1e-8) {
+    const rx = b[0] - a[0];
+    const ry = b[1] - a[1];
+    const sx = d[0] - c[0];
+    const sy = d[1] - c[1];
+    const denom = rx * sy - ry * sx;
+
+    if (Math.abs(denom) < epsilon) return null;
+
+    const qx = c[0] - a[0];
+    const qy = c[1] - a[1];
+    const t = (qx * sy - qy * sx) / denom;
+    const u = (qx * ry - qy * rx) / denom;
+
+    if (
+      t < -epsilon || t > 1 + epsilon
+      || u < -epsilon || u > 1 + epsilon
+    ) return null;
+
+    return {
+      t: clamp(t, 0, 1),
+      u: clamp(u, 0, 1),
+      point: [
+        a[0] + rx * clamp(t, 0, 1),
+        a[1] + ry * clamp(t, 0, 1),
+      ],
+    };
+  }
+
+  function splitSegmentsAtIntersections(segments) {
+    const parameters = segments.map(() => [0, 1]);
+
+    for (let i = 0; i < segments.length; i += 1) {
+      for (let j = i + 1; j < segments.length; j += 1) {
+        const hit = segmentIntersection2D(
+          segments[i][0], segments[i][1],
+          segments[j][0], segments[j][1],
+        );
+        if (!hit) continue;
+        parameters[i].push(hit.t);
+        parameters[j].push(hit.u);
+      }
+    }
+
+    const result = [];
+    const seen = new Set();
+
+    segments.forEach((segment, index) => {
+      const [a, b] = segment;
+      const ts = [...new Set(
+        parameters[index].map((t) => Number(t.toFixed(8))),
+      )].sort((x, y) => x - y);
+
+      for (let i = 0; i < ts.length - 1; i += 1) {
+        const t0 = ts[i];
+        const t1 = ts[i + 1];
+        if (t1 - t0 < 1e-7) continue;
+
+        const p0 = [
+          a[0] + (b[0] - a[0]) * t0,
+          a[1] + (b[1] - a[1]) * t0,
+        ];
+        const p1 = [
+          a[0] + (b[0] - a[0]) * t1,
+          a[1] + (b[1] - a[1]) * t1,
+        ];
+
+        const k0 = p0.map((v) => v.toFixed(5)).join(',');
+        const k1 = p1.map((v) => v.toFixed(5)).join(',');
+        const key = k0 < k1 ? k0 + '|' + k1 : k1 + '|' + k0;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        result.push([p0, p1]);
+      }
+    });
+
+    return result;
+  }
+
+  function pointInConvexPolygon(point, polygon, epsilon = 1e-7) {
+    let sign = 0;
+
+    for (let i = 0; i < polygon.length; i += 1) {
+      const a = polygon[i];
+      const b = polygon[(i + 1) % polygon.length];
+      const cross =
+        (b[0] - a[0]) * (point[1] - a[1])
+        - (b[1] - a[1]) * (point[0] - a[0]);
+
+      if (Math.abs(cross) <= epsilon) continue;
+      const nextSign = Math.sign(cross);
+      if (!sign) sign = nextSign;
+      else if (sign !== nextSign) return false;
+    }
+
+    return true;
+  }
+
+  function clipSegmentToConvexPolygon(segment, polygon) {
+    const [a, b] = segment;
+    const ts = [0, 1];
+
+    for (let i = 0; i < polygon.length; i += 1) {
+      const c = polygon[i];
+      const d = polygon[(i + 1) % polygon.length];
+      const hit = segmentIntersection2D(a, b, c, d);
+      if (hit) ts.push(hit.t);
+    }
+
+    const sorted = [...new Set(
+      ts.map((t) => Number(t.toFixed(8))),
+    )].sort((x, y) => x - y);
+
+    const clipped = [];
+    for (let i = 0; i < sorted.length - 1; i += 1) {
+      const t0 = sorted[i];
+      const t1 = sorted[i + 1];
+      if (t1 - t0 < 1e-7) continue;
+      const tm = (t0 + t1) * 0.5;
+      const mid = [
+        a[0] + (b[0] - a[0]) * tm,
+        a[1] + (b[1] - a[1]) * tm,
+      ];
+      if (!pointInConvexPolygon(mid, polygon)) continue;
+
+      clipped.push([
+        [
+          a[0] + (b[0] - a[0]) * t0,
+          a[1] + (b[1] - a[1]) * t0,
+        ],
+        [
+          a[0] + (b[0] - a[0]) * t1,
+          a[1] + (b[1] - a[1]) * t1,
+        ],
+      ]);
+    }
+
+    return clipped;
+  }
+
+  function pointOnSegment2D(point, a, b, epsilon = 1e-6) {
+    const cross =
+      (b[0] - a[0]) * (point[1] - a[1])
+      - (b[1] - a[1]) * (point[0] - a[0]);
+    if (Math.abs(cross) > epsilon) return false;
+
+    const dot =
+      (point[0] - a[0]) * (point[0] - b[0])
+      + (point[1] - a[1]) * (point[1] - b[1]);
+    return dot <= epsilon;
+  }
+
+  function segmentOnPolygonBoundary(segment, polygon) {
+    return polygon.some((a, index) => {
+      const b = polygon[(index + 1) % polygon.length];
+      return (
+        pointOnSegment2D(segment[0], a, b)
+        && pointOnSegment2D(segment[1], a, b)
+      );
+    });
+  }
+
+  function yantraSubdivisionNetwork(pieces) {
+    const sources = pieces.filter(yantraSubdivisionSource);
+    const raw = [];
+
+    for (const piece of sources) {
+      for (let i = 0; i < piece.points.length; i += 1) {
+        raw.push([
+          piece.points[i],
+          piece.points[(i + 1) % piece.points.length],
+        ]);
+      }
+    }
+
+    return splitSegmentsAtIntersections(raw);
+  }
+
+  function detailSegmentsForPiece(piece, network) {
+    const result = [];
+    const seen = new Set();
+
+    for (const segment of network) {
+      for (const clipped of clipSegmentToConvexPolygon(
+        segment,
+        piece.points,
+      )) {
+        if (segmentOnPolygonBoundary(clipped, piece.points)) continue;
+
+        const length = Math.hypot(
+          clipped[1][0] - clipped[0][0],
+          clipped[1][1] - clipped[0][1],
+        );
+        if (length < 0.012) continue;
+
+        const k0 = clipped[0].map((v) => v.toFixed(5)).join(',');
+        const k1 = clipped[1].map((v) => v.toFixed(5)).join(',');
+        const key = k0 < k1 ? k0 + '|' + k1 : k1 + '|' + k0;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        result.push(clipped);
+      }
+    }
+
+    return result;
+  }
+
+  function addPlanDetailEdge(a, b) {
+    planEdges.push({
+      a: [a[0], a[1], 0, 0],
+      b: [b[0], b[1], 0, 0],
+      axis: 'n',
+      detail: true,
+    });
+  }
+
+  function footprintPrismData(
+    points,
+    baseZ,
+    height,
+    detailSegments = [],
+  ) {
     const footprint = points.map((p) => [p[0], p[1]]);
     const n = footprint.length;
     const vertices3 = [
@@ -1363,6 +1611,24 @@
       axis: 'z',
     });
 
+    // Preserve the 2D subdivision network as actual surface edges.
+    // They are not internal walls in 3D; they are structural lines on the
+    // lower/upper surfaces. In 4D they also generate W bridge ribbons,
+    // so complexity survives the dimensional lift.
+    for (const [a, b] of detailSegments) {
+      const base = vertices3.length;
+      vertices3.push(
+        [a[0], a[1], baseZ],
+        [b[0], b[1], baseZ],
+        [a[0], a[1], baseZ + height],
+        [b[0], b[1], baseZ + height],
+      );
+      edges3.push(
+        { a: base, b: base + 1, axis: 'n', detail: true },
+        { a: base + 2, b: base + 3, axis: 'n', detail: true },
+      );
+    }
+
     return { vertices3, edges3, faces3, footprint };
   }
 
@@ -1371,8 +1637,15 @@
     baseZ,
     height,
     regionId = 'unclassified',
+    detailSegments = [],
+    liftMeta = null,
   ) {
-    const data = footprintPrismData(points, baseZ, height);
+    const data = footprintPrismData(
+      points,
+      baseZ,
+      height,
+      detailSegments,
+    );
     const cx = points.reduce((sum, p) => sum + p[0], 0) / points.length;
     const cy = points.reduce((sum, p) => sum + p[1], 0) / points.length;
     const localRadius = Math.max(
@@ -1388,6 +1661,7 @@
       data.footprint,
       [],
       regionId,
+      liftMeta,
     );
   }
 
@@ -1396,12 +1670,16 @@
     centerZ,
     height,
     regionId = 'unclassified',
+    detailSegments = [],
+    liftMeta = null,
   ) {
     addFootprintPrism(
       points,
       centerZ - height / 2,
       height,
       regionId,
+      detailSegments,
+      liftMeta,
     );
   }
 
@@ -1593,6 +1871,39 @@
     }
   }
 
+  function squareSimplePieces() {
+    const size = 0.34;
+    const spacing = size;
+    const pieces = [];
+
+    for (const [gx, gy] of squareBaseCells()) {
+      const cx = gx * spacing;
+      const cy = gy * spacing;
+      const distance = Math.abs(gx) + Math.abs(gy);
+      pieces.push({
+        points: rectFootprint(cx, cy, size, size, 0),
+        regionId: squareRegionId(cx, cy),
+        level: Math.max(0, 3 - Math.min(3, distance)),
+        paintOrder: 0,
+      });
+    }
+
+    pieces.push({
+      points: rectFootprint(
+        0,
+        0,
+        size * 0.72,
+        size * 0.72,
+        Math.PI / 4,
+      ),
+      regionId: 'square-center',
+      level: 4,
+      paintOrder: 20,
+    });
+
+    return pieces;
+  }
+
   function buildSquarePlan() {
     if (state.complexity === 'complex') {
       buildSquareComplexPlan();
@@ -1600,32 +1911,14 @@
     }
 
     clearPlan();
-    const size = 0.34;
-    const spacing = size;
-
-    for (const [gx, gy] of squareBaseCells()) {
-      const cx = gx * spacing;
-      const cy = gy * spacing;
-      addPlanSquareCell(
-        cx,
-        cy,
-        size,
-        0,
+    for (const piece of squareSimplePieces()) {
+      addPlanLoop(
+        piece.points,
         true,
-        squareRegionId(cx, cy),
-        0,
+        piece.regionId,
+        piece.paintOrder,
       );
     }
-
-    addPlanSquareCell(
-      0,
-      0,
-      size * 0.72,
-      Math.PI / 4,
-      true,
-      'square-center',
-      20,
-    );
   }
 
   function lotusPetalFootprint(
@@ -1926,6 +2219,20 @@
         piece.regionId,
         piece.paintOrder,
       );
+    }
+
+    const network = yantraSubdivisionNetwork(pieces);
+    const detailSeen = new Set();
+
+    for (const piece of pieces) {
+      for (const segment of detailSegmentsForPiece(piece, network)) {
+        const k0 = segment[0].map((v) => v.toFixed(5)).join(',');
+        const k1 = segment[1].map((v) => v.toFixed(5)).join(',');
+        const key = k0 < k1 ? k0 + '|' + k1 : k1 + '|' + k0;
+        if (detailSeen.has(key)) continue;
+        detailSeen.add(key);
+        addPlanDetailEdge(segment[0], segment[1]);
+      }
     }
   }
 
@@ -2686,16 +2993,19 @@
       return Math.max(...candidates);
     });
 
-    const centers = [0];
-    let topSurface = rankThickness[0] * 0.5;
+    const gap = state.spacingStyle === 'separated'
+      ? separatedGap
+      : 0;
+    const totalHeight =
+      rankThickness.reduce((sum, value) => sum + value, 0)
+      + gap * Math.max(0, levels.length - 1);
 
-    for (let rank = 1; rank < levels.length; rank += 1) {
-      const gap = state.spacingStyle === 'separated'
-        ? separatedGap
-        : 0;
-      const center = topSurface + gap + rankThickness[rank] * 0.5;
-      centers.push(center);
-      topSurface = center + rankThickness[rank] * 0.5;
+    const centers = [];
+    let cursor = -totalHeight * 0.5;
+
+    for (const thickness of rankThickness) {
+      centers.push(cursor + thickness * 0.5);
+      cursor += thickness + gap;
     }
 
     return {
@@ -2708,10 +3018,11 @@
     };
   }
 
-  function buildSymmetricPieceHierarchy(
+  function buildCenteredPieceHierarchy(
     pieces,
     thicknessForPiece,
     separatedGap = 0.12,
+    preserveSubdivision = false,
   ) {
     resetGeometry();
 
@@ -2720,33 +3031,31 @@
       thicknessForPiece,
       separatedGap,
     );
+    const network = preserveSubdivision
+      ? yantraSubdivisionNetwork(pieces)
+      : [];
 
     for (const piece of pieces) {
       const rank = layout.rankByLevel.get(piece.level) || 0;
       const height = layout.rankThickness[rank];
       const z = layout.centers[rank];
-
-      if (rank === 0) {
-        addFootprintPrismCentered(
-          piece.points,
-          0,
-          height,
-          piece.regionId,
-        );
-        continue;
-      }
+      const hierarchyT = layout.levels.length <= 1
+        ? 1
+        : rank / (layout.levels.length - 1);
+      const details = preserveSubdivision
+        ? detailSegmentsForPiece(piece, network)
+        : [];
 
       addFootprintPrismCentered(
         piece.points,
         z,
         height,
         piece.regionId,
-      );
-      addFootprintPrismCentered(
-        piece.points,
-        -z,
-        height,
-        piece.regionId,
+        details,
+        {
+          hierarchyT,
+          polarity: regionPolarity(piece.regionId),
+        },
       );
     }
   }
@@ -2754,7 +3063,7 @@
   function buildSquareComplexMandala() {
     const pieces = squareComplexPieces();
 
-    buildSymmetricPieceHierarchy(
+    buildCenteredPieceHierarchy(
       pieces,
       (piece, rank, count) => {
         const t = count <= 1 ? 0 : rank / (count - 1);
@@ -2768,66 +3077,27 @@
   }
 
   function buildSquareMandala() {
-    if (state.complexity === 'complex') {
-      buildSquareComplexMandala();
-      return;
-    }
+    const pieces = state.complexity === 'complex'
+      ? squareComplexPieces()
+      : squareSimplePieces();
 
-    resetGeometry();
-    const separated = state.spacingStyle === 'separated';
-    const size = 0.34;
-    const spacing = size;
-
-    for (const [gx, gy] of squareBaseCells()) {
-      const cx = gx * spacing;
-      const cy = gy * spacing;
-      addCenteredCube(
-        cx,
-        cy,
-        0,
-        size,
-        0,
-        squareRegionId(cx, cy),
-      );
-    }
-
-    const secondZ = separated ? size * 1.65 : size;
-    for (const sign of [-1, 1]) {
-      for (const [gx, gy] of squareSecondCells()) {
-        const cx = gx * spacing;
-        const cy = gy * spacing;
-        addCenteredCube(
-          cx,
-          cy,
-          sign * secondZ,
-          size,
-          0,
-          squareRegionId(cx, cy),
-        );
-      }
-    }
-
-    const diamondSize = size * 0.72;
-    const diamondZ = separated
-      ? secondZ + size * 1.15
-      : secondZ + size * 0.5 + diamondSize * 0.5;
-
-    for (const sign of [-1, 1]) {
-      addCenteredCube(
-        0,
-        0,
-        sign * diamondZ,
-        diamondSize,
-        Math.PI / 4,
-        'square-center',
-      );
-    }
+    buildCenteredPieceHierarchy(
+      pieces,
+      (piece, rank, count) => {
+        const t = count <= 1 ? 0 : rank / (count - 1);
+        if (piece.regionId === 'square-center') {
+          return 0.11 + t * 0.065;
+        }
+        return 0.085 + t * 0.045;
+      },
+      0.14,
+    );
   }
 
   
 
-  function buildSymmetricYantraForm(pieces) {
-    buildSymmetricPieceHierarchy(
+  function buildYantraForm(pieces) {
+    buildCenteredPieceHierarchy(
       pieces,
       (piece, rank, count) => {
         const t = count <= 1 ? 0 : rank / (count - 1);
@@ -2846,19 +3116,20 @@
         return 0.082 + t * 0.052;
       },
       0.13,
+      true,
     );
   }
 
   function buildSriYantraForm() {
-    buildSymmetricYantraForm(sriYantraPieces());
+    buildYantraForm(sriYantraPieces());
   }
 
   function buildKaliYantraForm() {
-    buildSymmetricYantraForm(kaliYantraPieces());
+    buildYantraForm(kaliYantraPieces());
   }
 
   function buildMatangiYantraForm() {
-    buildSymmetricYantraForm(matangiYantraPieces());
+    buildYantraForm(matangiYantraPieces());
   }
 
   
@@ -2880,7 +3151,11 @@
         ];
   }
 
-  function addHexSatelliteRing(centerZ) {
+  function addHexSatelliteRing(
+    centerZ,
+    height = 0.18,
+    liftMeta = null,
+  ) {
     const ringRadius = 1.58;
     for (let i = 0; i < 6; i += 1) {
       const angle = (i / 6) * TAU;
@@ -2890,9 +3165,10 @@
         centerZ,
         0.22,
         6,
-        0.18,
+        height,
         Math.PI / 6,
         'hex-satellite',
+        liftMeta,
       );
     }
   }
@@ -2902,60 +3178,36 @@
 
     const layers = hexLayerSpecs();
     const separated = state.spacingStyle === 'separated';
+    const satelliteThickness = 0.11;
     const layerThicknesses = layers.map((_, index) => (
       0.085 + index * 0.018
     ));
     const centerHeight = 0.17;
-    const levelGap = separated ? 0.15 : 0;
-    let lastPositiveZ = 0;
-    let topSurface = layerThicknesses[0] * 0.5;
+    const gap = separated ? 0.15 : 0;
+    const thicknesses = [
+      satelliteThickness,
+      ...layerThicknesses,
+      centerHeight,
+    ];
 
-    layers.forEach(([radius, rotation], index) => {
-      const regionId =
-        'hex-layer-' + index + '-of-' + layers.length;
-      const thickness = layerThicknesses[index];
+    const total =
+      thicknesses.reduce((sum, value) => sum + value, 0)
+      + gap * (thicknesses.length - 1);
+    const centers = [];
+    let cursor = -total * 0.5;
 
-      if (index === 0) {
-        addCenteredPrism(
-          0,
-          0,
-          0,
-          radius,
-          6,
-          thickness,
-          rotation,
-          regionId,
-        );
-        return;
-      }
+    for (const thickness of thicknesses) {
+      centers.push(cursor + thickness * 0.5);
+      cursor += thickness + gap;
+    }
 
-      const z = topSurface + levelGap + thickness * 0.5;
-      lastPositiveZ = z;
-      topSurface = z + thickness * 0.5;
-
-      addCenteredPrism(
-        0,
-        0,
-        z,
-        radius,
-        6,
-        thickness,
-        rotation,
-        regionId,
-      );
-      addCenteredPrism(
-        0,
-        0,
-        -z,
-        radius,
-        6,
-        thickness,
-        rotation,
-        regionId,
-      );
-    });
-
-    addHexSatelliteRing(0);
+    const lastIndex = thicknesses.length - 1;
+    const satelliteMeta = { hierarchyT: 0, polarity: 0 };
+    addHexSatelliteRing(
+      centers[0],
+      satelliteThickness,
+      satelliteMeta,
+    );
 
     if (state.complexity === 'complex') {
       const outerRadius = 2.02;
@@ -2964,33 +3216,44 @@
         addCenteredPrism(
           Math.cos(angle) * outerRadius,
           Math.sin(angle) * outerRadius,
-          0,
+          centers[0],
           0.15,
           6,
-          0.13,
+          satelliteThickness,
           i % 2 ? Math.PI / 6 : 0,
           'hex-outer-satellite',
+          satelliteMeta,
         );
       }
     }
 
-    const topThickness = layerThicknesses[layerThicknesses.length - 1];
-    const crownGap = separated ? 0.15 : 0;
-    const crownZ =
-      lastPositiveZ + topThickness * 0.5 + centerHeight * 0.5 + crownGap;
-
-    for (const sign of [-1, 1]) {
+    layers.forEach(([radius, rotation], index) => {
+      const hierarchyIndex = index + 1;
+      const hierarchyT = hierarchyIndex / lastIndex;
       addCenteredPrism(
         0,
         0,
-        sign * crownZ,
-        0.026,
-        12,
-        centerHeight,
-        0,
-        'hex-center',
+        centers[hierarchyIndex],
+        radius,
+        6,
+        layerThicknesses[index],
+        rotation,
+        'hex-layer-' + index + '-of-' + layers.length,
+        { hierarchyT, polarity: 0 },
       );
-    }
+    });
+
+    addCenteredPrism(
+      0,
+      0,
+      centers[lastIndex],
+      0.026,
+      12,
+      centerHeight,
+      0,
+      'hex-center',
+      { hierarchyT: 1, polarity: 0 },
+    );
   }
 
   
@@ -3495,6 +3758,7 @@
     if (alpha <= 0.001) return;
 
     for (const edge of planEdges) {
+      if (edge.detail) continue;
       const a = projectToScreen(edge.a);
       const b = projectToScreen(edge.b);
 
@@ -4002,6 +4266,7 @@
     previewCtx.lineWidth = state.colorMode === 'classic' ? 1.05 : 1;
 
     for (const edge of planEdges) {
+      if (edge.detail) continue;
       const a = map(edge.a);
       const b = map(edge.b);
       previewCtx.beginPath();
@@ -4374,7 +4639,7 @@
         dimensionStatus.textContent =
           meta.kind === 'architecture'
             ? '4D architectural projection'
-            : '4D symmetric projection';
+            : '4D geometric hyperform';
       }
     }
 

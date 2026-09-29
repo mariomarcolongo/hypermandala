@@ -14,8 +14,8 @@ The common source is the **2D geometric plan**: a centered, hierarchical, radial
 
 Families then divide naturally:
 
-- **Symmetric forms** — Square, Sri Yantra, Kali Yantra, Matangi Yantra and Hex remain balanced through the added Z dimension. Their 3D construction is reflected through ±Z rather than forced into an architectural “up” direction.
-- **Architecture** — Stupa, Borobudur, Castel del Monte, Kukulcán and Bete Giyorgis rise in +Z because vertical hierarchy is intrinsic to the object itself.
+- **Free geometric forms** — Square, Sri Yantra, Kali Yantra, Matangi Yantra and Hex use the added coordinates to express their own hierarchy. They do **not** automatically acquire a Z-reflection symmetry that was absent from the source.
+- **Architecture** — Stupa, Borobudur, Castel del Monte, Kukulcán and Bete Giyorgis keep their recognizable architectural rise in +Z because that vertical hierarchy belongs to the reference object.
 
 In every case:
 
@@ -48,11 +48,11 @@ The XW/YW/ZW rotations are the ones that most directly reveal the fourth coordin
 
 The fourth coordinate now has semantic structure:
 
-- symmetric geometric forms map 3D hierarchy into W as well as Z;
-- mirrored ±Z partners receive mirrored W placement;
+- free geometric forms already use Z for one outer→inner ascent, so W is not a duplicate Z axis;
 - Sri/Matangi complementary triangle families separate by polarity in W;
-- Kali triangle levels alternate polarity in W;
-- bindu/central culmination regions receive the strongest fourth-dimensional emphasis;
+- Kali's downward/Shakti triangle hierarchy bends toward the same W polarity rather than inventing an alternating polarity;
+- polarity separation is strongest through the middle hierarchy and converges again at the outer boundary and final bindu/center;
+- non-polar geometric families use hierarchy-dependent W extent while remaining centered on W=0;
 - architectural families stay centered on W=0 but gain greater W extent toward higher/central hierarchy, preserving W-reflection symmetry.
 
 Each rotation plane also has an **A** button for autorotation.
@@ -92,7 +92,7 @@ A square/palace symmetric family.
 
 **Simple** retains the compact modular square construction. **Complex** is no longer a filled 5×5 lattice: it uses two nested square enclosures, four cardinal gates, four diagonal satellite diamonds, and an alternating square/diamond central hierarchy. The complex plan is therefore a genuine centered mandala-like composition rather than simply “more blocks.”
 
-Both variants remain balanced through ±Z and preserve exact 2D↔3D↔4D region identity.
+Both variants use a single outer→inner hierarchy spanning the Z axis around zero. The outer gates occupy the low end of Z, the nested center rises through successive levels, and the central square/diamond culmination occupies the high end. Exact 2D↔3D↔4D identity is preserved.
 
 ### Sri Yantra
 
@@ -102,8 +102,9 @@ Its core uses nine interlocking triangles — four upward and five downward — 
 
 - **Simple**: nine-triangle core + 8-petal lotus + 16-petal lotus + four-gated bhupura + bindu.
 - **Complex**: the same identity-preserving core plus the fuller triple bhupura and concentric enclosure detail.
-- 3D: each exact 2D footprint is lifted symmetrically through ±Z in a meru-like hierarchy, with layer thickness increasing subtly toward the center/bindu rather than using uniform slabs.
-- 4D: the double-Meru continues into W. Upward/downward triangle polarity affects W placement, mirrored ±Z partners remain mirrored in W, and the bindu becomes the strongest 4D culmination.
+- 3D: the full plan becomes **one centered outer→inner ascent through Z**. Bhupura begins at the low end, lotus/enclosure levels pass through the middle, and the bindu culminates at the high end. There is no second reflected Meru glued underneath.
+- The triangle intersection network is carried onto the lifted surfaces. Interlocking triangles therefore retain their smaller cells and crossing structure instead of becoming visually blank giant triangular slabs.
+- 4D: W expresses polarity independently of Z. Shiva/upward and Shakti/downward triangle families separate in opposite W directions through the middle hierarchy and converge again toward the outer boundary and bindu.
 
 Geometry references:
 - https://sriyantrageometry.com/
@@ -113,7 +114,7 @@ Geometry references:
 
 This preset follows the widely documented Kali Yantra type consisting of **five concentric downward-pointing triangles**, an **eight-petalled lotus**, a **four-gated bhupura**, and a central bindu.
 
-Complex adds a fuller multi-band bhupura while preserving the same five-triangle identity.
+Complex adds a fuller multi-band bhupura while preserving the same five-triangle identity. Its nested triangle boundaries are also retained as surface subdivisions in 3D/4D, so the higher-dimensional form does not erase the visible 2D nesting.
 
 Reference:
 - https://archive.artgallery.nsw.gov.au/sub/goddess/yantras.html
@@ -122,7 +123,7 @@ Reference:
 
 Matangi is no longer represented by a generic yantra. Its specific plan uses the documented **six-pointed star (shatkona)** inside an **eight-petalled lotus**, enclosed by a bhupura and centered on the bindu.
 
-Complex adds the additional triangle and lotus enclosures described in fuller Matangi-puja constructions while preserving the shatkona as the central identity.
+Complex adds the additional triangle and lotus enclosures described in fuller Matangi-puja constructions while preserving the shatkona as the central identity. The shatkona crossings remain explicit structural edges on the lifted surfaces and continue into the 4D structure.
 
 References:
 - https://dlbs.liberal.ntu.edu.tw/DLMBS/search/search_detail.jsp?seq=351551
@@ -130,13 +131,14 @@ References:
 
 ### Hexagonal Mandala
 
-A sixfold symmetric family:
+A sixfold planar-symmetric family:
 
 - concentric and satellite hexagons in 2D;
-- symmetric stepped hexagonal structure through ±Z;
+- one outer→inner stepped hierarchy through Z rather than a mirrored pair;
+- outer satellites occupy the low end of Z;
 - layer thickness increases inward rather than remaining uniform;
-- the center becomes the culminating element at both Z extrema;
-- the 4D lift carries that hierarchy into W while preserving the lower-dimensional collapse.
+- the center becomes the single culmination at the high end of Z;
+- 4D uses hierarchy-dependent W extent while remaining centered on W=0.
 
 The complex version adds a twelve-module outer ring while preserving exact dimensional identity.
 
@@ -330,25 +332,26 @@ The 2D geometric plan is the source of truth for every family.
 - Every non-zero XY edge in 3D must exist in the 2D plan.
 - Every 2D plan edge must be represented by the collapsed 3D form.
 - 4D uses a family-aware W lift rather than uniform extrusion. W collapse still returns the intrinsic 3D object exactly.
-- Symmetric forms may mirror geometry through ±Z.
+- Added dimensions do **not** receive reflection symmetry automatically. New symmetry must come from a meaningful property of the source or the chosen higher-dimensional interpretation.
+- Free geometric forms use a single centered Z hierarchy unless a different lift is specifically justified.
 - Architectural forms may privilege +Z when upward hierarchy is intrinsic to the architecture.
-- An architectural family does **not** receive a fake symmetric counterpart, and a symmetric family does **not** receive a fake architectural counterpart.
+- An architectural family does **not** receive a fake reflected counterpart, and a geometric family is not forced into an architectural interpretation.
 - The 2D source must remain a rich centered/hierarchical composition rather than a trivial silhouette.
 
 Current intrinsic mapping:
 
-- Square → symmetric form.
-- Sri Yantra → symmetric form.
-- Kali Yantra → symmetric form.
-- Matangi Yantra → symmetric form.
-- Hex → symmetric form.
+- Square → free geometric hierarchy.
+- Sri Yantra → centered yantra hierarchy.
+- Kali Yantra → centered yantra hierarchy.
+- Matangi Yantra → centered yantra hierarchy.
+- Hex → free geometric hierarchy.
 - Stupa → architectural form.
 - Borobudur → architectural form.
 - Castel del Monte → architectural form.
 - Kukulcán → architectural form.
 - Bete Giyorgis → architectural form.
 
-The yantra and Hex center marks are promoted into culminating ±Z elements. Stupa and Borobudur instead use their central footprints as the top architectural crown.
+The yantra and Hex center marks become the single high-Z culmination of their geometric hierarchy. Stupa and Borobudur instead use their central footprints as the top architectural crown.
 
 ## Dimensional lift philosophy
 
@@ -360,14 +363,24 @@ For **non-architectural geometric forms**, the lift should express the internal 
 
 - hierarchy determines elevation and layer thickness;
 - center and periphery remain meaningful;
-- opposite directions are treated symmetrically when the form permits it;
+- source symmetries are preserved, but new reflection symmetries are not invented merely because another coordinate exists;
 - repeated elements at one hierarchy level share elevation and dimensional extent;
 - Compact introduces **no accidental air gaps** between consecutive hierarchy levels;
 - the bindu or central culmination remains geometrically privileged;
-- 4D W placement continues the hierarchy instead of merely adding thickness;
-- complementary yantra polarities may separate along W while preserving mirrored partners.
+- the visible subdivision/intersection network of a complex plan survives the lift;
+- Z and W have different semantic jobs rather than duplicating each other.
 
-The yantra lift is therefore an experimental **double-Meru** construction: the 2D yantra is the equatorial plan, and its hierarchy rises continuously in both +Z and −Z. In 4D, that hierarchy continues diagonally into W; mirrored Z partners receive mirrored W placement, and complementary triangle families can separate along W. This deliberately uses the unrestricted Hypermandala space to express symmetry and polarity rather than physical construction constraints. Traditional Śrīcakra practice also includes a one-sided pyramidal **Meru** form in which the same plan is elevated toward the bindu, but historical sources do not provide one universal set of Meru proportions.
+The default yantra lift is therefore a **single centered hierarchy**. The bhupura starts at negative Z, successive enclosures rise through Z=0, and the bindu culminates at positive Z. Using both signs of Z does not require two reflected temples: zero is simply the midpoint of one continuous geometric journey.
+
+In 4D, W is used for relationships that Z cannot express cleanly. Complementary Sri/Matangi triangle polarities separate in opposite W directions through the intermediate hierarchy and converge again toward W=0 at the outer boundary and bindu. Kali's five downward triangles share one polarity rather than being assigned an artificial alternating sign. Square and Hex use hierarchy-dependent W extent without an invented polarity.
+
+### Complexity preservation
+
+Complexity is part of the source geometry, not decoration that can disappear after 2D.
+
+For the specific yantras, Hypermandala computes the intersection network of the triangle boundaries and carries those clipped segments onto the corresponding 3D surfaces. These become real structural edges in 3D and W-bridge structure in 4D. A large source triangle can therefore remain one semantic region while still exposing the smaller cells and crossings produced by the complete diagram.
+
+The flat renderer does not draw these bookkeeping subsegments a second time because the same lines are already visible as the original 2D triangle boundaries.
 
 For **reference architecture**, recognizable 3D structure remains anchored to the real object. The 4D lift is freer: modules stay centered on W=0 to preserve reflection symmetry, while higher/central architectural elements receive greater W extent. In other words, 3D respects the building; 4D is allowed to express the building's hierarchy without gravity, material cost or engineering limits.
 
