@@ -114,7 +114,7 @@ The primitive vocabulary deliberately remains limited—polygons, prisms, pyrami
 
 Three render modes are available:
 
-- **Wire** — structural edges only.
+- **Wire** — structural edges only; this remains the default because it makes dimensional emergence easiest to follow.
 - **Solid** — projected polygon faces without edge overlay.
 - **Solid + edges** — opaque faces plus the structural wireframe.
 
