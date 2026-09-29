@@ -113,7 +113,7 @@
 
     preset: 'square',
     complexity: 'simple',
-    formStyle: 'symmetric',
+    formStyle: 'mandala',
     spacingStyle: 'compact',
 
     projection: 'perspective',
@@ -907,45 +907,52 @@
       : [[0,0],[1,0],[-1,0],[0,1],[0,-1]];
   }
 
-  function buildSquareSymmetric() {
+  function buildSquareMandala() {
     resetGeometry();
     const complex = state.complexity === 'complex';
     const separated = state.spacingStyle === 'separated';
     const size = 0.34;
     const spacing = size;
 
+    // Base layer: exactly the square cells drawn in 2D.
     for (const [gx, gy] of squareBaseCells(complex)) {
       addCenteredCube(gx * spacing, gy * spacing, 0, size, 0);
     }
 
-    const secondZ = separated ? 0.48 : size;
+    // Repeated higher-dimensional structure is allowed only where the same
+    // footprint already exists in 2D.
+    const secondZ = separated ? size * 1.65 : size;
     for (const sign of [-1, 1]) {
       for (const [gx, gy] of squareSecondCells(complex)) {
         addCenteredCube(gx * spacing, gy * spacing, sign * secondZ, size, 0);
       }
     }
 
-    const crownSize = size * 0.74;
-    const crownZ = separated
-      ? 0.96
-      : secondZ + size * 0.5 + crownSize * 0.5;
+    // The central diamond is explicitly present in the 2D plan.
+    const diamondSize = size * 0.72;
+    const diamondZ = separated
+      ? secondZ + size * 1.15
+      : secondZ + size * 0.5 + diamondSize * 0.5;
 
     for (const sign of [-1, 1]) {
-      addCenteredCube(0, 0, sign * crownZ, crownSize, Math.PI / 4);
-
-      const baseZ = sign > 0
-        ? crownZ + crownSize * 0.5
-        : -crownZ - crownSize * 0.5;
-
-      addPolygonPyramid(
+      addCenteredCube(
         0,
         0,
-        baseZ,
-        size * 0.31,
-        4,
-        sign * size * 0.58,
+        sign * diamondZ,
+        diamondSize,
         Math.PI / 4,
       );
+    }
+
+    if (complex) {
+      const innerSize = size * 0.46;
+      const innerZ = separated
+        ? diamondZ + size * 0.95
+        : diamondZ + diamondSize * 0.5 + innerSize * 0.5;
+
+      for (const sign of [-1, 1]) {
+        addCenteredCube(0, 0, sign * innerZ, innerSize, 0);
+      }
     }
   }
 
@@ -1006,14 +1013,14 @@
         ];
   }
 
-  function buildYantraSymmetric() {
+  function buildYantraMandala() {
     resetGeometry();
 
     const layers = yantraLayerSpecs();
     const separated = state.spacingStyle === 'separated';
     const thickness = 0.10;
     const zStep = separated
-      ? (state.complexity === 'complex' ? 0.23 : 0.30)
+      ? (state.complexity === 'complex' ? 0.24 : 0.31)
       : thickness;
 
     layers.forEach(([radius, rotation], index) => {
@@ -1027,8 +1034,8 @@
       addCenteredPrism(0, 0, -z, radius, 3, thickness, rotation);
     });
 
-    const innerRadius = layers[layers.length - 1][0] * 0.46;
-    addBipyramid(0, 0, 0, innerRadius, 3, 0.20, -Math.PI / 2);
+    // The bindu is an explicit 2D element, so its lift uses the same footprint.
+    addCenteredPrism(0, 0, 0, 0.028, 12, thickness, 0);
   }
 
   function buildYantraTemple() {
@@ -1095,7 +1102,7 @@
     }
   }
 
-  function buildHexSymmetric() {
+  function buildHexMandala() {
     resetGeometry();
 
     const layers = hexLayerSpecs();
@@ -1103,42 +1110,21 @@
     const baseThickness = 0.10;
     const layerThickness = 0.11;
 
-    let lastPositiveZ = 0;
-
     layers.forEach(([radius, rotation], index) => {
       if (index === 0) {
         addCenteredPrism(0, 0, 0, radius, 6, baseThickness, rotation);
         return;
       }
 
-      const z = separated
-        ? index * 0.30
-        : (baseThickness + layerThickness) * 0.5
-          + (index - 1) * layerThickness;
+      const compactZ = (baseThickness + layerThickness) * 0.5
+        + (index - 1) * layerThickness;
+      const z = separated ? index * 0.32 : compactZ;
 
-      lastPositiveZ = z;
       addCenteredPrism(0, 0, z, radius, 6, layerThickness, rotation);
       addCenteredPrism(0, 0, -z, radius, 6, layerThickness, rotation);
     });
 
-    const crownRadius = layers[layers.length - 1][0] * 0.55;
-    const crownThickness = 0.12;
-    const crownZ = separated
-      ? layers.length * 0.30 + 0.05
-      : lastPositiveZ + layerThickness * 0.5 + crownThickness * 0.5;
-
-    for (const sign of [-1, 1]) {
-      addCenteredPrism(
-        0,
-        0,
-        sign * crownZ,
-        crownRadius,
-        6,
-        crownThickness,
-        Math.PI / 6,
-      );
-    }
-
+    // Satellite rings are exactly the ones visible in the 2D plan.
     addHexSatelliteRing(0);
 
     if (state.complexity === 'complex') {
@@ -1156,6 +1142,8 @@
         );
       }
     }
+
+    addCenteredPrism(0, 0, 0, 0.026, 12, baseThickness, 0);
   }
 
   function buildHexTemple() {
