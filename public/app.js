@@ -1862,11 +1862,7 @@
       const label = document.createElement('span');
       label.className = 'control-row__label';
       label.textContent = config.label;
-      label.title =
-        config.key === 'x' ? 'Stretch the X direction of the mandala plan'
-        : config.key === 'y' ? 'Stretch the Y direction of the mandala plan'
-        : config.key === 'z' ? 'Stretch or collapse the added 3D depth; 0 collapses toward 2D'
-        : 'Stretch or collapse the fourth dimension; 0 collapses toward 3D';
+      label.title = 'Rotate the object in the ' + config.label + ' coordinate plane';
 
       const input = document.createElement('input');
       input.type = 'range';
@@ -1921,6 +1917,11 @@
       const label = document.createElement('span');
       label.className = 'control-row__label';
       label.textContent = config.label;
+      label.title =
+        config.key === 'x' ? 'Stretch the X direction of the mandala plan'
+        : config.key === 'y' ? 'Stretch the Y direction of the mandala plan'
+        : config.key === 'z' ? 'Stretch or collapse the added 3D depth; 0 collapses toward 2D'
+        : 'Stretch or collapse the fourth dimension; 0 collapses toward 3D';
 
       const input = document.createElement('input');
       input.type = 'range';
