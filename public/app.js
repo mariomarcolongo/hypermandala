@@ -1522,7 +1522,13 @@
   }
 
   function faceWorldKey(module, face) {
-    return face.indices
+    const transitionGroup = state.wMix >= 0.999
+      ? ''
+      : module.hyperOnly
+        ? 'hyper|'
+        : 'spatial|';
+
+    return transitionGroup + face.indices
       .map((index) => module.vertices[index]
         .map(symmetryCoord)
         .join(','))
@@ -1549,6 +1555,9 @@
     const counts = new Map();
 
     for (const module of modules) {
+      const moduleAmount = moduleEmergence(module);
+      if (moduleAmount <= 0.002) continue;
+
       for (const face of module.faces) {
         const visibility = faceVisibility(face);
         if (visibility <= 0.002) continue;
@@ -1562,17 +1571,17 @@
     const data = [];
 
     for (const entry of entries) {
-      // Shared coincident faces are internal to the assembled mandala volume.
-      // Removing both sides prevents z-fighting and color flashes.
       if ((counts.get(entry.key) || 0) > 1) continue;
 
       const points = entry.face.indices
-        .map((index) => projectToScreen(entry.module.vertices[index]));
+        .map((index) => projectModulePoint(
+          entry.module,
+          entry.module.vertices[index],
+        ));
 
       if (points.length < 3 || Math.abs(polygonArea2D(points)) < 0.45) continue;
 
       const rgb = faceFillRgb(entry.face, entry.module);
-      const faceAlpha = clamp(alpha * entry.visibility, 0, 1);
 
       for (let i = 1; i < points.length - 1; i += 1) {
         const tri = [points[0], points[i], points[i + 1]];
@@ -1587,7 +1596,7 @@
             rgb.r / 255,
             rgb.g / 255,
             rgb.b / 255,
-            faceAlpha,
+            1,
           );
         }
       }
@@ -1629,9 +1638,7 @@
     gl.depthFunc(gl.LEQUAL);
     gl.depthMask(true);
 
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-
+    gl.disable(gl.BLEND);
     gl.disable(gl.CULL_FACE);
     gl.drawArrays(gl.TRIANGLES, 0, data.length / 7);
 
@@ -1644,15 +1651,27 @@
     const rendered = [];
 
     for (const module of modules) {
+      const moduleAmount = moduleEmergence(module);
+      if (moduleAmount <= 0.002) continue;
+
       for (const face of module.faces) {
         const visibility = faceVisibility(face);
         if (visibility <= 0.002) continue;
 
-        const points = face.indices.map((index) => projectToScreen(module.vertices[index]));
+        const points = face.indices.map((index) => projectModulePoint(
+          module,
+          module.vertices[index],
+        ));
         if (Math.abs(polygonArea2D(points)) < 0.45) continue;
 
         const depth = points.reduce((sum, p) => sum + p.depth, 0) / points.length;
-        rendered.push({ face, module, points, depth, visibility });
+        rendered.push({
+          face,
+          module,
+          points,
+          depth,
+          visibility: visibility * moduleAmount,
+        });
       }
     }
 
@@ -1667,11 +1686,9 @@
       ctx.closePath();
 
       ctx.fillStyle = faceFillColor(item.face, item.module);
-      // Solid means solid: avoid cumulative translucent overdraw, which made
-      // 4D face projections create false bands and strange colors.
       ctx.globalAlpha = item.visibility >= 0.995
         ? 1
-        : clamp(item.visibility * 1.15, 0, 1);
+        : clamp(item.visibility, 0, 1);
       ctx.fill();
       ctx.globalAlpha = 1;
     }
@@ -1683,12 +1700,15 @@
     const rendered = [];
 
     for (const module of modules) {
+      const moduleAmount = moduleEmergence(module);
+      if (moduleAmount <= 0.002) continue;
+
       for (const edge of module.edges) {
-        const visibility = edgeVisibility(edge);
+        const visibility = edgeVisibility(edge) * moduleAmount;
         if (visibility <= 0.002) continue;
 
-        const a = projectToScreen(module.vertices[edge.a]);
-        const b = projectToScreen(module.vertices[edge.b]);
+        const a = projectModulePoint(module, module.vertices[edge.a]);
+        const b = projectModulePoint(module, module.vertices[edge.b]);
         const dx = b.x - a.x;
         const dy = b.y - a.y;
         if (dx * dx + dy * dy < 0.25) continue;
@@ -1748,13 +1768,18 @@
       : 'rgba(245,239,225,.70)';
 
     for (const module of modules) {
+      const moduleAmount = moduleEmergence(module);
+      if (moduleAmount <= 0.002) continue;
+
       for (const vertex of module.vertices) {
-        const p = projectToScreen(vertex);
+        const p = projectModulePoint(module, vertex);
         const key = Math.round(p.x * 2) + ':' + Math.round(p.y * 2);
         if (seen.has(key)) continue;
         seen.add(key);
 
-        ctx.globalAlpha = alpha * (0.2 + state.wMix * 0.13);
+        ctx.globalAlpha = alpha
+          * moduleAmount
+          * (0.2 + state.wMix * 0.13);
         ctx.beginPath();
         ctx.arc(p.x, p.y, 0.95, 0, TAU);
         ctx.fill();
