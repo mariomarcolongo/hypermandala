@@ -3957,11 +3957,13 @@
   function setRotationValue(key, value) {
     state.rotations[key] = wrapDegrees(value);
     syncRotationControl(key);
+    markSettingsDirty();
   }
 
   function stopAutorotation(key) {
     if (!state.auto[key]) return;
     state.auto[key] = false;
+    markSettingsDirty();
     const ui = rotationUI[key];
     if (ui) ui.auto.setAttribute('aria-pressed', 'false');
   }
@@ -3999,12 +4001,14 @@
       input.addEventListener('input', () => {
         state.rotations[config.key] = Number(input.value);
         value.textContent = Math.round(state.rotations[config.key]) + '°';
+        markSettingsDirty();
         hideHint();
       });
 
       auto.addEventListener('click', () => {
         state.auto[config.key] = !state.auto[config.key];
         auto.setAttribute('aria-pressed', String(state.auto[config.key]));
+        markSettingsDirty();
         hideHint();
       });
 
@@ -4055,6 +4059,7 @@
       input.addEventListener('input', () => {
         state.scales[config.key] = Number(input.value);
         value.textContent = '×' + state.scales[config.key].toFixed(2);
+        markSettingsDirty();
         hideHint();
       });
 
@@ -4073,6 +4078,7 @@
   function setProjection(mode) {
     if (!['perspective', 'orthographic', 'isometric'].includes(mode)) return;
     state.projection = mode;
+    markSettingsDirty();
     projectionButtons.forEach((button) => {
       button.classList.toggle('is-active', button.dataset.projection === mode);
     });
@@ -4081,6 +4087,7 @@
   function setColorMode(mode) {
     if (!['form', 'axis', 'classic'].includes(mode)) return;
     state.colorMode = mode;
+    markSettingsDirty();
 
     colorButtons.forEach((button) => {
       button.classList.toggle('is-active', button.dataset.color === mode);
@@ -4095,6 +4102,7 @@
   function setRenderMode(mode) {
     if (!['wire','solid','solid-edges'].includes(mode)) return;
     state.renderMode = mode;
+    markSettingsDirty();
     renderButtons.forEach((button) => {
       button.classList.toggle('is-active', button.dataset.render === mode);
     });
@@ -4147,6 +4155,7 @@
       startStage(state.queue.shift());
     } else {
       state.requestedDimension = state.dimension;
+      markSettingsDirty();
     }
   }
 
@@ -4234,6 +4243,22 @@
   }
 
   function resetAll() {
+    state.dimension = 2;
+    state.requestedDimension = 2;
+    state.queue = [];
+    state.transition = null;
+    state.transitionDirection = 0;
+    state.zMix = 0;
+    state.wMix = 0;
+
+    state.preset = 'square';
+    state.complexity = 'simple';
+    state.spacingStyle = 'compact';
+
+    state.projection = 'perspective';
+    state.colorMode = 'classic';
+    state.renderMode = 'solid';
+
     state.rotations = { xw: 0, yw: 0, zw: 0, xy: 0, xz: 0, yz: 0 };
     state.auto = { xw: false, yw: false, zw: false, xy: false, xz: false, yz: false };
     state.scales = { x: 1, y: 1, z: 1, w: 1 };
@@ -4241,25 +4266,18 @@
     state.cameraPitch = 0.58;
     state.zoom = 1;
 
-    setProjection('perspective');
-    setColorMode('classic');
-    setRenderMode('solid-edges');
+    restoredDockCollapsed = false;
+    syncSettingsUI();
+    buildActiveMandala();
+    updateUI();
 
-    for (const config of ROTATION_CONFIG) {
-      const ui = rotationUI[config.key];
-      ui.input.value = '0';
-      ui.value.textContent = '0°';
-      ui.auto.setAttribute('aria-pressed', 'false');
-    }
-
-    for (const config of SCALE_CONFIG) {
-      const ui = scaleUI[config.key];
-      ui.input.value = '1';
-      ui.value.textContent = '×1.00';
-    }
+    markSettingsDirty();
+    persistSettings(true);
   }
 
   function updateAutorotation(dt) {
+    let changed = false;
+
     for (const config of ROTATION_CONFIG) {
       if (!state.auto[config.key] || effectiveDimension() < config.minDim) continue;
 
@@ -4267,11 +4285,14 @@
       if (next > 180) next -= 360;
 
       state.rotations[config.key] = next;
+      changed = true;
 
       const ui = rotationUI[config.key];
       ui.input.value = String(next);
       ui.value.textContent = Math.round(next) + '°';
     }
+
+    if (changed) markSettingsDirty();
   }
 
   function resize() {
@@ -4307,6 +4328,7 @@
     });
 
     buildActiveMandala();
+    markSettingsDirty();
     hideHint();
   }
 
@@ -4376,9 +4398,11 @@
   toggleGeometricForms?.addEventListener('click', () => {
     const collapsed = geometricFormsDock.classList.toggle('is-collapsed');
     toggleGeometricForms.setAttribute('aria-expanded', String(!collapsed));
+    restoredDockCollapsed = collapsed;
     toggleGeometricForms.title = collapsed
       ? 'Expand geometric forms'
       : 'Collapse geometric forms';
+    markSettingsDirty();
   });
 
   canvas.addEventListener('pointerdown', (event) => {
@@ -4436,6 +4460,7 @@
       0.55,
       1.9,
     );
+    markSettingsDirty();
     hideHint();
   }, { passive: false });
 
@@ -4446,9 +4471,11 @@
     state.cameraYaw = -0.62;
     state.cameraPitch = 0.58;
     state.zoom = 1;
+    markSettingsDirty();
   });
 
   window.addEventListener('resize', resize, { passive: true });
+  window.addEventListener('pagehide', () => persistSettings(true));
 
   window.addEventListener('keydown', (event) => {
     if (
@@ -4472,14 +4499,16 @@
     updateUI();
     drawScene();
     drawBasis();
+    persistSettings(false);
 
     requestAnimationFrame(tick);
   }
 
   createRotationControls();
   createScaleControls();
+  restoreSettings();
+  syncSettingsUI();
   buildActiveMandala();
-  resetAll();
   resize();
   updateUI();
   requestAnimationFrame(tick);
