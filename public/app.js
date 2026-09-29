@@ -1068,6 +1068,7 @@
     height,
     rotation = 0,
     regionId = 'unclassified',
+    liftMeta = null,
   ) {
     const data = prismData(cx, cy, baseZ, radius, sides, height, rotation);
     const center = [cx, cy];
@@ -1081,6 +1082,7 @@
       data.footprint,
       spokes,
       regionId,
+      liftMeta,
     );
   }
 
@@ -1093,6 +1095,7 @@
     height,
     rotation = 0,
     regionId = 'unclassified',
+    liftMeta = null,
   ) {
     addPrism(
       cx,
@@ -1103,6 +1106,7 @@
       height,
       rotation,
       regionId,
+      liftMeta,
     );
   }
 
@@ -2201,6 +2205,20 @@
         piece.paintOrder,
       );
     }
+
+    const network = yantraSubdivisionNetwork(pieces);
+    const detailSeen = new Set();
+
+    for (const piece of pieces) {
+      for (const segment of detailSegmentsForPiece(piece, network)) {
+        const k0 = segment[0].map((v) => v.toFixed(5)).join(',');
+        const k1 = segment[1].map((v) => v.toFixed(5)).join(',');
+        const key = k0 < k1 ? k0 + '|' + k1 : k1 + '|' + k0;
+        if (detailSeen.has(key)) continue;
+        detailSeen.add(key);
+        addPlanDetailEdge(segment[0], segment[1]);
+      }
+    }
   }
 
   function buildSriYantraPlan() {
@@ -2960,16 +2978,19 @@
       return Math.max(...candidates);
     });
 
-    const centers = [0];
-    let topSurface = rankThickness[0] * 0.5;
+    const gap = state.spacingStyle === 'separated'
+      ? separatedGap
+      : 0;
+    const totalHeight =
+      rankThickness.reduce((sum, value) => sum + value, 0)
+      + gap * Math.max(0, levels.length - 1);
 
-    for (let rank = 1; rank < levels.length; rank += 1) {
-      const gap = state.spacingStyle === 'separated'
-        ? separatedGap
-        : 0;
-      const center = topSurface + gap + rankThickness[rank] * 0.5;
-      centers.push(center);
-      topSurface = center + rankThickness[rank] * 0.5;
+    const centers = [];
+    let cursor = -totalHeight * 0.5;
+
+    for (const thickness of rankThickness) {
+      centers.push(cursor + thickness * 0.5);
+      cursor += thickness + gap;
     }
 
     return {
@@ -2982,10 +3003,11 @@
     };
   }
 
-  function buildSymmetricPieceHierarchy(
+  function buildCenteredPieceHierarchy(
     pieces,
     thicknessForPiece,
     separatedGap = 0.12,
+    preserveSubdivision = false,
   ) {
     resetGeometry();
 
@@ -2994,33 +3016,31 @@
       thicknessForPiece,
       separatedGap,
     );
+    const network = preserveSubdivision
+      ? yantraSubdivisionNetwork(pieces)
+      : [];
 
     for (const piece of pieces) {
       const rank = layout.rankByLevel.get(piece.level) || 0;
       const height = layout.rankThickness[rank];
       const z = layout.centers[rank];
-
-      if (rank === 0) {
-        addFootprintPrismCentered(
-          piece.points,
-          0,
-          height,
-          piece.regionId,
-        );
-        continue;
-      }
+      const hierarchyT = layout.levels.length <= 1
+        ? 1
+        : rank / (layout.levels.length - 1);
+      const details = preserveSubdivision
+        ? detailSegmentsForPiece(piece, network)
+        : [];
 
       addFootprintPrismCentered(
         piece.points,
         z,
         height,
         piece.regionId,
-      );
-      addFootprintPrismCentered(
-        piece.points,
-        -z,
-        height,
-        piece.regionId,
+        details,
+        {
+          hierarchyT,
+          polarity: regionPolarity(piece.regionId),
+        },
       );
     }
   }
@@ -3028,7 +3048,7 @@
   function buildSquareComplexMandala() {
     const pieces = squareComplexPieces();
 
-    buildSymmetricPieceHierarchy(
+    buildCenteredPieceHierarchy(
       pieces,
       (piece, rank, count) => {
         const t = count <= 1 ? 0 : rank / (count - 1);
@@ -3101,7 +3121,7 @@
   
 
   function buildSymmetricYantraForm(pieces) {
-    buildSymmetricPieceHierarchy(
+    buildCenteredPieceHierarchy(
       pieces,
       (piece, rank, count) => {
         const t = count <= 1 ? 0 : rank / (count - 1);
@@ -3120,6 +3140,7 @@
         return 0.082 + t * 0.052;
       },
       0.13,
+      true,
     );
   }
 
