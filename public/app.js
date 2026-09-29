@@ -595,6 +595,57 @@
     planFaceKeys.clear();
   }
 
+  function symmetryCoord(value) {
+    if (Math.abs(value) < 1e-8) return 0;
+    return Math.round(value * 100000) / 100000;
+  }
+
+  function moduleSignature(module) {
+    return module.vertices
+      .map((point) => point.map(symmetryCoord).join(','))
+      .sort()
+      .join('|');
+  }
+
+  function reflectedModule(module, sx, sy, sz, sw) {
+    return {
+      vertices: module.vertices.map((point) => [
+        point[0] * sx,
+        point[1] * sy,
+        point[2] * sz,
+        point[3] * sw,
+      ]),
+      edges: module.edges.map((edge) => ({ ...edge })),
+      faces: module.faces.map((face) => ({
+        ...face,
+        indices: [...face.indices],
+      })),
+    };
+  }
+
+  function enforceFullCoordinateReflectionSymmetry() {
+    const source = [...modules];
+    const seen = new Set(source.map(moduleSignature));
+    const signs = [-1, 1];
+
+    for (const module of source) {
+      for (const sx of signs) {
+        for (const sy of signs) {
+          for (const sz of signs) {
+            for (const sw of signs) {
+              const reflected = reflectedModule(module, sx, sy, sz, sw);
+              const signature = moduleSignature(reflected);
+
+              if (seen.has(signature)) continue;
+              seen.add(signature);
+              modules.push(reflected);
+            }
+          }
+        }
+      }
+    }
+  }
+
   function clearPlan() {
     planEdges.length = 0;
     planFaces.length = 0;
@@ -1038,6 +1089,10 @@
     } else {
       if (state.formStyle === 'temple') buildSquareTemple();
       else buildSquareSymmetric();
+    }
+
+    if (state.formStyle === 'symmetric') {
+      enforceFullCoordinateReflectionSymmetry();
     }
   }
 
