@@ -752,19 +752,41 @@
     planFaceKeys.clear();
   }
 
-  function addPlanLoop(points, fill = true) {
-    if (fill) addPlanFace(points);
+  function addPlanLoop(
+    points,
+    fill = true,
+    regionId = 'unclassified',
+    paintOrder = 0,
+  ) {
+    if (fill) addPlanFace(points, regionId, paintOrder);
     for (let i = 0; i < points.length; i += 1) {
       addPlanEdge(points[i], points[(i + 1) % points.length], 'n');
     }
   }
 
-  function addPlanRegularPolygon(cx, cy, radius, sides, rotation = 0, fill = true) {
+  function addPlanRegularPolygon(
+    cx,
+    cy,
+    radius,
+    sides,
+    rotation = 0,
+    fill = true,
+    regionId = 'unclassified',
+    paintOrder = 0,
+  ) {
     const points = polygonFootprint(cx, cy, radius, sides, rotation);
-    addPlanLoop(points, fill);
+    addPlanLoop(points, fill, regionId, paintOrder);
   }
 
-  function addPlanSquareCell(cx, cy, size, rotation = 0, fill = true) {
+  function addPlanSquareCell(
+    cx,
+    cy,
+    size,
+    rotation = 0,
+    fill = true,
+    regionId = 'unclassified',
+    paintOrder = 0,
+  ) {
     const h = size / 2;
     const points = [
       [-h,-h], [h,-h], [h,h], [-h,h],
@@ -772,11 +794,26 @@
       const rotated = rotateXYPoint(x, y, rotation);
       return [cx + rotated[0], cy + rotated[1]];
     });
-    addPlanLoop(points, fill);
+    addPlanLoop(points, fill, regionId, paintOrder);
   }
 
-  function addPlanPoint(cx, cy, radius = 0.026) {
-    addPlanRegularPolygon(cx, cy, radius, 12, 0, true);
+  function addPlanPoint(
+    cx,
+    cy,
+    radius = 0.026,
+    regionId = 'unclassified',
+    paintOrder = 100,
+  ) {
+    addPlanRegularPolygon(
+      cx,
+      cy,
+      radius,
+      12,
+      0,
+      true,
+      regionId,
+      paintOrder,
+    );
   }
 
   function buildSquarePlan() {
@@ -786,28 +823,86 @@
     const complex = state.complexity === 'complex';
 
     for (const [gx, gy] of squareBaseCells(complex)) {
-      addPlanSquareCell(gx * spacing, gy * spacing, size, 0, true);
+      const cx = gx * spacing;
+      const cy = gy * spacing;
+      addPlanSquareCell(
+        cx,
+        cy,
+        size,
+        0,
+        true,
+        squareRegionId(cx, cy),
+        0,
+      );
     }
 
-    addPlanSquareCell(0, 0, size * 0.72, Math.PI / 4, false);
-    if (complex) addPlanSquareCell(0, 0, size * 0.46, 0, false);
+    // These guides are also higher-dimensional footprints, so they are
+    // real colored regions rather than outline-only decorations.
+    addPlanSquareCell(
+      0,
+      0,
+      size * 0.72,
+      Math.PI / 4,
+      true,
+      'square-center',
+      20,
+    );
+
+    if (complex) {
+      addPlanSquareCell(
+        0,
+        0,
+        size * 0.46,
+        0,
+        true,
+        'square-center',
+        30,
+      );
+    }
   }
 
   function buildYantraPlan() {
     clearPlan();
-    for (const [radius, rotation] of yantraLayerSpecs()) {
-      // These are visual regions as well as structural outlines. Keeping
-      // planFaces here lets Solid / Classic color the actual yantra faces.
-      addPlanRegularPolygon(0, 0, radius, 3, rotation, true);
-    }
-    addPlanPoint(0, 0, 0.028);
+    const layers = yantraLayerSpecs();
+
+    layers.forEach(([radius, rotation], index) => {
+      addPlanRegularPolygon(
+        0,
+        0,
+        radius,
+        3,
+        rotation,
+        true,
+        'yantra-layer-' + index + '-of-' + layers.length,
+        index,
+      );
+    });
+
+    addPlanPoint(
+      0,
+      0,
+      0.028,
+      'yantra-center',
+      100,
+    );
   }
 
   function buildHexPlan() {
     clearPlan();
-    for (const [radius, rotation] of hexLayerSpecs()) {
-      addPlanRegularPolygon(0, 0, radius, 6, rotation, true);
-    }
+    const layers = hexLayerSpecs();
+
+    layers.forEach(([radius, rotation], index) => {
+      addPlanRegularPolygon(
+        0,
+        0,
+        radius,
+        6,
+        rotation,
+        true,
+        'hex-layer-' + index + '-of-' + layers.length,
+        index,
+      );
+    });
 
     const ringRadius = 1.58;
     for (let i = 0; i < 6; i += 1) {
@@ -819,6 +914,8 @@
         6,
         Math.PI / 6,
         true,
+        'hex-satellite',
+        10,
       );
     }
 
@@ -833,11 +930,19 @@
           6,
           i % 2 ? Math.PI / 6 : 0,
           true,
+          'hex-outer-satellite',
+          5,
         );
       }
     }
 
-    addPlanPoint(0, 0);
+    addPlanPoint(
+      0,
+      0,
+      0.026,
+      'hex-center',
+      100,
+    );
   }
 
   function buildPlanForPreset() {
