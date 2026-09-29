@@ -250,7 +250,7 @@
     wMix: 0,
 
     preset: 'square',
-    complexity: 'simple',
+    complexity: 'complex',
     spacingStyle: 'compact',
 
     projection: 'perspective',
@@ -2514,7 +2514,7 @@
         z + circleHeight,
       );
 
-      z += circleHeight + 0.10 + gap;
+      z += circleHeight + gap;
     });
 
     for (const part of borobudurCentralProfile(spec.centerRadius)) {
@@ -2565,8 +2565,8 @@
   function buildSquareComplexMandala() {
     resetGeometry();
     const separated = state.spacingStyle === 'separated';
-    const step = separated ? 0.30 : 0.15;
     const height = 0.11;
+    const step = separated ? 0.30 : height;
 
     for (const piece of squareComplexPieces()) {
       if (piece.level === 0) {
@@ -2658,11 +2658,24 @@
     resetGeometry();
 
     const separated = state.spacingStyle === 'separated';
-    const step = separated ? 0.22 : 0.105;
     const height = 0.085;
+    const step = separated ? 0.22 : height;
+
+    // Levels are semantic hierarchy labels, not physical distances.
+    // Rank only the levels that actually exist so Compact is contiguous:
+    // bhupura → lotus/enclosures → triangle hierarchy → bindu.
+    const orderedLevels = [...new Set(
+      pieces.map((piece) => piece.level),
+    )].sort((a, b) => a - b);
+
+    const rankByLevel = new Map(
+      orderedLevels.map((level, rank) => [level, rank]),
+    );
 
     for (const piece of pieces) {
-      if (piece.level === 0) {
+      const rank = rankByLevel.get(piece.level) || 0;
+
+      if (rank === 0) {
         addFootprintPrismCentered(
           piece.points,
           0,
@@ -2672,7 +2685,7 @@
         continue;
       }
 
-      const z = piece.level * step;
+      const z = rank * step;
       addFootprintPrismCentered(
         piece.points,
         z,
@@ -4239,7 +4252,7 @@
     state.wMix = 0;
 
     state.preset = 'square';
-    state.complexity = 'simple';
+    state.complexity = 'complex';
     state.spacingStyle = 'compact';
 
     state.projection = 'perspective';
