@@ -1959,6 +1959,9 @@
     else if (state.preset === 'hex') buildHexPlan();
     else if (state.preset === 'stupa') buildStupaPlan();
     else if (state.preset === 'borobudur') buildBorobudurPlan();
+    else if (state.preset === 'castel') buildCastelPlan();
+    else if (state.preset === 'kukulkan') buildKukulkanPlan();
+    else if (state.preset === 'lalibela') buildLalibelaPlan();
     else buildSquarePlan();
   }
 
@@ -2299,11 +2302,180 @@
   
 
 
+  function buildCastelForm() {
+    resetGeometry();
+    const spec = castelSpec();
+    const rotation = Math.PI / 8;
+    const separated = state.spacingStyle === 'separated';
+    const gap = separated ? 0.08 : 0;
+
+    const wallHeight = 0.56;
+    for (const sector of polygonRingSectors(
+      spec.outerRadius,
+      spec.innerRadius,
+      8,
+      rotation,
+    )) {
+      addFootprintPrism(
+        sector,
+        0,
+        wallHeight,
+        'castel-wall',
+      );
+    }
+
+    const towerCenters = polygonFootprint(
+      0,
+      0,
+      spec.outerRadius,
+      8,
+      rotation,
+    );
+
+    for (const [cx, cy] of towerCenters) {
+      addPrism(
+        cx,
+        cy,
+        0,
+        spec.towerRadius,
+        8,
+        wallHeight + 0.16 + gap,
+        rotation,
+        'castel-tower',
+      );
+    }
+
+    if (spec.innerWallRadius) {
+      for (const sector of polygonRingSectors(
+        spec.innerRadius,
+        spec.innerWallRadius,
+        8,
+        rotation,
+      )) {
+        addFootprintPrism(
+          sector,
+          gap,
+          wallHeight - 0.08,
+          'castel-inner',
+        );
+      }
+    }
+  }
+
+  function buildKukulkanForm() {
+    resetGeometry();
+    const spec = kukulkanSpec();
+    const separated = state.spacingStyle === 'separated';
+    const gap = separated ? 0.045 : 0;
+    const levelHeight = state.complexity === 'complex' ? 0.095 : 0.13;
+
+    spec.sizes.forEach((size, index) => {
+      addSquarePrismBase(
+        index * (levelHeight + gap),
+        size,
+        levelHeight,
+        'kukulkan-level-' + index,
+      );
+    });
+
+    for (const piece of kukulkanStairPieces(spec)) {
+      const baseZ =
+        piece.level * (levelHeight + gap)
+        + levelHeight
+        + gap * 0.25;
+
+      addFootprintPrism(
+        piece.points,
+        baseZ,
+        Math.max(0.035, levelHeight * 0.35),
+        'kukulkan-stair',
+      );
+    }
+
+    const templeBase = spec.sizes.length * (levelHeight + gap);
+    addSquarePrismBase(
+      templeBase,
+      spec.templeSize,
+      state.complexity === 'complex' ? 0.24 : 0.22,
+      'kukulkan-temple',
+    );
+  }
+
+  function buildLalibelaForm() {
+    resetGeometry();
+    const complex = state.complexity === 'complex';
+    const separated = state.spacingStyle === 'separated';
+    const gap = separated ? 0.06 : 0;
+
+    for (const points of lalibelaCourtPieces(
+      complex ? 2.72 : 2.56,
+      0.12,
+    )) {
+      addFootprintPrism(
+        points,
+        0,
+        0.07,
+        'lalibela-court',
+      );
+    }
+
+    const bodySize = complex ? 0.66 : 0.70;
+    const bodySpacing = bodySize;
+    const bodyBase = 0.07 + gap;
+    const bodyHeight = complex ? 0.62 : 0.58;
+
+    for (const cell of lalibelaCrossCells(
+      bodySize,
+      bodySpacing,
+      'lalibela-body',
+      10,
+    )) {
+      addFootprintPrism(
+        cell.points,
+        bodyBase,
+        bodyHeight,
+        cell.regionId,
+      );
+    }
+
+    if (complex) {
+      for (const cell of lalibelaCrossCells(
+        0.42,
+        bodySpacing,
+        'lalibela-roof',
+        20,
+      )) {
+        addFootprintPrism(
+          cell.points,
+          bodyBase + bodyHeight + gap,
+          0.11,
+          cell.regionId,
+        );
+      }
+    }
+
+    addFootprintPrism(
+      rectFootprint(
+        0,
+        0,
+        complex ? 0.30 : 0.34,
+        complex ? 0.30 : 0.34,
+        0,
+      ),
+      bodyBase + bodyHeight + (complex ? 0.11 : 0) + gap,
+      0.10,
+      'lalibela-center',
+    );
+  }
+
   function buildGeometryForCurrentChoice() {
     if (state.preset === 'yantra') buildYantraMandala();
     else if (state.preset === 'hex') buildHexMandala();
     else if (state.preset === 'stupa') buildStupaTemple();
     else if (state.preset === 'borobudur') buildBorobudurTemple();
+    else if (state.preset === 'castel') buildCastelForm();
+    else if (state.preset === 'kukulkan') buildKukulkanForm();
+    else if (state.preset === 'lalibela') buildLalibelaForm();
     else buildSquareMandala();
   }
 
