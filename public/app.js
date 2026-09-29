@@ -607,43 +607,111 @@
       .join('|');
   }
 
-  function reflectedModule(module, sx, sy, sz, sw) {
+  const AXIS_NAMES = ['x', 'y', 'z', 'w'];
+  const AXIS_INDEX = { x: 0, y: 1, z: 2, w: 3 };
+  const XYZ_PERMUTATIONS = [
+    [0,1,2], [0,2,1],
+    [1,0,2], [1,2,0],
+    [2,0,1], [2,1,0],
+  ];
+
+  function transformModuleSymmetry(
+    module,
+    permutation,
+    signs,
+    hyperOnly = false,
+  ) {
+    const inverse = [0, 0, 0, 0];
+    for (let outputAxis = 0; outputAxis < 4; outputAxis += 1) {
+      inverse[permutation[outputAxis]] = outputAxis;
+    }
+
+    const mapAxis = (axis) => {
+      if (!(axis in AXIS_INDEX)) return axis;
+      return AXIS_NAMES[inverse[AXIS_INDEX[axis]]];
+    };
+
     return {
+      hyperOnly: hyperOnly || Boolean(module.hyperOnly),
       vertices: module.vertices.map((point) => [
-        point[0] * sx,
-        point[1] * sy,
-        point[2] * sz,
-        point[3] * sw,
+        point[permutation[0]] * signs[0],
+        point[permutation[1]] * signs[1],
+        point[permutation[2]] * signs[2],
+        point[permutation[3]] * signs[3],
       ]),
-      edges: module.edges.map((edge) => ({ ...edge })),
+      edges: module.edges.map((edge) => ({
+        ...edge,
+        axis: mapAxis(edge.axis),
+        wLayer: hyperOnly ? 0 : edge.wLayer,
+      })),
       faces: module.faces.map((face) => ({
         ...face,
         indices: [...face.indices],
+        axis: mapAxis(face.axis),
+        wLayer: hyperOnly ? 0 : face.wLayer,
+        bridge: hyperOnly ? false : face.bridge,
       })),
     };
   }
 
-  function enforceFullCoordinateReflectionSymmetry() {
-    const source = [...modules];
-    const seen = new Set(source.map(moduleSignature));
+  function enforceAxisIsotropicSymmetry() {
+    const seed = [...modules];
+    const seen = new Set();
+    const spatial = [];
     const signs = [-1, 1];
 
-    for (const module of source) {
-      for (const sx of signs) {
-        for (const sy of signs) {
-          for (const sz of signs) {
-            for (const sw of signs) {
-              const reflected = reflectedModule(module, sx, sy, sz, sw);
-              const signature = moduleSignature(reflected);
+    // 3D: signed permutations of X/Y/Z (the full octahedral coordinate group).
+    for (const module of seed) {
+      for (const xyz of XYZ_PERMUTATIONS) {
+        const permutation = [xyz[0], xyz[1], xyz[2], 3];
 
+        for (const sx of signs) {
+          for (const sy of signs) {
+            for (const sz of signs) {
+              const transformed = transformModuleSymmetry(
+                module,
+                permutation,
+                [sx, sy, sz, 1],
+                false,
+              );
+              const signature = moduleSignature(transformed);
               if (seen.has(signature)) continue;
               seen.add(signature);
-              modules.push(reflected);
+              spatial.push(transformed);
             }
           }
         }
       }
     }
+
+    // 4D: S4/S3 has four cosets. Because the spatial set above is already
+    // invariant under signed XYZ permutations and each extrusion is ±W
+    // symmetric, adding the three W-axis swaps closes the set under signed
+    // permutations of X/Y/Z/W without generating 384 copies per seed module.
+    const hyper = [...spatial];
+    const wSwaps = [
+      [3,1,2,0],
+      [0,3,2,1],
+      [0,1,3,2],
+    ];
+
+    for (const module of spatial) {
+      for (const permutation of wSwaps) {
+        const transformed = transformModuleSymmetry(
+          module,
+          permutation,
+          [1,1,1,1],
+          true,
+        );
+        const signature = moduleSignature(transformed);
+        if (seen.has(signature)) continue;
+        seen.add(signature);
+        hyper.push(transformed);
+      }
+    }
+
+    modules.length = 0;
+    modules.push(...hyper);
   }
 
   function clearPlan() {
@@ -1092,7 +1160,7 @@
     }
 
     if (state.formStyle === 'symmetric') {
-      enforceFullCoordinateReflectionSymmetry();
+      enforceAxisIsotropicSymmetry();
     }
   }
 
