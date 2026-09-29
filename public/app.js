@@ -738,18 +738,7 @@
       );
     }
 
-    if (complex) {
-      for (const [gx, gy] of [[2,2],[2,-2],[-2,2],[-2,-2]]) {
-        addPyramid(
-          gx * spacing,
-          gy * spacing,
-          0,
-          size * 0.68,
-          size * 0.58,
-          Math.PI / 4,
-        );
-      }
-    }
+
   }
 
   function yantraLayerSpecs() {
@@ -1269,8 +1258,13 @@
 
   function classicFaceColor(face, module, depth) {
     const centroid = faceCentroid(face, module);
+    const meanRadius = face.indices.reduce((sum, index) => {
+      const point = module.vertices[index];
+      return sum + Math.hypot(point[0], point[1]);
+    }, 0) / face.indices.length;
+
     const radiusNorm = clamp(
-      Math.hypot(centroid[0], centroid[1]) / geometryStats.maxPlanRadius,
+      meanRadius / geometryStats.maxPlanRadius,
       0,
       1,
     );
@@ -1347,13 +1341,35 @@
     }
   }
 
+  function classicPlanEdgeColor(edge) {
+    const mx = (edge.a[0] + edge.b[0]) * 0.5;
+    const my = (edge.a[1] + edge.b[1]) * 0.5;
+    const radiusNorm = clamp(
+      (Math.hypot(edge.a[0], edge.a[1]) + Math.hypot(edge.b[0], edge.b[1]))
+        * 0.5
+        / geometryStats.maxPlanRadius,
+      0,
+      1,
+    );
+    return rgbCss(classicBaseColor(mx, my, radiusNorm));
+  }
+
   function drawPlanEdges(alpha) {
     if (alpha <= 0.001) return;
 
     for (const edge of planEdges) {
       const a = projectToScreen(edge.a);
       const b = projectToScreen(edge.b);
-      drawLine(a, b, axisColor(edge.axis), 1.15, alpha * 0.92);
+      const color = state.colorMode === 'classic'
+        ? classicPlanEdgeColor(edge)
+        : axisColor(edge.axis);
+      drawLine(
+        a,
+        b,
+        color,
+        state.colorMode === 'classic' ? 1.35 : 1.15,
+        alpha * 0.94,
+      );
     }
   }
 
