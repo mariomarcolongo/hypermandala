@@ -1139,13 +1139,131 @@
     );
   }
 
+  function squareComplexPieces() {
+    const pieces = [];
+
+    const addFrame = (size, thickness, level, order) => {
+      const side = size - thickness;
+      pieces.push(
+        {
+          points: rectFootprint(0, side / 2, size, thickness, 0),
+          regionId: 'square-gate-east',
+          level,
+          paintOrder: order,
+        },
+        {
+          points: rectFootprint(0, -side / 2, size, thickness, 0),
+          regionId: 'square-gate-west',
+          level,
+          paintOrder: order,
+        },
+        {
+          points: rectFootprint(-side / 2, 0, thickness, size - 2 * thickness, 0),
+          regionId: 'square-gate-south',
+          level,
+          paintOrder: order,
+        },
+        {
+          points: rectFootprint(side / 2, 0, thickness, size - 2 * thickness, 0),
+          regionId: 'square-gate-north',
+          level,
+          paintOrder: order,
+        },
+      );
+    };
+
+    addFrame(2.46, 0.18, 0, 0);
+
+    const gateOffset = 1.31;
+    pieces.push(
+      {
+        points: rectFootprint(0, gateOffset, 0.62, 0.34, 0),
+        regionId: 'square-gate-east',
+        level: 0,
+        paintOrder: 1,
+      },
+      {
+        points: rectFootprint(0, -gateOffset, 0.62, 0.34, 0),
+        regionId: 'square-gate-west',
+        level: 0,
+        paintOrder: 1,
+      },
+      {
+        points: rectFootprint(-gateOffset, 0, 0.34, 0.62, 0),
+        regionId: 'square-gate-south',
+        level: 0,
+        paintOrder: 1,
+      },
+      {
+        points: rectFootprint(gateOffset, 0, 0.34, 0.62, 0),
+        regionId: 'square-gate-north',
+        level: 0,
+        paintOrder: 1,
+      },
+    );
+
+    addFrame(1.72, 0.14, 1, 5);
+
+    for (const sx of [-1, 1]) {
+      for (const sy of [-1, 1]) {
+        const cx = sx * 0.66;
+        const cy = sy * 0.66;
+        pieces.push({
+          points: rectFootprint(cx, cy, 0.30, 0.30, Math.PI / 4),
+          regionId: squareRegionId(cx, cy),
+          level: 2,
+          paintOrder: 10,
+        });
+      }
+    }
+
+    pieces.push(
+      {
+        points: rectFootprint(0, 0, 1.12, 1.12, 0),
+        regionId: 'square-center',
+        level: 3,
+        paintOrder: 20,
+      },
+      {
+        points: rectFootprint(0, 0, 0.78, 0.78, Math.PI / 4),
+        regionId: 'square-center',
+        level: 4,
+        paintOrder: 30,
+      },
+      {
+        points: rectFootprint(0, 0, 0.42, 0.42, 0),
+        regionId: 'square-center',
+        level: 5,
+        paintOrder: 40,
+      },
+    );
+
+    return pieces;
+  }
+
+  function buildSquareComplexPlan() {
+    clearPlan();
+    for (const piece of squareComplexPieces()) {
+      addPlanLoop(
+        piece.points,
+        true,
+        piece.regionId,
+        piece.paintOrder,
+      );
+    }
+  }
+
   function buildSquarePlan() {
+    if (state.complexity === 'complex') {
+      buildSquareComplexPlan();
+      return;
+    }
+
     clearPlan();
     const size = 0.34;
     const spacing = size;
-    const complex = state.complexity === 'complex';
 
-    for (const [gx, gy] of squareBaseCells(complex)) {
+    for (const [gx, gy] of squareBaseCells(false)) {
       const cx = gx * spacing;
       const cy = gy * spacing;
       addPlanSquareCell(
@@ -1159,8 +1277,6 @@
       );
     }
 
-    // These guides are also higher-dimensional footprints, so they are
-    // real colored regions rather than outline-only decorations.
     addPlanSquareCell(
       0,
       0,
@@ -1170,18 +1286,6 @@
       'square-center',
       20,
     );
-
-    if (complex) {
-      addPlanSquareCell(
-        0,
-        0,
-        size * 0.46,
-        0,
-        true,
-        'square-center',
-        30,
-      );
-    }
   }
 
   function buildYantraPlan() {
@@ -1616,14 +1720,51 @@
       : [[0,0],[1,0],[-1,0],[0,1],[0,-1]];
   }
 
-  function buildSquareMandala() {
+  function buildSquareComplexMandala() {
     resetGeometry();
-    const complex = state.complexity === 'complex';
+    const separated = state.spacingStyle === 'separated';
+    const step = separated ? 0.30 : 0.15;
+    const height = 0.11;
+
+    for (const piece of squareComplexPieces()) {
+      if (piece.level === 0) {
+        addFootprintPrismCentered(
+          piece.points,
+          0,
+          height,
+          piece.regionId,
+        );
+        continue;
+      }
+
+      const z = piece.level * step;
+      addFootprintPrismCentered(
+        piece.points,
+        z,
+        height,
+        piece.regionId,
+      );
+      addFootprintPrismCentered(
+        piece.points,
+        -z,
+        height,
+        piece.regionId,
+      );
+    }
+  }
+
+  function buildSquareMandala() {
+    if (state.complexity === 'complex') {
+      buildSquareComplexMandala();
+      return;
+    }
+
+    resetGeometry();
     const separated = state.spacingStyle === 'separated';
     const size = 0.34;
     const spacing = size;
 
-    for (const [gx, gy] of squareBaseCells(complex)) {
+    for (const [gx, gy] of squareBaseCells(false)) {
       const cx = gx * spacing;
       const cy = gy * spacing;
       addCenteredCube(
@@ -1638,7 +1779,7 @@
 
     const secondZ = separated ? size * 1.65 : size;
     for (const sign of [-1, 1]) {
-      for (const [gx, gy] of squareSecondCells(complex)) {
+      for (const [gx, gy] of squareSecondCells(false)) {
         const cx = gx * spacing;
         const cy = gy * spacing;
         addCenteredCube(
@@ -1666,24 +1807,6 @@
         Math.PI / 4,
         'square-center',
       );
-    }
-
-    if (complex) {
-      const innerSize = size * 0.46;
-      const innerZ = separated
-        ? diamondZ + size * 0.95
-        : diamondZ + diamondSize * 0.5 + innerSize * 0.5;
-
-      for (const sign of [-1, 1]) {
-        addCenteredCube(
-          0,
-          0,
-          sign * innerZ,
-          innerSize,
-          0,
-          'square-center',
-        );
-      }
     }
   }
 
