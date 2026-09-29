@@ -67,17 +67,28 @@
     north: '#31906a',
   };
 
-  const SRI_CHAKRA_COLORS = [
-    '#b92f2f',
-    '#f3efe5',
-    '#c7473d',
-    '#315aa5',
-    '#bd4136',
-    '#355aa0',
-    '#c94b40',
-    '#4968aa',
+  const YANTRA_COLORS_OUTER_TO_INNER = [
     '#d7ad39',
+    '#4968aa',
+    '#c94b40',
+    '#355aa0',
+    '#bd4136',
+    '#315aa5',
+    '#c7473d',
+    '#f3efe5',
+    '#b92f2f',
   ];
+
+  const HEX_COLORS_OUTER_TO_INNER = [
+    '#3f52a3',
+    '#168c80',
+    '#d7a33b',
+    '#b94336',
+  ];
+
+  const HEX_CENTER = '#f2dfa0';
+  const HEX_SATELLITE = '#2f8b6f';
+  const HEX_OUTER_SATELLITE = '#9f405b';
 
   const CLASSIC_SHADE = {
     x: 0.93,
@@ -248,35 +259,60 @@
     };
   }
 
-  function sriChakraBandColor(radiusNorm) {
-    const band = Math.min(
-      SRI_CHAKRA_COLORS.length - 1,
-      Math.floor(clamp(radiusNorm, 0, 0.9999) * SRI_CHAKRA_COLORS.length),
-    );
-    return hexToRgb(SRI_CHAKRA_COLORS[band]);
+  function sampleDiscretePalette(palette, index, count) {
+    if (count <= 1) return hexToRgb(palette[palette.length - 1]);
+    const t = clamp(index / (count - 1), 0, 1);
+    const paletteIndex = Math.round(t * (palette.length - 1));
+    return hexToRgb(palette[paletteIndex]);
   }
 
-  function tibetanDirectionalColor(x, y, centroidRadiusNorm) {
-    if (centroidRadiusNorm < 0.22) {
-      return hexToRgb(TIBETAN_COLORS.center);
-    }
+  function squareRegionId(x, y) {
+    const radius = Math.hypot(x, y);
+    if (radius < 0.12) return 'square-center';
 
     if (Math.abs(y) >= Math.abs(x)) {
-      return hexToRgb(y >= 0 ? TIBETAN_COLORS.east : TIBETAN_COLORS.west);
+      return y >= 0 ? 'square-east' : 'square-west';
     }
-    return hexToRgb(x < 0 ? TIBETAN_COLORS.south : TIBETAN_COLORS.north);
+    return x < 0 ? 'square-south' : 'square-north';
   }
 
-  function classicBaseColor(x, y, bandRadiusNorm, centroidRadiusNorm) {
-    if (state.preset === 'yantra') {
-      return sriChakraBandColor(bandRadiusNorm);
+  function classicRegionRgb(regionId, fallbackX = 0, fallbackY = 0) {
+    if (regionId === 'square-center') return hexToRgb(TIBETAN_COLORS.center);
+    if (regionId === 'square-east') return hexToRgb(TIBETAN_COLORS.east);
+    if (regionId === 'square-south') return hexToRgb(TIBETAN_COLORS.south);
+    if (regionId === 'square-west') return hexToRgb(TIBETAN_COLORS.west);
+    if (regionId === 'square-north') return hexToRgb(TIBETAN_COLORS.north);
+
+    if (regionId === 'yantra-center') return hexToRgb('#b92f2f');
+    if (regionId?.startsWith('yantra-layer-')) {
+      const parts = regionId.split('-');
+      const index = Number(parts[2]);
+      const count = Number(parts[4]);
+      return sampleDiscretePalette(
+        YANTRA_COLORS_OUTER_TO_INNER,
+        index,
+        count,
+      );
     }
 
-    return tibetanDirectionalColor(
-      x,
-      y,
-      centroidRadiusNorm ?? bandRadiusNorm,
-    );
+    if (regionId === 'hex-center') return hexToRgb(HEX_CENTER);
+    if (regionId === 'hex-satellite') return hexToRgb(HEX_SATELLITE);
+    if (regionId === 'hex-outer-satellite') {
+      return hexToRgb(HEX_OUTER_SATELLITE);
+    }
+    if (regionId?.startsWith('hex-layer-')) {
+      const parts = regionId.split('-');
+      const index = Number(parts[2]);
+      const count = Number(parts[4]);
+      return sampleDiscretePalette(
+        HEX_COLORS_OUTER_TO_INNER,
+        index,
+        count,
+      );
+    }
+
+    // Fallback is only for legacy/unclassified geometry.
+    return classicRegionRgb(squareRegionId(fallbackX, fallbackY));
   }
 
   function updateGeometryStats() {
@@ -310,7 +346,11 @@
     });
   }
 
-  function addPlanFace(points) {
+  function addPlanFace(
+    points,
+    regionId = 'unclassified',
+    paintOrder = 0,
+  ) {
     const normalized = points.map((p) => [
       Number(p[0].toFixed(4)),
       Number(p[1].toFixed(4)),
@@ -322,10 +362,22 @@
 
     if (planFaceKeys.has(sorted)) return;
     planFaceKeys.add(sorted);
-    planFaces.push(normalized.map((p) => [p[0], p[1], 0, 0]));
+
+    const face = normalized.map((p) => [p[0], p[1], 0, 0]);
+    face.regionId = regionId;
+    face.paintOrder = paintOrder;
+    planFaces.push(face);
   }
 
-  function extrudeTo4D(vertices3, edges3, faces3, wHalf, footprint, planExtra = []) {
+  function extrudeTo4D(
+    vertices3,
+    edges3,
+    faces3,
+    wHalf,
+    footprint,
+    planExtra = [],
+    regionId = 'unclassified',
+  ) {
     const vertices = [];
     for (const w of [-wHalf, wHalf]) {
       for (const p of vertices3) vertices.push([p[0], p[1], p[2], w]);
@@ -368,7 +420,7 @@
       });
     }
 
-    modules.push({ vertices, edges, faces });
+    modules.push({ vertices, edges, faces, regionId });
   }
 
   function cubeData(cx, cy, baseZ, size, rotation = 0) {
@@ -419,7 +471,7 @@
     return { vertices3, edges3, faces3, footprint };
   }
 
-  function addCube(cx, cy, baseZ, size, rotation = 0) {
+  function addCube(cx, cy, baseZ, size, rotation = 0, regionId = 'unclassified') {
     const data = cubeData(cx, cy, baseZ, size, rotation);
     extrudeTo4D(
       data.vertices3,
@@ -427,11 +479,27 @@
       data.faces3,
       size * 0.5,
       data.footprint,
+      [],
+      regionId,
     );
   }
 
-  function addCenteredCube(cx, cy, centerZ, size, rotation = 0) {
-    addCube(cx, cy, centerZ - size / 2, size, rotation);
+  function addCenteredCube(
+    cx,
+    cy,
+    centerZ,
+    size,
+    rotation = 0,
+    regionId = 'unclassified',
+  ) {
+    addCube(
+      cx,
+      cy,
+      centerZ - size / 2,
+      size,
+      rotation,
+      regionId,
+    );
   }
 
   function polygonFootprint(cx, cy, radius, sides, rotation = 0) {
@@ -477,7 +545,16 @@
     return { vertices3, edges3, faces3, footprint };
   }
 
-  function addPrism(cx, cy, baseZ, radius, sides, height, rotation = 0) {
+  function addPrism(
+    cx,
+    cy,
+    baseZ,
+    radius,
+    sides,
+    height,
+    rotation = 0,
+    regionId = 'unclassified',
+  ) {
     const data = prismData(cx, cy, baseZ, radius, sides, height, rotation);
     const center = [cx, cy];
     const spokes = data.footprint.map((point) => [point, center]);
@@ -489,11 +566,30 @@
       radius * 0.34,
       data.footprint,
       spokes,
+      regionId,
     );
   }
 
-  function addCenteredPrism(cx, cy, centerZ, radius, sides, height, rotation = 0) {
-    addPrism(cx, cy, centerZ - height / 2, radius, sides, height, rotation);
+  function addCenteredPrism(
+    cx,
+    cy,
+    centerZ,
+    radius,
+    sides,
+    height,
+    rotation = 0,
+    regionId = 'unclassified',
+  ) {
+    addPrism(
+      cx,
+      cy,
+      centerZ - height / 2,
+      radius,
+      sides,
+      height,
+      rotation,
+      regionId,
+    );
   }
 
   function pyramidData(cx, cy, baseZ, radius, sides, height, rotation = 0) {
@@ -521,7 +617,16 @@
     return { vertices3, edges3, faces3, footprint };
   }
 
-  function addPolygonPyramid(cx, cy, baseZ, radius, sides, height, rotation = 0) {
+  function addPolygonPyramid(
+    cx,
+    cy,
+    baseZ,
+    radius,
+    sides,
+    height,
+    rotation = 0,
+    regionId = 'unclassified',
+  ) {
     const data = pyramidData(cx, cy, baseZ, radius, sides, height, rotation);
     const center = [cx, cy];
     const spokes = data.footprint.map((point) => [point, center]);
@@ -533,15 +638,42 @@
       radius * 0.34,
       data.footprint,
       spokes,
+      regionId,
     );
   }
 
-  function addPyramid(cx, cy, baseZ, size, height, rotation = 0) {
+  function addPyramid(
+    cx,
+    cy,
+    baseZ,
+    size,
+    height,
+    rotation = 0,
+    regionId = 'unclassified',
+  ) {
     const radius = size / Math.sqrt(2);
-    addPolygonPyramid(cx, cy, baseZ, radius, 4, height, rotation + Math.PI / 4);
+    addPolygonPyramid(
+      cx,
+      cy,
+      baseZ,
+      radius,
+      4,
+      height,
+      rotation + Math.PI / 4,
+      regionId,
+    );
   }
 
-  function addBipyramid(cx, cy, centerZ, radius, sides, height, rotation = 0) {
+  function addBipyramid(
+    cx,
+    cy,
+    centerZ,
+    radius,
+    sides,
+    height,
+    rotation = 0,
+    regionId = 'unclassified',
+  ) {
     const footprint = polygonFootprint(cx, cy, radius, sides, rotation);
     const vertices3 = [
       ...footprint.map(([x, y]) => [x, y, centerZ]),
@@ -574,10 +706,19 @@
       radius * 0.34,
       footprint,
       spokes,
+      regionId,
     );
   }
 
-  function addSquareBipyramid(cx, cy, centerZ, size, height, rotation = 0) {
+  function addSquareBipyramid(
+    cx,
+    cy,
+    centerZ,
+    size,
+    height,
+    rotation = 0,
+    regionId = 'unclassified',
+  ) {
     addBipyramid(
       cx,
       cy,
@@ -586,6 +727,7 @@
       4,
       height,
       rotation + Math.PI / 4,
+      regionId,
     );
   }
 
