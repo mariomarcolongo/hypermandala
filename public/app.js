@@ -67,17 +67,16 @@
     north: '#31906a',
   };
 
-  const SRI_CHAKRA_COLORS = [
-    '#b92f2f',
-    '#f3efe5',
-    '#c7473d',
-    '#315aa5',
-    '#bd4136',
-    '#355aa0',
-    '#c94b40',
-    '#4968aa',
-    '#d7ad39',
+  const HEX_COLORS_OUTER_TO_INNER = [
+    '#3f52a3',
+    '#168c80',
+    '#d7a33b',
+    '#b94336',
   ];
+
+  const HEX_CENTER = '#f2dfa0';
+  const HEX_SATELLITE = '#2f8b6f';
+  const HEX_OUTER_SATELLITE = '#9f405b';
 
   const CLASSIC_SHADE = {
     x: 0.93,
@@ -248,35 +247,68 @@
     };
   }
 
-  function sriChakraBandColor(radiusNorm) {
-    const band = Math.min(
-      SRI_CHAKRA_COLORS.length - 1,
-      Math.floor(clamp(radiusNorm, 0, 0.9999) * SRI_CHAKRA_COLORS.length),
+  function yantraLayerRgb(index, count) {
+    if (index === 0) return hexToRgb('#d7ad39');
+    if (index === count - 1) return hexToRgb('#f3efe5');
+
+    const blueShades = ['#4968aa', '#355aa0', '#315aa5'];
+    const redShades = ['#c94b40', '#bd4136', '#c7473d'];
+    const circuitIndex = Math.floor((index - 1) / 2);
+
+    return hexToRgb(
+      index % 2 === 1
+        ? blueShades[circuitIndex % blueShades.length]
+        : redShades[circuitIndex % redShades.length],
     );
-    return hexToRgb(SRI_CHAKRA_COLORS[band]);
   }
 
-  function tibetanDirectionalColor(x, y, centroidRadiusNorm) {
-    if (centroidRadiusNorm < 0.22) {
-      return hexToRgb(TIBETAN_COLORS.center);
-    }
+  function hexLayerRgb(index) {
+    return hexToRgb(
+      HEX_COLORS_OUTER_TO_INNER[
+        Math.min(index, HEX_COLORS_OUTER_TO_INNER.length - 1)
+      ],
+    );
+  }
+
+  function squareRegionId(x, y) {
+    const radius = Math.hypot(x, y);
+    if (radius < 0.12) return 'square-center';
 
     if (Math.abs(y) >= Math.abs(x)) {
-      return hexToRgb(y >= 0 ? TIBETAN_COLORS.east : TIBETAN_COLORS.west);
+      return y >= 0 ? 'square-east' : 'square-west';
     }
-    return hexToRgb(x < 0 ? TIBETAN_COLORS.south : TIBETAN_COLORS.north);
+    return x < 0 ? 'square-south' : 'square-north';
   }
 
-  function classicBaseColor(x, y, bandRadiusNorm, centroidRadiusNorm) {
-    if (state.preset === 'yantra') {
-      return sriChakraBandColor(bandRadiusNorm);
+  function classicRegionRgb(regionId, fallbackX = 0, fallbackY = 0) {
+    if (regionId === 'square-center') return hexToRgb(TIBETAN_COLORS.center);
+    if (regionId === 'square-east') return hexToRgb(TIBETAN_COLORS.east);
+    if (regionId === 'square-south') return hexToRgb(TIBETAN_COLORS.south);
+    if (regionId === 'square-west') return hexToRgb(TIBETAN_COLORS.west);
+    if (regionId === 'square-north') return hexToRgb(TIBETAN_COLORS.north);
+
+    if (regionId === 'yantra-center') return hexToRgb('#b92f2f');
+    if (regionId?.startsWith('yantra-layer-')) {
+      const parts = regionId.split('-');
+      const index = Number(parts[2]);
+      const count = Number(parts[4]);
+      return yantraLayerRgb(index, count);
     }
 
-    return tibetanDirectionalColor(
-      x,
-      y,
-      centroidRadiusNorm ?? bandRadiusNorm,
-    );
+    if (regionId === 'hex-center') return hexToRgb(HEX_CENTER);
+    if (regionId === 'hex-satellite') return hexToRgb(HEX_SATELLITE);
+    if (regionId === 'hex-outer-satellite') {
+      return hexToRgb(HEX_OUTER_SATELLITE);
+    }
+    if (regionId?.startsWith('hex-layer-')) {
+      const parts = regionId.split('-');
+      const index = Number(parts[2]);
+      const count = Number(parts[4]);
+      return hexLayerRgb(index);
+    }
+
+    // Fallback is only for legacy/unclassified geometry.
+    return classicRegionRgb(squareRegionId(fallbackX, fallbackY));
   }
 
   function updateGeometryStats() {
@@ -310,7 +342,11 @@
     });
   }
 
-  function addPlanFace(points) {
+  function addPlanFace(
+    points,
+    regionId = 'unclassified',
+    paintOrder = 0,
+  ) {
     const normalized = points.map((p) => [
       Number(p[0].toFixed(4)),
       Number(p[1].toFixed(4)),
@@ -322,10 +358,22 @@
 
     if (planFaceKeys.has(sorted)) return;
     planFaceKeys.add(sorted);
-    planFaces.push(normalized.map((p) => [p[0], p[1], 0, 0]));
+
+    const face = normalized.map((p) => [p[0], p[1], 0, 0]);
+    face.regionId = regionId;
+    face.paintOrder = paintOrder;
+    planFaces.push(face);
   }
 
-  function extrudeTo4D(vertices3, edges3, faces3, wHalf, footprint, planExtra = []) {
+  function extrudeTo4D(
+    vertices3,
+    edges3,
+    faces3,
+    wHalf,
+    footprint,
+    planExtra = [],
+    regionId = 'unclassified',
+  ) {
     const vertices = [];
     for (const w of [-wHalf, wHalf]) {
       for (const p of vertices3) vertices.push([p[0], p[1], p[2], w]);
@@ -368,7 +416,7 @@
       });
     }
 
-    modules.push({ vertices, edges, faces });
+    modules.push({ vertices, edges, faces, regionId });
   }
 
   function cubeData(cx, cy, baseZ, size, rotation = 0) {
@@ -419,7 +467,7 @@
     return { vertices3, edges3, faces3, footprint };
   }
 
-  function addCube(cx, cy, baseZ, size, rotation = 0) {
+  function addCube(cx, cy, baseZ, size, rotation = 0, regionId = 'unclassified') {
     const data = cubeData(cx, cy, baseZ, size, rotation);
     extrudeTo4D(
       data.vertices3,
@@ -427,11 +475,27 @@
       data.faces3,
       size * 0.5,
       data.footprint,
+      [],
+      regionId,
     );
   }
 
-  function addCenteredCube(cx, cy, centerZ, size, rotation = 0) {
-    addCube(cx, cy, centerZ - size / 2, size, rotation);
+  function addCenteredCube(
+    cx,
+    cy,
+    centerZ,
+    size,
+    rotation = 0,
+    regionId = 'unclassified',
+  ) {
+    addCube(
+      cx,
+      cy,
+      centerZ - size / 2,
+      size,
+      rotation,
+      regionId,
+    );
   }
 
   function polygonFootprint(cx, cy, radius, sides, rotation = 0) {
@@ -477,7 +541,16 @@
     return { vertices3, edges3, faces3, footprint };
   }
 
-  function addPrism(cx, cy, baseZ, radius, sides, height, rotation = 0) {
+  function addPrism(
+    cx,
+    cy,
+    baseZ,
+    radius,
+    sides,
+    height,
+    rotation = 0,
+    regionId = 'unclassified',
+  ) {
     const data = prismData(cx, cy, baseZ, radius, sides, height, rotation);
     const center = [cx, cy];
     const spokes = data.footprint.map((point) => [point, center]);
@@ -489,11 +562,30 @@
       radius * 0.34,
       data.footprint,
       spokes,
+      regionId,
     );
   }
 
-  function addCenteredPrism(cx, cy, centerZ, radius, sides, height, rotation = 0) {
-    addPrism(cx, cy, centerZ - height / 2, radius, sides, height, rotation);
+  function addCenteredPrism(
+    cx,
+    cy,
+    centerZ,
+    radius,
+    sides,
+    height,
+    rotation = 0,
+    regionId = 'unclassified',
+  ) {
+    addPrism(
+      cx,
+      cy,
+      centerZ - height / 2,
+      radius,
+      sides,
+      height,
+      rotation,
+      regionId,
+    );
   }
 
   function pyramidData(cx, cy, baseZ, radius, sides, height, rotation = 0) {
@@ -521,7 +613,16 @@
     return { vertices3, edges3, faces3, footprint };
   }
 
-  function addPolygonPyramid(cx, cy, baseZ, radius, sides, height, rotation = 0) {
+  function addPolygonPyramid(
+    cx,
+    cy,
+    baseZ,
+    radius,
+    sides,
+    height,
+    rotation = 0,
+    regionId = 'unclassified',
+  ) {
     const data = pyramidData(cx, cy, baseZ, radius, sides, height, rotation);
     const center = [cx, cy];
     const spokes = data.footprint.map((point) => [point, center]);
@@ -533,15 +634,42 @@
       radius * 0.34,
       data.footprint,
       spokes,
+      regionId,
     );
   }
 
-  function addPyramid(cx, cy, baseZ, size, height, rotation = 0) {
+  function addPyramid(
+    cx,
+    cy,
+    baseZ,
+    size,
+    height,
+    rotation = 0,
+    regionId = 'unclassified',
+  ) {
     const radius = size / Math.sqrt(2);
-    addPolygonPyramid(cx, cy, baseZ, radius, 4, height, rotation + Math.PI / 4);
+    addPolygonPyramid(
+      cx,
+      cy,
+      baseZ,
+      radius,
+      4,
+      height,
+      rotation + Math.PI / 4,
+      regionId,
+    );
   }
 
-  function addBipyramid(cx, cy, centerZ, radius, sides, height, rotation = 0) {
+  function addBipyramid(
+    cx,
+    cy,
+    centerZ,
+    radius,
+    sides,
+    height,
+    rotation = 0,
+    regionId = 'unclassified',
+  ) {
     const footprint = polygonFootprint(cx, cy, radius, sides, rotation);
     const vertices3 = [
       ...footprint.map(([x, y]) => [x, y, centerZ]),
@@ -574,10 +702,19 @@
       radius * 0.34,
       footprint,
       spokes,
+      regionId,
     );
   }
 
-  function addSquareBipyramid(cx, cy, centerZ, size, height, rotation = 0) {
+  function addSquareBipyramid(
+    cx,
+    cy,
+    centerZ,
+    size,
+    height,
+    rotation = 0,
+    regionId = 'unclassified',
+  ) {
     addBipyramid(
       cx,
       cy,
@@ -586,6 +723,7 @@
       4,
       height,
       rotation + Math.PI / 4,
+      regionId,
     );
   }
 
@@ -610,19 +748,41 @@
     planFaceKeys.clear();
   }
 
-  function addPlanLoop(points, fill = true) {
-    if (fill) addPlanFace(points);
+  function addPlanLoop(
+    points,
+    fill = true,
+    regionId = 'unclassified',
+    paintOrder = 0,
+  ) {
+    if (fill) addPlanFace(points, regionId, paintOrder);
     for (let i = 0; i < points.length; i += 1) {
       addPlanEdge(points[i], points[(i + 1) % points.length], 'n');
     }
   }
 
-  function addPlanRegularPolygon(cx, cy, radius, sides, rotation = 0, fill = true) {
+  function addPlanRegularPolygon(
+    cx,
+    cy,
+    radius,
+    sides,
+    rotation = 0,
+    fill = true,
+    regionId = 'unclassified',
+    paintOrder = 0,
+  ) {
     const points = polygonFootprint(cx, cy, radius, sides, rotation);
-    addPlanLoop(points, fill);
+    addPlanLoop(points, fill, regionId, paintOrder);
   }
 
-  function addPlanSquareCell(cx, cy, size, rotation = 0, fill = true) {
+  function addPlanSquareCell(
+    cx,
+    cy,
+    size,
+    rotation = 0,
+    fill = true,
+    regionId = 'unclassified',
+    paintOrder = 0,
+  ) {
     const h = size / 2;
     const points = [
       [-h,-h], [h,-h], [h,h], [-h,h],
@@ -630,11 +790,26 @@
       const rotated = rotateXYPoint(x, y, rotation);
       return [cx + rotated[0], cy + rotated[1]];
     });
-    addPlanLoop(points, fill);
+    addPlanLoop(points, fill, regionId, paintOrder);
   }
 
-  function addPlanPoint(cx, cy, radius = 0.026) {
-    addPlanRegularPolygon(cx, cy, radius, 12, 0, true);
+  function addPlanPoint(
+    cx,
+    cy,
+    radius = 0.026,
+    regionId = 'unclassified',
+    paintOrder = 100,
+  ) {
+    addPlanRegularPolygon(
+      cx,
+      cy,
+      radius,
+      12,
+      0,
+      true,
+      regionId,
+      paintOrder,
+    );
   }
 
   function buildSquarePlan() {
@@ -644,28 +819,86 @@
     const complex = state.complexity === 'complex';
 
     for (const [gx, gy] of squareBaseCells(complex)) {
-      addPlanSquareCell(gx * spacing, gy * spacing, size, 0, true);
+      const cx = gx * spacing;
+      const cy = gy * spacing;
+      addPlanSquareCell(
+        cx,
+        cy,
+        size,
+        0,
+        true,
+        squareRegionId(cx, cy),
+        0,
+      );
     }
 
-    addPlanSquareCell(0, 0, size * 0.72, Math.PI / 4, false);
-    if (complex) addPlanSquareCell(0, 0, size * 0.46, 0, false);
+    // These guides are also higher-dimensional footprints, so they are
+    // real colored regions rather than outline-only decorations.
+    addPlanSquareCell(
+      0,
+      0,
+      size * 0.72,
+      Math.PI / 4,
+      true,
+      'square-center',
+      20,
+    );
+
+    if (complex) {
+      addPlanSquareCell(
+        0,
+        0,
+        size * 0.46,
+        0,
+        true,
+        'square-center',
+        30,
+      );
+    }
   }
 
   function buildYantraPlan() {
     clearPlan();
-    for (const [radius, rotation] of yantraLayerSpecs()) {
-      // These are visual regions as well as structural outlines. Keeping
-      // planFaces here lets Solid / Classic color the actual yantra faces.
-      addPlanRegularPolygon(0, 0, radius, 3, rotation, true);
-    }
-    addPlanPoint(0, 0, 0.028);
+    const layers = yantraLayerSpecs();
+
+    layers.forEach(([radius, rotation], index) => {
+      addPlanRegularPolygon(
+        0,
+        0,
+        radius,
+        3,
+        rotation,
+        true,
+        'yantra-layer-' + index + '-of-' + layers.length,
+        index,
+      );
+    });
+
+    addPlanPoint(
+      0,
+      0,
+      0.028,
+      'yantra-center',
+      100,
+    );
   }
 
   function buildHexPlan() {
     clearPlan();
-    for (const [radius, rotation] of hexLayerSpecs()) {
-      addPlanRegularPolygon(0, 0, radius, 6, rotation, true);
-    }
+    const layers = hexLayerSpecs();
+
+    layers.forEach(([radius, rotation], index) => {
+      addPlanRegularPolygon(
+        0,
+        0,
+        radius,
+        6,
+        rotation,
+        true,
+        'hex-layer-' + index + '-of-' + layers.length,
+        index,
+      );
+    });
 
     const ringRadius = 1.58;
     for (let i = 0; i < 6; i += 1) {
@@ -677,6 +910,8 @@
         6,
         Math.PI / 6,
         true,
+        'hex-satellite',
+        10,
       );
     }
 
@@ -691,11 +926,19 @@
           6,
           i % 2 ? Math.PI / 6 : 0,
           true,
+          'hex-outer-satellite',
+          5,
         );
       }
     }
 
-    addPlanPoint(0, 0);
+    addPlanPoint(
+      0,
+      0,
+      0.026,
+      'hex-center',
+      100,
+    );
   }
 
   function buildPlanForPreset() {
@@ -730,21 +973,35 @@
     const size = 0.34;
     const spacing = size;
 
-    // Base layer: exactly the square cells drawn in 2D.
     for (const [gx, gy] of squareBaseCells(complex)) {
-      addCenteredCube(gx * spacing, gy * spacing, 0, size, 0);
+      const cx = gx * spacing;
+      const cy = gy * spacing;
+      addCenteredCube(
+        cx,
+        cy,
+        0,
+        size,
+        0,
+        squareRegionId(cx, cy),
+      );
     }
 
-    // Repeated higher-dimensional structure is allowed only where the same
-    // footprint already exists in 2D.
     const secondZ = separated ? size * 1.65 : size;
     for (const sign of [-1, 1]) {
       for (const [gx, gy] of squareSecondCells(complex)) {
-        addCenteredCube(gx * spacing, gy * spacing, sign * secondZ, size, 0);
+        const cx = gx * spacing;
+        const cy = gy * spacing;
+        addCenteredCube(
+          cx,
+          cy,
+          sign * secondZ,
+          size,
+          0,
+          squareRegionId(cx, cy),
+        );
       }
     }
 
-    // The central diamond is explicitly present in the 2D plan.
     const diamondSize = size * 0.72;
     const diamondZ = separated
       ? secondZ + size * 1.15
@@ -757,6 +1014,7 @@
         sign * diamondZ,
         diamondSize,
         Math.PI / 4,
+        'square-center',
       );
     }
 
@@ -767,7 +1025,14 @@
         : diamondZ + diamondSize * 0.5 + innerSize * 0.5;
 
       for (const sign of [-1, 1]) {
-        addCenteredCube(0, 0, sign * innerZ, innerSize, 0);
+        addCenteredCube(
+          0,
+          0,
+          sign * innerZ,
+          innerSize,
+          0,
+          'square-center',
+        );
       }
     }
   }
@@ -781,28 +1046,64 @@
     const gap = separated ? 0.10 : 0;
 
     for (const [gx, gy] of squareBaseCells(complex)) {
-      addCube(gx * spacing, gy * spacing, 0, size, 0);
+      const cx = gx * spacing;
+      const cy = gy * spacing;
+      addCube(
+        cx,
+        cy,
+        0,
+        size,
+        0,
+        squareRegionId(cx, cy),
+      );
     }
 
     const secondBase = size + gap;
     for (const [gx, gy] of squareSecondCells(complex)) {
-      addCube(gx * spacing, gy * spacing, secondBase, size, 0);
+      const cx = gx * spacing;
+      const cy = gy * spacing;
+      addCube(
+        cx,
+        cy,
+        secondBase,
+        size,
+        0,
+        squareRegionId(cx, cy),
+      );
     }
 
     const thirdBase = secondBase + size + gap;
-    addCube(0, 0, thirdBase, size, 0);
+    addCube(
+      0,
+      0,
+      thirdBase,
+      size,
+      0,
+      'square-center',
+    );
 
-    const roofBase = thirdBase + size + gap;
-    addPyramid(0, 0, roofBase, size * 0.92, size * 1.02, 0);
+    // The crown uses the central diamond already present in the 2D plan.
+    const diamondSize = size * 0.72;
+    const diamondBase = thirdBase + size + gap;
+    addCube(
+      0,
+      0,
+      diamondBase,
+      diamondSize,
+      Math.PI / 4,
+      'square-center',
+    );
 
-    for (const [gx, gy] of [[3,0],[-3,0],[0,3],[0,-3]]) {
-      addPyramid(
-        gx * spacing,
-        gy * spacing,
-        secondBase,
-        size * 0.70,
-        size * 0.64,
+    if (complex) {
+      const innerSize = size * 0.46;
+      const innerBase = diamondBase + diamondSize + gap;
+      addCube(
         0,
+        0,
+        innerBase,
+        innerSize,
+        0,
+        'square-center',
       );
     }
   }
@@ -835,23 +1136,71 @@
     const layers = yantraLayerSpecs();
     const separated = state.spacingStyle === 'separated';
     const thickness = 0.10;
+    const centerHeight = 0.12;
     const zStep = separated
       ? (state.complexity === 'complex' ? 0.24 : 0.31)
       : thickness;
 
     layers.forEach(([radius, rotation], index) => {
+      const regionId =
+        'yantra-layer-' + index + '-of-' + layers.length;
+
       if (index === 0) {
-        addCenteredPrism(0, 0, 0, radius, 3, thickness, rotation);
+        addCenteredPrism(
+          0,
+          0,
+          0,
+          radius,
+          3,
+          thickness,
+          rotation,
+          regionId,
+        );
         return;
       }
 
       const z = index * zStep;
-      addCenteredPrism(0, 0, z, radius, 3, thickness, rotation);
-      addCenteredPrism(0, 0, -z, radius, 3, thickness, rotation);
+      addCenteredPrism(
+        0,
+        0,
+        z,
+        radius,
+        3,
+        thickness,
+        rotation,
+        regionId,
+      );
+      addCenteredPrism(
+        0,
+        0,
+        -z,
+        radius,
+        3,
+        thickness,
+        rotation,
+        regionId,
+      );
     });
 
-    // The bindu is an explicit 2D element, so its lift uses the same footprint.
-    addCenteredPrism(0, 0, 0, 0.028, 12, thickness, 0);
+    // The bindu becomes the culminating central element while retaining the
+    // exact same 2D footprint. Mandala mode mirrors it below to preserve ±Z.
+    const lastZ = (layers.length - 1) * zStep;
+    const crownGap = separated ? 0.10 : 0;
+    const crownZ =
+      lastZ + thickness * 0.5 + centerHeight * 0.5 + crownGap;
+
+    for (const sign of [-1, 1]) {
+      addCenteredPrism(
+        0,
+        0,
+        sign * crownZ,
+        0.028,
+        12,
+        centerHeight,
+        0,
+        'yantra-center',
+      );
+    }
   }
 
   function buildYantraTemple() {
@@ -863,7 +1212,7 @@
     const layerHeight = 0.10;
     const layerGap = separated ? 0.035 : 0;
 
-    for (const [radius, rotation] of layers) {
+    layers.forEach(([radius, rotation], index) => {
       addPrism(
         0,
         0,
@@ -872,18 +1221,21 @@
         3,
         layerHeight,
         rotation,
+        'yantra-layer-' + index + '-of-' + layers.length,
       );
       zCursor += layerHeight + layerGap;
-    }
+    });
 
-    addPolygonPyramid(
+    // Temple culmination: the same bindu footprint, elevated on top.
+    addPrism(
       0,
       0,
       zCursor,
-      layers[layers.length - 1][0] * 0.46,
-      3,
-      0.40,
-      -Math.PI / 2,
+      0.028,
+      12,
+      0.14,
+      0,
+      'yantra-center',
     );
   }
 
@@ -914,6 +1266,7 @@
         6,
         0.18,
         Math.PI / 6,
+        'hex-satellite',
       );
     }
   }
@@ -925,22 +1278,54 @@
     const separated = state.spacingStyle === 'separated';
     const baseThickness = 0.10;
     const layerThickness = 0.11;
+    const centerHeight = 0.12;
+    let lastPositiveZ = 0;
 
     layers.forEach(([radius, rotation], index) => {
+      const regionId =
+        'hex-layer-' + index + '-of-' + layers.length;
+
       if (index === 0) {
-        addCenteredPrism(0, 0, 0, radius, 6, baseThickness, rotation);
+        addCenteredPrism(
+          0,
+          0,
+          0,
+          radius,
+          6,
+          baseThickness,
+          rotation,
+          regionId,
+        );
         return;
       }
 
       const compactZ = (baseThickness + layerThickness) * 0.5
         + (index - 1) * layerThickness;
       const z = separated ? index * 0.32 : compactZ;
+      lastPositiveZ = z;
 
-      addCenteredPrism(0, 0, z, radius, 6, layerThickness, rotation);
-      addCenteredPrism(0, 0, -z, radius, 6, layerThickness, rotation);
+      addCenteredPrism(
+        0,
+        0,
+        z,
+        radius,
+        6,
+        layerThickness,
+        rotation,
+        regionId,
+      );
+      addCenteredPrism(
+        0,
+        0,
+        -z,
+        radius,
+        6,
+        layerThickness,
+        rotation,
+        regionId,
+      );
     });
 
-    // Satellite rings are exactly the ones visible in the 2D plan.
     addHexSatelliteRing(0);
 
     if (state.complexity === 'complex') {
@@ -955,11 +1340,29 @@
           6,
           0.13,
           i % 2 ? Math.PI / 6 : 0,
+          'hex-outer-satellite',
         );
       }
     }
 
-    addCenteredPrism(0, 0, 0, 0.026, 12, baseThickness, 0);
+    const topThickness =
+      layers.length > 1 ? layerThickness : baseThickness;
+    const crownGap = separated ? 0.10 : 0;
+    const crownZ =
+      lastPositiveZ + topThickness * 0.5 + centerHeight * 0.5 + crownGap;
+
+    for (const sign of [-1, 1]) {
+      addCenteredPrism(
+        0,
+        0,
+        sign * crownZ,
+        0.026,
+        12,
+        centerHeight,
+        0,
+        'hex-center',
+      );
+    }
   }
 
   function buildHexTemple() {
@@ -971,7 +1374,7 @@
     const layerHeight = 0.12;
     const layerGap = separated ? 0.035 : 0;
 
-    for (const [radius, rotation] of layers) {
+    layers.forEach(([radius, rotation], index) => {
       addPrism(
         0,
         0,
@@ -980,18 +1383,22 @@
         6,
         layerHeight,
         rotation,
+        'hex-layer-' + index + '-of-' + layers.length,
       );
       zCursor += layerHeight + layerGap;
-    }
+    });
 
-    addPolygonPyramid(
+    // The central mark becomes the crown instead of introducing a pyramid
+    // whose collapsed spokes do not exist in the 2D hex mandala.
+    addPrism(
       0,
       0,
       zCursor,
-      layers[layers.length - 1][0] * 0.55,
-      6,
-      0.38,
-      Math.PI / 6,
+      0.026,
+      12,
+      0.14,
+      0,
+      'hex-center',
     );
 
     const ringRadius = 1.58;
@@ -1005,6 +1412,7 @@
         6,
         0.18,
         Math.PI / 6,
+        'hex-satellite',
       );
     }
 
@@ -1020,6 +1428,7 @@
           6,
           0.13,
           i % 2 ? Math.PI / 6 : 0,
+          'hex-outer-satellite',
         );
       }
     }
@@ -1231,29 +1640,14 @@
 
   function classicFaceRgb(face, module) {
     const centroid = faceCentroid(face, module);
-    const meanRadius = face.indices.reduce((sum, index) => {
-      const point = module.vertices[index];
-      return sum + Math.hypot(point[0], point[1]);
-    }, 0) / face.indices.length;
-
-    const bandRadiusNorm = clamp(
-      meanRadius / geometryStats.maxPlanRadius,
-      0,
-      1,
-    );
-    const centroidRadiusNorm = clamp(
-      Math.hypot(centroid[0], centroid[1]) / geometryStats.maxPlanRadius,
-      0,
-      1,
-    );
-
-    const base = classicBaseColor(
+    const base = classicRegionRgb(
+      module.regionId,
       centroid[0],
       centroid[1],
-      bandRadiusNorm,
-      centroidRadiusNorm,
     );
 
+    // Region hue is invariant across 2D/3D/4D. Orientation changes only
+    // brightness so the geometry remains readable.
     const orientationShade = CLASSIC_SHADE[face.axis] || 1;
     return shadeRgb(base, orientationShade);
   }
@@ -1287,31 +1681,19 @@
   }
 
   function classicPlanColor(face) {
-    const cx = face.reduce((sum, p) => sum + p[0], 0) / face.length;
-    const cy = face.reduce((sum, p) => sum + p[1], 0) / face.length;
-    const meanRadius = face.reduce(
-      (sum, p) => sum + Math.hypot(p[0], p[1]),
-      0,
-    ) / face.length;
+    let cx = 0;
+    let cy = 0;
 
-    const bandRadiusNorm = clamp(
-      meanRadius / geometryStats.maxPlanRadius,
-      0,
-      1,
-    );
-    const centroidRadiusNorm = clamp(
-      Math.hypot(cx, cy) / geometryStats.maxPlanRadius,
-      0,
-      1,
-    );
+    for (const point of face) {
+      cx += point[0];
+      cy += point[1];
+    }
+
+    cx /= face.length;
+    cy /= face.length;
 
     return rgbCss(
-      classicBaseColor(
-        cx,
-        cy,
-        bandRadiusNorm,
-        centroidRadiusNorm,
-      ),
+      classicRegionRgb(face.regionId, cx, cy),
     );
   }
 
@@ -1327,7 +1709,13 @@
   function drawPlanFaces(alpha) {
     if (state.renderMode === 'wire' || alpha <= 0.001) return;
 
-    const sorted = [...planFaces].sort((a, b) => rawPolygonArea(b) - rawPolygonArea(a));
+    const sorted = [...planFaces].sort((a, b) => {
+      const orderA = a.paintOrder ?? 0;
+      const orderB = b.paintOrder ?? 0;
+      if (orderA !== orderB) return orderA - orderB;
+      return rawPolygonArea(b) - rawPolygonArea(a);
+    });
+
     for (const face of sorted) {
       const points = face.map(projectToScreen);
       if (Math.abs(polygonArea2D(points)) < 0.2) continue;
@@ -1338,12 +1726,18 @@
         else ctx.lineTo(p.x, p.y);
       });
       ctx.closePath();
+
       ctx.fillStyle = state.colorMode === 'axis'
         ? '#d9dde4'
         : state.colorMode === 'classic'
           ? classicPlanColor(face)
           : '#c9b995';
-      ctx.globalAlpha = alpha * (state.colorMode === 'classic' ? 0.76 : 0.16);
+
+      // Classic regions are opaque at rest. This prevents overlapping
+      // translucent polygons from inventing colors that don't exist in 3D.
+      ctx.globalAlpha = state.colorMode === 'classic'
+        ? alpha
+        : alpha * 0.16;
       ctx.fill();
       ctx.globalAlpha = 1;
     }
@@ -1360,36 +1754,13 @@
       let width = 1.15;
 
       if (state.colorMode === 'classic') {
-        const mx = (edge.a[0] + edge.b[0]) * 0.5;
-        const my = (edge.a[1] + edge.b[1]) * 0.5;
-        const meanRadius = (
-          Math.hypot(edge.a[0], edge.a[1])
-          + Math.hypot(edge.b[0], edge.b[1])
-        ) * 0.5;
-
-        const bandRadiusNorm = clamp(
-          meanRadius / geometryStats.maxPlanRadius,
-          0,
-          1,
-        );
-        const centroidRadiusNorm = clamp(
-          Math.hypot(mx, my) / geometryStats.maxPlanRadius,
-          0,
-          1,
-        );
-
-        color = rgbCss(
-          classicBaseColor(
-            mx,
-            my,
-            bandRadiusNorm,
-            centroidRadiusNorm,
-          ),
-        );
-        width = 1.35;
+        color = state.renderMode === 'wire'
+          ? 'rgba(242,238,226,.90)'
+          : '#1d1714';
+        width = state.renderMode === 'wire' ? 1.2 : 1.35;
       }
 
-      drawLine(a, b, color, width, alpha * 0.94);
+      drawLine(a, b, color, width, alpha * 0.96);
     }
   }
 
