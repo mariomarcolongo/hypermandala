@@ -1176,7 +1176,7 @@
     if (state.renderMode === 'solid-edges') {
       if (state.colorMode === 'classic') return '#1d1714';
       if (state.colorMode === 'form') return '#241f19';
-      return '#111319';
+      return axisColor(axis);
     }
     return axisColor(axis);
   }
@@ -1292,7 +1292,7 @@
           item.b,
           edgeStrokeColor(item.edge.axis),
           1.28 + depth * 0.34,
-          1,
+          clamp(item.visibility, 0, 1),
         );
         continue;
       }
