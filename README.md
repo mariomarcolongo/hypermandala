@@ -151,7 +151,7 @@ Each family has **Simple** and **Complex** variants. “Simple” is relative: b
 Three render modes are available:
 
 - **Solid** — the default; opaque colored faces with only the **visible** geometric edges drawn in black, matching the outlined 2D representation.
-- **Solid + edges** — the same visible black edges plus the full structural edge overlay, including additional construction lines.
+- **Solid + wireframe** — the same visible black edges plus the full structural edge overlay, including additional construction lines.
 - **Wire** — structural edges only. The edges remain fully opaque once a dimension has emerged, while new Z/W edges still fade in during dimensional transitions.
 
 The solid layer uses **WebGL2 with a real depth buffer**. Projected faces are triangulated and depth-tested per pixel rather than painter-sorted as whole polygons. Coincident shared faces are removed before rendering to prevent z-fighting.
@@ -217,7 +217,7 @@ Classic 2D regions are painted **opaquely** in deterministic outer→inner order
 - **Persistent 2D previews** — all five families are shown at the same time, using the current complexity and Classic palette, so the previews help you choose rather than only confirming the current choice.
 - **Complexity** — choose Simple or Complex generated geometry.
 - **Spacing** — **Compact** by default, where neighboring Z layers touch; **Separated** preserves the airy exploded-layer look.
-- **Rendering** — Solid (default: visible black edges only), Solid + edges (extra structural overlay), or Wire.
+- **Rendering** — Solid (default: visible black edges only), Solid + wireframe (full structural overlay), or Wire.
 - **2D / 3D / 4D** — automatic dimensional transitions.
 - **Drag** — XY rotation in 2D; XZ/YZ object rotation in 3D/4D, with the sliders updating live. Shift-drag gives XY twist.
 - **Wheel / trackpad** — zoom.
