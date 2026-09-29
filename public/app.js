@@ -754,19 +754,20 @@
     const spatialMap = uniqueSignedPermutationCenters(landmarks, 3);
     const hyperMap = uniqueSignedPermutationCenters(landmarks, 4);
 
-    const allCenters = [...hyperMap.values()];
-    const minDistance = minimumChebyshevDistance(allCenters);
-    const sizeFactor = state.spacingStyle === 'separated' ? 0.58 : 0.96;
-    const cellSize = clamp(minDistance * sizeFactor, 0.045, 0.18);
+    const baseCenters = [...hyperMap.values()];
+    const minDistance = minimumChebyshevDistance(baseCenters);
+    const cellSize = clamp(minDistance * 0.86, 0.045, 0.18);
+    const centerScale = state.spacingStyle === 'separated' ? 1.38 : 1;
 
-    for (const center of hyperMap.values()) {
-      const key = centerKey(center);
+    for (const baseCenter of hyperMap.values()) {
+      const key = centerKey(baseCenter);
       const stage = seedMap.has(key)
         ? 2
         : spatialMap.has(key)
           ? 3
           : 4;
 
+      const center = baseCenter.map((value) => value * centerScale);
       addOrbitHypercube(center, cellSize, stage);
     }
   }
@@ -1211,14 +1212,21 @@
 
 
   function buildGeometryForCurrentChoice() {
-    if (state.formStyle === 'symmetric') {
+    if (state.formStyle === 'isotropic') {
       buildSymmetricOrbitFromPlan();
       return;
     }
 
-    if (state.preset === 'yantra') buildYantraTemple();
-    else if (state.preset === 'hex') buildHexTemple();
-    else buildSquareTemple();
+    if (state.formStyle === 'temple') {
+      if (state.preset === 'yantra') buildYantraTemple();
+      else if (state.preset === 'hex') buildHexTemple();
+      else buildSquareTemple();
+      return;
+    }
+
+    if (state.preset === 'yantra') buildYantraMandala();
+    else if (state.preset === 'hex') buildHexMandala();
+    else buildSquareMandala();
   }
 
   function buildActiveMandala() {
@@ -2259,7 +2267,9 @@
         dimensionStatus.textContent =
           state.formStyle === 'temple'
             ? 'temple view'
-            : 'symmetric form';
+            : state.formStyle === 'isotropic'
+              ? 'isotropic form'
+              : 'mandala lift';
       } else {
         dimensionStatus.textContent = '4D projection';
       }
