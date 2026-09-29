@@ -34,6 +34,22 @@
     </div>
 
     <section class="control-section">
+      <div class="control-section__label">Mandala</div>
+      <div class="preset-grid" id="presetControl">
+        <button type="button" data-preset="square" class="is-active">Square Temple</button>
+        <button type="button" data-preset="yantra">Triangle Yantra</button>
+        <button type="button" data-preset="hex">Hexagonal</button>
+      </div>
+      <div class="complexity-row" id="complexityControl">
+        <span>Complexity</span>
+        <div class="segmented">
+          <button type="button" data-complexity="simple" class="is-active">Simple</button>
+          <button type="button" data-complexity="complex">Complex</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="control-section">
       <div class="control-section__label">Projection</div>
       <div class="segmented" id="projectionControl">
         <button type="button" data-projection="perspective" class="is-active">Perspective</button>

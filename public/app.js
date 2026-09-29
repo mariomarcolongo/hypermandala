@@ -22,6 +22,8 @@
   const dimensionButtons = [...document.querySelectorAll('[data-dimension]')];
   const projectionButtons = [...document.querySelectorAll('[data-projection]')];
   const colorButtons = [...document.querySelectorAll('[data-color]')];
+  const presetButtons = [...document.querySelectorAll('[data-preset]')];
+  const complexityButtons = [...document.querySelectorAll('[data-complexity]')];
   const rotationRows = document.getElementById('rotationRows');
   const scaleRows = document.getElementById('scaleRows');
 
@@ -63,6 +65,8 @@
     wMix: 0,
     projection: 'perspective',
     colorMode: 'form',
+    preset: 'square',
+    complexity: 'simple',
     rotations: { xw: 0, yw: 0, zw: 0, xy: 0, xz: 0, yz: 0 },
     auto: { xw: false, yw: false, zw: false, xy: false, xz: false, yz: false },
     scales: { x: 1, y: 1, z: 1, w: 1 },
@@ -133,7 +137,8 @@
     modules.push({ vertices, edges });
 
     for (let i = 0; i < footprint.length; i += 1) {
-      addPlanEdge(footprint[i], footprint[(i + 1) % footprint.length], i % 2 === 0 ? 'x' : 'y');
+      const planAxis = footprint.length === 4 ? (i % 2 === 0 ? 'x' : 'y') : 'n';
+      addPlanEdge(footprint[i], footprint[(i + 1) % footprint.length], planAxis);
     }
     for (const edge of planExtra) addPlanEdge(edge[0], edge[1], 'n');
   }
@@ -197,15 +202,66 @@
     extrudeTo4D(vertices3, edges3, size * 0.5, footprint, extra);
   }
 
-  function buildTemple() {
+  function polygonFootprint(cx, cy, radius, sides, rotation = 0) {
+    return Array.from({ length: sides }, (_, i) => {
+      const angle = rotation + (i / sides) * TAU;
+      return [cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius];
+    });
+  }
+
+  function addPrism(cx, cy, baseZ, radius, sides, height, rotation = 0) {
+    const footprint = polygonFootprint(cx, cy, radius, sides, rotation);
+    const vertices3 = [
+      ...footprint.map(([x, y]) => [x, y, baseZ]),
+      ...footprint.map(([x, y]) => [x, y, baseZ + height]),
+    ];
+
+    const edges3 = [];
+    for (let i = 0; i < sides; i += 1) {
+      const next = (i + 1) % sides;
+      edges3.push({ a: i, b: next, axis: 'n' });
+      edges3.push({ a: i + sides, b: next + sides, axis: 'n' });
+      edges3.push({ a: i, b: i + sides, axis: 'z' });
+    }
+
+    const center = [cx, cy];
+    const spokes = footprint.map((point) => [point, center]);
+    extrudeTo4D(vertices3, edges3, radius * 0.34, footprint, spokes);
+  }
+
+  function addPolygonPyramid(cx, cy, baseZ, radius, sides, height, rotation = 0) {
+    const footprint = polygonFootprint(cx, cy, radius, sides, rotation);
+    const vertices3 = [
+      ...footprint.map(([x, y]) => [x, y, baseZ]),
+      [cx, cy, baseZ + height],
+    ];
+    const apex = sides;
+    const edges3 = [];
+
+    for (let i = 0; i < sides; i += 1) {
+      const next = (i + 1) % sides;
+      edges3.push({ a: i, b: next, axis: 'n' });
+      edges3.push({ a: i, b: apex, axis: 'n' });
+    }
+
+    const center = [cx, cy];
+    const spokes = footprint.map((point) => [point, center]);
+    extrudeTo4D(vertices3, edges3, radius * 0.34, footprint, spokes);
+  }
+
+  function resetGeometry() {
     modules.length = 0;
     planEdges.length = 0;
     planEdgeKeys.clear();
+  }
+
+  function buildSquareTemple() {
+    resetGeometry();
 
     const size = 0.34;
     const spacing = 0.47;
-
     const base = [];
+
     for (let gx = -2; gx <= 2; gx += 1) {
       for (let gy = -2; gy <= 2; gy += 1) {
         if (Math.abs(gx) + Math.abs(gy) <= 2) base.push([gx, gy]);
@@ -213,11 +269,21 @@
     }
     base.push([3, 0], [-3, 0], [0, 3], [0, -3]);
 
+    if (state.complexity === 'complex') {
+      base.push(
+        [2, 1], [2, -1], [-2, 1], [-2, -1],
+        [1, 2], [1, -2], [-1, 2], [-1, -2],
+      );
+    }
+
     for (const [gx, gy] of base) {
       addCube(gx * spacing, gy * spacing, 0, size, 0);
     }
 
-    const second = [[0,0], [1,0], [-1,0], [0,1], [0,-1]];
+    const second = state.complexity === 'complex'
+      ? [[0,0], [1,0], [-1,0], [0,1], [0,-1], [1,1], [1,-1], [-1,1], [-1,-1]]
+      : [[0,0], [1,0], [-1,0], [0,1], [0,-1]];
+
     for (const [gx, gy] of second) {
       addCube(gx * spacing, gy * spacing, size, size, 0);
     }
@@ -227,6 +293,124 @@
 
     for (const [gx, gy] of [[3,0],[-3,0],[0,3],[0,-3]]) {
       addPyramid(gx * spacing, gy * spacing, size, size * 0.82, size * 0.72, 0);
+    }
+
+    if (state.complexity === 'complex') {
+      for (const [gx, gy] of [[2,2],[2,-2],[-2,2],[-2,-2]]) {
+        addPyramid(gx * spacing, gy * spacing, 0, size * 0.68, size * 0.58, Math.PI / 4);
+      }
+    }
+  }
+
+  function buildTriangleYantra() {
+    resetGeometry();
+
+    const layers = state.complexity === 'complex'
+      ? [
+          [1.48, 0.00, -Math.PI / 2],
+          [1.28, 0.12, Math.PI / 2],
+          [1.08, 0.24, -Math.PI / 2],
+          [0.88, 0.36, Math.PI / 2],
+          [0.68, 0.48, -Math.PI / 2],
+          [0.48, 0.60, Math.PI / 2],
+        ]
+      : [
+          [1.42, 0.00, -Math.PI / 2],
+          [1.04, 0.18, Math.PI / 2],
+          [0.72, 0.36, -Math.PI / 2],
+          [0.46, 0.54, Math.PI / 2],
+        ];
+
+    for (const [radius, baseZ, rotation] of layers) {
+      addPrism(0, 0, baseZ, radius, 3, 0.14, rotation);
+    }
+
+    addPolygonPyramid(0, 0, layers[layers.length - 1][1] + 0.14, 0.34, 3, 0.48, -Math.PI / 2);
+
+    const satelliteCount = state.complexity === 'complex' ? 12 : 6;
+    const ringRadius = state.complexity === 'complex' ? 1.38 : 1.24;
+    const satelliteRadius = state.complexity === 'complex' ? 0.19 : 0.23;
+
+    for (let i = 0; i < satelliteCount; i += 1) {
+      const angle = (i / satelliteCount) * TAU - Math.PI / 2;
+      const cx = Math.cos(angle) * ringRadius;
+      const cy = Math.sin(angle) * ringRadius;
+      const rotation = angle + Math.PI / 2 + (i % 2 ? Math.PI : 0);
+      addPrism(cx, cy, 0, satelliteRadius, 3, 0.17, rotation);
+    }
+
+    if (state.complexity === 'complex') {
+      for (let i = 0; i < 6; i += 1) {
+        const angle = (i / 6) * TAU - Math.PI / 2;
+        const cx = Math.cos(angle) * 0.82;
+        const cy = Math.sin(angle) * 0.82;
+        addPolygonPyramid(cx, cy, 0.5, 0.18, 3, 0.28, angle + Math.PI / 2);
+      }
+    }
+  }
+
+  function buildHexagonalMandala() {
+    resetGeometry();
+
+    const centralLayers = state.complexity === 'complex'
+      ? [
+          [1.28, 0.00, 0],
+          [1.02, 0.14, Math.PI / 6],
+          [0.78, 0.28, 0],
+          [0.56, 0.42, Math.PI / 6],
+        ]
+      : [
+          [1.22, 0.00, 0],
+          [0.86, 0.18, Math.PI / 6],
+          [0.52, 0.36, 0],
+        ];
+
+    for (const [radius, baseZ, rotation] of centralLayers) {
+      addPrism(0, 0, baseZ, radius, 6, 0.15, rotation);
+    }
+
+    addPolygonPyramid(
+      0,
+      0,
+      centralLayers[centralLayers.length - 1][1] + 0.15,
+      0.36,
+      6,
+      0.44,
+      Math.PI / 6,
+    );
+
+    const firstRingCount = 6;
+    for (let i = 0; i < firstRingCount; i += 1) {
+      const angle = (i / firstRingCount) * TAU;
+      const cx = Math.cos(angle) * 1.08;
+      const cy = Math.sin(angle) * 1.08;
+      addPrism(cx, cy, 0.12, 0.28, 6, 0.2, Math.PI / 6);
+    }
+
+    if (state.complexity === 'complex') {
+      for (let i = 0; i < 12; i += 1) {
+        const angle = (i / 12) * TAU + Math.PI / 12;
+        const cx = Math.cos(angle) * 1.55;
+        const cy = Math.sin(angle) * 1.55;
+        addPrism(cx, cy, 0, 0.17, 6, 0.15, i % 2 ? Math.PI / 6 : 0);
+      }
+
+      for (let i = 0; i < 6; i += 1) {
+        const angle = (i / 6) * TAU;
+        const cx = Math.cos(angle) * 0.72;
+        const cy = Math.sin(angle) * 0.72;
+        addPolygonPyramid(cx, cy, 0.48, 0.19, 6, 0.28, Math.PI / 6);
+      }
+    }
+  }
+
+  function buildActiveMandala() {
+    if (state.preset === 'yantra') {
+      buildTriangleYantra();
+    } else if (state.preset === 'hex') {
+      buildHexagonalMandala();
+    } else {
+      buildSquareTemple();
     }
   }
 
@@ -761,6 +945,26 @@
     });
   });
 
+  presetButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      if (state.transition) return;
+      state.preset = button.dataset.preset;
+      presetButtons.forEach((item) => item.classList.toggle('is-active', item === button));
+      buildActiveMandala();
+      hideHint();
+    });
+  });
+
+  complexityButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      if (state.transition) return;
+      state.complexity = button.dataset.complexity;
+      complexityButtons.forEach((item) => item.classList.toggle('is-active', item === button));
+      buildActiveMandala();
+      hideHint();
+    });
+  });
+
   resetAllButton.addEventListener('click', () => {
     resetAll();
     hideHint();
@@ -834,7 +1038,7 @@
     requestAnimationFrame(tick);
   }
 
-  buildTemple();
+  buildActiveMandala();
   createRotationControls();
   createScaleControls();
   resetAll();

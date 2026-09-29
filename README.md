@@ -58,18 +58,45 @@ X, Y, Z, and W can be scaled independently. This is especially useful for unders
 
 The 2D / 3D / 4D buttons perform these dimensional changes automatically.
 
-## Geometry
+## Mandala families
 
-The temple is deliberately made from a small vocabulary of simple primitives:
+Hypermandala now has multiple geometry generators. Every family uses the same dimensional engine and the same six-plane 4D rotations.
 
-- axis-aligned squares;
-- cubes;
-- square pyramids;
-- 4D prisms / tesseract-like cube extrusions.
+### Square Temple
 
-The base plan uses a symmetric diamond arrangement of square cells with four cardinal extensions. Higher levels use progressively fewer cubes, ending in a central pyramidal roof.
+The original architectural family:
 
-This is intentionally much simpler than the previous procedural mandala so the 4D structure remains readable.
+- square cells in 2D;
+- cubes and square pyramids in 3D;
+- tesseract-like cube extrusions and 4D pyramid prisms in 4D.
+
+Its plan uses a symmetric diamond arrangement with four cardinal extensions and a stepped central shrine.
+
+### Triangle Yantra
+
+A more classical yantra-inspired family built from alternating upward/downward equilateral triangles:
+
+- nested triangular plans;
+- triangular prisms and triangular pyramids in 3D;
+- those prisms extruded through W in 4D.
+
+The complex version adds denser nested triangles, an outer ring of triangular modules, and six elevated satellite peaks.
+
+### Hexagonal Mandala
+
+A sixfold family built from concentric and satellite hexagons:
+
+- hexagonal rings in 2D;
+- stepped hexagonal prisms and pyramids in 3D;
+- W-extruded hexagonal 4D prisms.
+
+The complex version adds a twelve-module outer ring and six elevated satellite shrines.
+
+### Complexity
+
+Each family has **Simple** and **Complex** variants. Complexity changes the generated geometry itself rather than merely adding decoration, so the extra structure participates in 3D and 4D transformations.
+
+The primitive vocabulary deliberately remains limited—polygons, prisms, pyramids, cubes and their W-extrusions—so even the complex mandalas remain readable under 4D rotation.
 
 ## Color
 
@@ -78,6 +105,8 @@ This is intentionally much simpler than the previous procedural mandala so the 4
 
 ## Controls
 
+- **Mandala** — switch between Square Temple, Triangle Yantra, and Hexagonal Mandala.
+- **Complexity** — choose Simple or Complex generated geometry.
 - **2D / 3D / 4D** — automatic dimensional transitions.
 - **Drag** — rotate the 2D plan or orbit the 3D projection.
 - **Wheel / trackpad** — zoom.

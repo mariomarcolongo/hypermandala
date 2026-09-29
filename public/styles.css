@@ -375,3 +375,50 @@ a:focus-visible {
     animation-duration: .01ms !important;
   }
 }
+
+
+.preset-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 5px;
+  margin-top: 7px;
+}
+.preset-grid button {
+  min-height: 31px;
+  padding: 0 10px;
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 9px;
+  background: rgba(255,255,255,.025);
+  color: rgba(238,239,242,.46);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .045em;
+  text-align: left;
+  cursor: pointer;
+  transition: color 160ms ease, background 160ms ease, border-color 160ms ease;
+}
+.preset-grid button:hover {
+  color: var(--text);
+  border-color: rgba(255,255,255,.12);
+}
+.preset-grid button.is-active {
+  color: var(--text);
+  background: rgba(255,255,255,.085);
+  border-color: rgba(255,255,255,.13);
+}
+.complexity-row {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.complexity-row > span {
+  color: rgba(238,239,242,.36);
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.complexity-row .segmented {
+  margin-top: 0;
+}
