@@ -1035,16 +1035,18 @@
     regionId = 'unclassified',
   ) {
     const data = footprintPrismData(points, baseZ, height);
-    const maxRadius = Math.max(
+    const cx = points.reduce((sum, p) => sum + p[0], 0) / points.length;
+    const cy = points.reduce((sum, p) => sum + p[1], 0) / points.length;
+    const localRadius = Math.max(
       0.08,
-      ...points.map((p) => Math.hypot(p[0], p[1])),
+      ...points.map((p) => Math.hypot(p[0] - cx, p[1] - cy)),
     );
 
     extrudeTo4D(
       data.vertices3,
       data.edges3,
       data.faces3,
-      maxRadius * 0.22,
+      localRadius * 0.34,
       data.footprint,
       [],
       regionId,
