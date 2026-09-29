@@ -20,16 +20,13 @@ The default obeys a collapse / expansion rule:
 
 This allows higher-dimensional geometry to emerge during dimensional expansion even when its lower-dimensional collapse looks simple.
 
-For the symmetric presets the generator audits:
-- the expected rotational symmetry in the XY plane;
-- reflection symmetry across Z;
-- reflection symmetry across W.
+The generators are constructed around the expected rotational symmetry of each mandala family and symmetric ±Z / ±W dimensional expansion in the default form.
 
 ### Temple form — optional
 
 **Temple** is an explicit 3D-form option. It keeps the same mandala plan and 4D W extrusion, but intentionally gives Z a preferred upward direction to create a stepped architectural interpretation.
 
-The transition is automatic. There is no fractional-dimension slider:
+The transition is automatic and deliberately staged so the higher dimension can be seen emerging from the lower one. During 2D → 3D the plan remains visible while Z separates before the camera tilts; during 3D → 4D the original 3D structure remains the anchor while the opposite W copy and W-connected geometry emerge. There is no fractional-dimension slider:
 
 ```
 square → cube → hypercube
@@ -117,11 +114,13 @@ The primitive vocabulary deliberately remains limited—polygons, prisms, pyrami
 
 Three render modes are available:
 
-- **Wire** — structural edges only.
+- **Wire** — structural edges only; this remains the default because it makes dimensional emergence easiest to follow.
 - **Solid** — projected polygon faces without edge overlay.
 - **Solid + edges** — opaque faces plus the structural wireframe.
 
 The 4D prism construction explicitly generates its 2D boundary faces: the faces of the two W-separated 3D copies plus the W-connected faces between corresponding edges. After 4D → 3D and 3D → 2D projection, faces are depth-sorted so nearer faces cover farther faces.
+
+In Form color mode all dimensions now use the same neutral solid material. This avoids false bands and patchwork colors from giving W faces a different material. Solid faces are opaque at the completed dimension, while the newly emerging W geometry can fade in during the transition.
 
 The current Canvas renderer uses painter-style face sorting rather than a per-pixel depth buffer. It handles ordinary occlusion well, but intersecting projected faces can still be imperfect in extreme views.
 
@@ -133,7 +132,7 @@ The current Canvas renderer uses painter-style face sorting rather than a per-pi
 ## Controls
 
 - **Mandala dock** — choose Square, Yantra, or Hex using the compact library at lower left.
-- **2D preview** — the library always shows the selected plan without changing the main dimension.
+- **Persistent 2D previews** — all three mandala families are shown at the same time, using the current complexity setting, so the previews help you choose rather than only confirming the current choice.
 - **Complexity** — choose Simple or Complex generated geometry.
 - **3D form** — Symmetric by default, or Temple for an upward architectural interpretation.
 - **Rendering** — Wire, Solid, or Solid + edges.
@@ -175,3 +174,10 @@ The workflow at `.github/workflows/pages.yml` publishes `public` once GitHub Pag
 ## License
 
 GNU Affero General Public License v3.0 or later. See [`LICENSE`](./LICENSE).
+
+
+## Mandala construction rules
+
+Every family is treated as a mandala in every dimension. The generators therefore prioritize a centered structure, radial or rotational organization, concentric / hierarchical relationships, and dimensional emergence from the same lower-dimensional plan.
+
+The optional Temple form is an architectural interpretation of the same mandala. Temple primitives are placed as explicit supported levels: roofs begin on their supporting geometry, stack layers do not overlap, and elevated satellite roofs have supporting prisms instead of floating or penetrating nearby solids.

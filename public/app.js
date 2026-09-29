@@ -17,12 +17,14 @@
   const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
   const basisCanvas = document.getElementById('basisCanvas');
   const basisCtx = basisCanvas.getContext('2d');
-  const previewCanvas = document.getElementById('previewCanvas');
-  const previewCtx = previewCanvas.getContext('2d');
+  const previewCanvases = {
+    square: document.getElementById('previewSquare'),
+    yantra: document.getElementById('previewYantra'),
+    hex: document.getElementById('previewHex'),
+  };
 
   const dimensionValue = document.getElementById('dimensionValue');
   const dimensionStatus = document.getElementById('dimensionStatus');
-  const symmetryStatus = document.getElementById('symmetryStatus');
   const hint = document.getElementById('hint');
   const resetAllButton = document.getElementById('resetAll');
 
@@ -80,7 +82,7 @@
 
     projection: 'perspective',
     colorMode: 'form',
-    renderMode: 'solid-edges',
+    renderMode: 'wire',
 
     rotations: { xw: 0, yw: 0, zw: 0, xy: 0, xz: 0, yz: 0 },
     auto: { xw: false, yw: false, zw: false, xy: false, xz: false, yz: false },
@@ -98,6 +100,7 @@
     height: innerHeight,
     dpr: 1,
     lastTime: performance.now(),
+    transitionDirection: 0,
   };
 
   const modules = [];
@@ -460,43 +463,46 @@
     const size = 0.34;
     const spacing = 0.47;
 
+    // The ground mandala is a thin central layer.
     for (const [gx, gy] of squareBaseCells(complex)) {
-      addCenteredCube(gx * spacing, gy * spacing, 0, size, 0);
+      addCenteredCube(gx * spacing, gy * spacing, 0, size * 0.46, 0);
     }
 
-    const secondZ = 0.48;
+    // Structures that occupy the same 2D plan separate into mirrored ±Z tiers.
+    const secondZ = 0.42;
     for (const sign of [-1, 1]) {
       for (const [gx, gy] of squareSecondCells(complex)) {
         addCenteredCube(gx * spacing, gy * spacing, sign * secondZ, size, 0);
       }
     }
 
-    addSquareBipyramid(0, 0, 0, size * 1.18, size * 1.6, 0);
+    const crownZ = 0.88;
+    for (const sign of [-1, 1]) {
+      addCenteredCube(0, 0, sign * crownZ, size * 0.78, Math.PI / 4);
 
-    for (const [gx, gy] of [[3,0],[-3,0],[0,3],[0,-3]]) {
-      addSquareBipyramid(
-        gx * spacing,
-        gy * spacing,
+      const baseZ = sign > 0
+        ? crownZ + size * 0.39
+        : -crownZ - size * 0.39;
+      addPolygonPyramid(
         0,
-        size * 0.76,
-        size * 0.78,
         0,
+        baseZ,
+        size * 0.34,
+        4,
+        sign * size * 0.62,
+        Math.PI / 4,
       );
     }
 
     if (complex) {
-      const highZ = 0.88;
-      for (const sign of [-1, 1]) {
-        addCenteredCube(0, 0, sign * highZ, size * 0.82, Math.PI / 4);
-      }
-
-      for (const [gx, gy] of [[2,2],[2,-2],[-2,2],[-2,-2]]) {
-        addSquareBipyramid(
-          gx * spacing,
-          gy * spacing,
+      const diagonalRadius = spacing * 2.65;
+      for (let i = 0; i < 4; i += 1) {
+        const angle = Math.PI / 4 + i * Math.PI / 2;
+        addCenteredCube(
+          Math.cos(angle) * diagonalRadius,
+          Math.sin(angle) * diagonalRadius,
           0,
-          size * 0.58,
-          size * 0.6,
+          size * 0.42,
           Math.PI / 4,
         );
       }
@@ -518,15 +524,17 @@
     }
 
     addCube(0, 0, size * 2, size, 0);
-    addPyramid(0, 0, size * 3, size * 1.16, size * 1.12, 0);
+    // Roof begins exactly on the top face of the supporting cube and is
+    // slightly narrower, so it reads as a roof rather than penetrating it.
+    addPyramid(0, 0, size * 3, size * 0.96, size * 1.08, 0);
 
     for (const [gx, gy] of [[3,0],[-3,0],[0,3],[0,-3]]) {
       addPyramid(
         gx * spacing,
         gy * spacing,
         size,
-        size * 0.82,
-        size * 0.72,
+        size * 0.74,
+        size * 0.68,
         0,
       );
     }
@@ -567,12 +575,35 @@
     resetGeometry();
 
     const layers = yantraLayerSpecs();
+    const baseThickness = 0.10;
+    const zStep = 0.28;
+
     layers.forEach(([radius, rotation], index) => {
-      const thickness = 0.12 + index * 0.025;
-      addCenteredPrism(0, 0, 0, radius, 3, thickness, rotation);
+      if (index === 0) {
+        addCenteredPrism(0, 0, 0, radius, 3, baseThickness, rotation);
+      } else {
+        const z = index * zStep;
+        const thickness = 0.11 + index * 0.012;
+        addCenteredPrism(0, 0, z, radius, 3, thickness, rotation);
+        addCenteredPrism(0, 0, -z, radius, 3, thickness, rotation);
+      }
     });
 
-    addBipyramid(0, 0, 0, 0.34, 3, 0.62, -Math.PI / 2);
+    const innerRadius = layers[layers.length - 1][0] * 0.56;
+    const crownZ = layers.length * zStep + 0.08;
+    addBipyramid(0, 0, 0, innerRadius * 0.58, 3, 0.24, -Math.PI / 2);
+
+    for (const sign of [-1, 1]) {
+      addCenteredPrism(
+        0,
+        0,
+        sign * crownZ,
+        innerRadius,
+        3,
+        0.12,
+        layers[layers.length - 1][1],
+      );
+    }
 
     const satelliteCount = state.complexity === 'complex' ? 12 : 6;
     const ringRadius = state.complexity === 'complex' ? 1.38 : 1.24;
@@ -583,7 +614,7 @@
       const cx = Math.cos(angle) * ringRadius;
       const cy = Math.sin(angle) * ringRadius;
       const rotation = angle + Math.PI / 2 + (i % 2 ? Math.PI : 0);
-      addCenteredPrism(cx, cy, 0, satelliteRadius, 3, 0.18, rotation);
+      addCenteredPrism(cx, cy, 0, satelliteRadius, 3, 0.14, rotation);
     }
 
     if (state.complexity === 'complex') {
@@ -595,9 +626,9 @@
           cx,
           cy,
           0,
-          0.18,
+          0.15,
           3,
-          0.34,
+          0.22,
           angle + Math.PI / 2,
         );
       }
@@ -608,20 +639,32 @@
     resetGeometry();
     const layers = yantraLayerSpecs();
 
-    layers.forEach(([radius, rotation], index) => {
+    let zCursor = 0;
+    const layerHeight = 0.12;
+    const layerGap = 0.025;
+
+    layers.forEach(([radius, rotation]) => {
       addPrism(
         0,
         0,
-        index * 0.12,
+        zCursor,
         radius,
         3,
-        0.14,
+        layerHeight,
         rotation,
       );
+      zCursor += layerHeight + layerGap;
     });
 
-    const topZ = (layers.length - 1) * 0.12 + 0.14;
-    addPolygonPyramid(0, 0, topZ, 0.34, 3, 0.48, -Math.PI / 2);
+    addPolygonPyramid(
+      0,
+      0,
+      zCursor,
+      0.31,
+      3,
+      0.44,
+      -Math.PI / 2,
+    );
 
     const satelliteCount = state.complexity === 'complex' ? 12 : 6;
     const ringRadius = state.complexity === 'complex' ? 1.38 : 1.24;
@@ -640,14 +683,18 @@
         const angle = (i / 6) * TAU - Math.PI / 2;
         const cx = Math.cos(angle) * 0.82;
         const cy = Math.sin(angle) * 0.82;
+        const rotation = angle + Math.PI / 2;
+
+        // Every elevated roof has an explicit supporting prism.
+        addPrism(cx, cy, 0, 0.18, 3, 0.30, rotation);
         addPolygonPyramid(
           cx,
           cy,
-          0.5,
-          0.18,
+          0.30,
+          0.16,
           3,
-          0.28,
-          angle + Math.PI / 2,
+          0.26,
+          rotation,
         );
       }
     }
@@ -687,19 +734,33 @@
     resetGeometry();
 
     const layers = hexLayerSpecs();
+    const zStep = 0.30;
+
     layers.forEach(([radius, rotation], index) => {
+      if (index === 0) {
+        addCenteredPrism(0, 0, 0, radius, 6, 0.10, rotation);
+      } else {
+        const z = index * zStep;
+        const thickness = 0.12;
+        addCenteredPrism(0, 0, z, radius, 6, thickness, rotation);
+        addCenteredPrism(0, 0, -z, radius, 6, thickness, rotation);
+      }
+    });
+
+    const crownRadius = layers[layers.length - 1][0] * 0.62;
+    const crownZ = layers.length * zStep + 0.04;
+    for (const sign of [-1, 1]) {
       addCenteredPrism(
         0,
         0,
-        0,
-        radius,
+        sign * crownZ,
+        crownRadius,
         6,
-        0.14 + index * 0.035,
-        rotation,
+        0.13,
+        Math.PI / 6,
       );
-    });
+    }
 
-    addBipyramid(0, 0, 0, 0.36, 6, 0.58, Math.PI / 6);
     addHexSatelliteRing(0);
 
     if (state.complexity === 'complex') {
@@ -711,7 +772,7 @@
           0,
           0.17,
           6,
-          0.15,
+          0.12,
           i % 2 ? Math.PI / 6 : 0,
         );
       }
@@ -722,9 +783,9 @@
           Math.cos(angle) * 0.72,
           Math.sin(angle) * 0.72,
           0,
-          0.19,
+          0.16,
           6,
-          0.34,
+          0.22,
           Math.PI / 6,
         );
       }
@@ -735,30 +796,42 @@
     resetGeometry();
 
     const layers = hexLayerSpecs();
-    layers.forEach(([radius, rotation], index) => {
+    let zCursor = 0;
+    const layerHeight = 0.13;
+    const layerGap = 0.025;
+
+    layers.forEach(([radius, rotation]) => {
       addPrism(
         0,
         0,
-        index * 0.14,
+        zCursor,
         radius,
         6,
-        0.15,
+        layerHeight,
         rotation,
       );
+      zCursor += layerHeight + layerGap;
     });
 
-    const topZ = (layers.length - 1) * 0.14 + 0.15;
-    addPolygonPyramid(0, 0, topZ, 0.36, 6, 0.44, Math.PI / 6);
+    addPolygonPyramid(
+      0,
+      0,
+      zCursor,
+      0.33,
+      6,
+      0.40,
+      Math.PI / 6,
+    );
 
     for (let i = 0; i < 6; i += 1) {
       const angle = (i / 6) * TAU;
       addPrism(
         Math.cos(angle) * 1.08,
         Math.sin(angle) * 1.08,
-        0.12,
+        0,
         0.28,
         6,
-        0.2,
+        0.20,
         Math.PI / 6,
       );
     }
@@ -779,80 +852,25 @@
 
       for (let i = 0; i < 6; i += 1) {
         const angle = (i / 6) * TAU;
+        const cx = Math.cos(angle) * 0.72;
+        const cy = Math.sin(angle) * 0.72;
+
+        addPrism(cx, cy, 0, 0.19, 6, 0.32, Math.PI / 6);
         addPolygonPyramid(
-          Math.cos(angle) * 0.72,
-          Math.sin(angle) * 0.72,
-          0.48,
-          0.19,
+          cx,
+          cy,
+          0.32,
+          0.17,
           6,
-          0.28,
+          0.25,
           Math.PI / 6,
         );
       }
     }
   }
 
-  function expectedRotationOrder() {
-    if (state.preset === 'square') return 4;
-    if (state.preset === 'hex') return 6;
-    return 3;
-  }
 
-  function geometryPointKey(point) {
-    return point.map((value) => (Math.round(value * 1000) / 1000).toFixed(3)).join(',');
-  }
-
-  function geometrySymmetryAudit() {
-    const set = new Set();
-    const points = [];
-
-    for (const module of modules) {
-      for (const p of module.vertices) {
-        const key = geometryPointKey(p);
-        if (!set.has(key)) {
-          set.add(key);
-          points.push(p);
-        }
-      }
-    }
-
-    const order = expectedRotationOrder();
-    const angle = TAU / order;
-    let rotation = true;
-    let mirrorZ = true;
-    let mirrorW = true;
-
-    for (const p of points) {
-      const xy = rotateXYPoint(p[0], p[1], angle);
-      if (!set.has(geometryPointKey([xy[0], xy[1], p[2], p[3]]))) rotation = false;
-      if (!set.has(geometryPointKey([p[0], p[1], -p[2], p[3]]))) mirrorZ = false;
-      if (!set.has(geometryPointKey([p[0], p[1], p[2], -p[3]]))) mirrorW = false;
-      if (!rotation && !mirrorZ && !mirrorW) break;
-    }
-
-    return { order, rotation, mirrorZ, mirrorW };
-  }
-
-  function updateSymmetryStatus() {
-    const audit = geometrySymmetryAudit();
-    symmetryStatus.className = 'symmetry-status';
-
-    if (state.formStyle === 'symmetric') {
-      const ok = audit.rotation && audit.mirrorZ && audit.mirrorW;
-      symmetryStatus.classList.add(ok ? 'is-ok' : 'is-warning');
-      symmetryStatus.textContent = ok
-        ? audit.order + '-fold XY · ±Z · ±W symmetry verified'
-        : 'symmetry audit warning';
-    } else {
-      const ok = audit.rotation && audit.mirrorW;
-      symmetryStatus.classList.add(ok ? 'is-directional' : 'is-warning');
-      symmetryStatus.textContent = ok
-        ? audit.order + '-fold XY · ±W · +Z temple direction'
-        : 'temple symmetry audit warning';
-    }
-  }
-
-  function buildActiveMandala() {
+  function buildGeometryForCurrentChoice() {
     if (state.preset === 'yantra') {
       if (state.formStyle === 'temple') buildYantraTemple();
       else buildYantraSymmetric();
@@ -863,9 +881,11 @@
       if (state.formStyle === 'temple') buildSquareTemple();
       else buildSquareSymmetric();
     }
+  }
 
-    updateSymmetryStatus();
-    drawPreview();
+  function buildActiveMandala() {
+    buildGeometryForCurrentChoice();
+    drawAllPreviews();
   }
 
   function rotatePlane(point, a, b, angle) {
@@ -924,7 +944,10 @@
 
   function cameraTransform(p) {
     let [x, y, z] = p;
-    const viewMix = state.zMix;
+
+    // Let the new dimension visibly separate before the viewpoint tilts.
+    // This preserves the feeling that the volume grows out of the 2D mandala.
+    const viewMix = smoother(clamp((state.zMix - 0.30) / 0.70, 0, 1));
 
     const yaw = state.cameraYaw * viewMix;
     let c = Math.cos(yaw);
@@ -1024,11 +1047,11 @@
   function faceFillColor(axis, depth) {
     if (state.colorMode === 'axis') return axisColor(axis);
 
+    // One neutral material across X/Y/Z/W. A very small depth shift helps
+    // shape perception without inventing different materials for W faces.
     const normalized = clamp((depth + 1.8) / 3.8, 0, 1);
-    const light = 31 + normalized * 23;
-    const saturation = axis === 'w' ? 39 : 21;
-    const hue = axis === 'w' ? 43 : 38;
-    return 'hsl(' + hue + ' ' + saturation + '% ' + light + '%)';
+    const light = 45 + normalized * 9;
+    return 'hsl(39 18% ' + light + '%)';
   }
 
   function drawPlanFaces(alpha) {
@@ -1091,9 +1114,11 @@
       ctx.closePath();
 
       ctx.fillStyle = faceFillColor(item.face.axis, item.depth);
-      ctx.globalAlpha = alpha
-        * item.visibility
-        * (state.renderMode === 'solid' ? 0.985 : 0.93);
+      // Solid means solid: avoid cumulative translucent overdraw, which made
+      // 4D face projections create false bands and strange colors.
+      ctx.globalAlpha = item.visibility >= 0.995
+        ? 1
+        : clamp(item.visibility * 1.15, 0, 1);
       ctx.fill();
       ctx.globalAlpha = 1;
     }
@@ -1194,16 +1219,26 @@
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    const planAlpha = 1 - state.zMix;
+    // Keep the originating mandala visible while the new dimension separates.
+    // It only fades late in the transition, so the viewer can follow where
+    // every emerging volume came from.
+    const planFade = smoother(clamp((state.zMix - 0.58) / 0.42, 0, 1));
+    const planAlpha = 1 - planFade;
+
+    // Faces arrive after the first geometric separation; edges lead the motion.
+    const volumeAlpha = smoother(clamp((state.zMix - 0.08) / 0.92, 0, 1));
+    const edgeAlpha = smoother(clamp(state.zMix / 0.82, 0, 1));
+
     drawPlanFaces(planAlpha);
     drawPlanEdges(planAlpha);
 
-    drawFaces(state.zMix);
-    drawEdges(state.zMix);
-    drawVertices(state.zMix);
+    drawFaces(volumeAlpha);
+    drawEdges(edgeAlpha);
+    drawVertices(edgeAlpha);
   }
 
-  function drawPreview() {
+  function drawPreviewToCanvas(previewCanvas) {
+    const previewCtx = previewCanvas.getContext('2d');
     const width = previewCanvas.width;
     const height = previewCanvas.height;
     previewCtx.clearRect(0, 0, width, height);
@@ -1211,9 +1246,7 @@
     if (!planEdges.length) return;
 
     const points = [];
-    for (const edge of planEdges) {
-      points.push(edge.a, edge.b);
-    }
+    for (const edge of planEdges) points.push(edge.a, edge.b);
 
     const minX = Math.min(...points.map((p) => p[0]));
     const maxX = Math.max(...points.map((p) => p[0]));
@@ -1222,7 +1255,7 @@
 
     const spanX = Math.max(0.01, maxX - minX);
     const spanY = Math.max(0.01, maxY - minY);
-    const scale = Math.min((width - 20) / spanX, (height - 20) / spanY);
+    const scale = Math.min((width - 14) / spanX, (height - 14) / spanY);
     const cx = (minX + maxX) * 0.5;
     const cy = (minY + maxY) * 0.5;
 
@@ -1231,7 +1264,9 @@
       y: height * 0.5 + (p[1] - cy) * scale,
     });
 
-    const sortedFaces = [...planFaces].sort((a, b) => rawPolygonArea(b) - rawPolygonArea(a));
+    const sortedFaces = [...planFaces]
+      .sort((a, b) => rawPolygonArea(b) - rawPolygonArea(a));
+
     for (const face of sortedFaces) {
       const projected = face.map(map);
       previewCtx.beginPath();
@@ -1240,14 +1275,14 @@
         else previewCtx.lineTo(p.x, p.y);
       });
       previewCtx.closePath();
-      previewCtx.fillStyle = 'rgba(225,218,201,.06)';
+      previewCtx.fillStyle = 'rgba(225,218,201,.055)';
       previewCtx.fill();
     }
 
     previewCtx.lineCap = 'round';
     previewCtx.lineJoin = 'round';
-    previewCtx.strokeStyle = 'rgba(235,231,220,.76)';
-    previewCtx.lineWidth = 1.1;
+    previewCtx.strokeStyle = 'rgba(240,237,228,.80)';
+    previewCtx.lineWidth = 1;
 
     for (const edge of planEdges) {
       const a = map(edge.a);
@@ -1257,6 +1292,19 @@
       previewCtx.lineTo(b.x, b.y);
       previewCtx.stroke();
     }
+  }
+
+  function drawAllPreviews() {
+    const selectedPreset = state.preset;
+
+    for (const preset of ['square', 'yantra', 'hex']) {
+      state.preset = preset;
+      buildGeometryForCurrentChoice();
+      drawPreviewToCanvas(previewCanvases[preset]);
+    }
+
+    state.preset = selectedPreset;
+    buildGeometryForCurrentChoice();
   }
 
   function basisPoint(source) {
@@ -1441,6 +1489,7 @@
     const toZ = target >= 3 ? 1 : 0;
     const toW = target >= 4 ? 1 : 0;
 
+    state.transitionDirection = target > state.dimension ? 1 : -1;
     state.transition = {
       fromDimension: state.dimension,
       toDimension: target,
@@ -1449,7 +1498,7 @@
       toZ,
       toW,
       start: performance.now(),
-      duration: reducedMotion ? 80 : 1150,
+      duration: reducedMotion ? 80 : 1750,
     };
   }
 
@@ -1570,7 +1619,7 @@
 
     setProjection('perspective');
     setColorMode('form');
-    setRenderMode('solid-edges');
+    setRenderMode('wire');
 
     for (const config of ROTATION_CONFIG) {
       const ui = rotationUI[config.key];
