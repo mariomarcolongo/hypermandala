@@ -1559,7 +1559,12 @@
     });
   }
 
-  function footprintPrismData(points, baseZ, height) {
+  function footprintPrismData(
+    points,
+    baseZ,
+    height,
+    detailSegments = [],
+  ) {
     const footprint = points.map((p) => [p[0], p[1]]);
     const n = footprint.length;
     const vertices3 = [
@@ -1589,6 +1594,24 @@
       axis: 'z',
     });
 
+    // Preserve the 2D subdivision network as actual surface edges.
+    // They are not internal walls in 3D; they are structural lines on the
+    // lower/upper surfaces. In 4D they also generate W bridge ribbons,
+    // so complexity survives the dimensional lift.
+    for (const [a, b] of detailSegments) {
+      const base = vertices3.length;
+      vertices3.push(
+        [a[0], a[1], baseZ],
+        [b[0], b[1], baseZ],
+        [a[0], a[1], baseZ + height],
+        [b[0], b[1], baseZ + height],
+      );
+      edges3.push(
+        { a: base, b: base + 1, axis: 'n', detail: true },
+        { a: base + 2, b: base + 3, axis: 'n', detail: true },
+      );
+    }
+
     return { vertices3, edges3, faces3, footprint };
   }
 
@@ -1597,8 +1620,15 @@
     baseZ,
     height,
     regionId = 'unclassified',
+    detailSegments = [],
+    liftMeta = null,
   ) {
-    const data = footprintPrismData(points, baseZ, height);
+    const data = footprintPrismData(
+      points,
+      baseZ,
+      height,
+      detailSegments,
+    );
     const cx = points.reduce((sum, p) => sum + p[0], 0) / points.length;
     const cy = points.reduce((sum, p) => sum + p[1], 0) / points.length;
     const localRadius = Math.max(
@@ -1614,6 +1644,7 @@
       data.footprint,
       [],
       regionId,
+      liftMeta,
     );
   }
 
@@ -1622,12 +1653,16 @@
     centerZ,
     height,
     regionId = 'unclassified',
+    detailSegments = [],
+    liftMeta = null,
   ) {
     addFootprintPrism(
       points,
       centerZ - height / 2,
       height,
       regionId,
+      detailSegments,
+      liftMeta,
     );
   }
 
