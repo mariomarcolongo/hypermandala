@@ -192,27 +192,27 @@
     square: {
       kind: 'symmetric',
       plan: 'square mandala',
-      spatial: 'symmetric mandala',
+      spatial: 'hierarchical mandala',
     },
     sriyantra: {
       kind: 'symmetric',
       plan: 'Sri Yantra plan',
-      spatial: 'Sri Yantra meru-like form',
+      spatial: 'Sri Yantra hierarchy',
     },
     kaliyantra: {
       kind: 'symmetric',
       plan: 'Kali Yantra plan',
-      spatial: 'symmetric Kali Yantra',
+      spatial: 'Kali Yantra hierarchy',
     },
     matangiyantra: {
       kind: 'symmetric',
       plan: 'Matangi Yantra plan',
-      spatial: 'symmetric Matangi Yantra',
+      spatial: 'Matangi Yantra hierarchy',
     },
     hex: {
       kind: 'symmetric',
       plan: 'hexagonal mandala',
-      spatial: 'symmetric mandala',
+      spatial: 'hierarchical hex mandala',
     },
     stupa: {
       kind: 'architecture',
@@ -4639,7 +4639,7 @@
         dimensionStatus.textContent =
           meta.kind === 'architecture'
             ? '4D architectural projection'
-            : '4D symmetric projection';
+            : '4D geometric hyperform';
       }
     }
 
