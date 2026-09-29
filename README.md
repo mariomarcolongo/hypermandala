@@ -20,7 +20,7 @@ The default obeys a collapse / expansion rule:
 
 This allows higher-dimensional geometry to emerge during dimensional expansion even when its lower-dimensional collapse looks simple.
 
-The generators are constructed around the expected rotational symmetry of each mandala family and symmetric ±Z / ±W dimensional expansion in the default form.
+In **Symmetric** mode the generated 3D/4D module set is explicitly closed under reflections X→−X, Y→−Y, Z→−Z, and W→−W. This is stricter than radial rotational symmetry: the non-Temple object is mirrored across every coordinate hyperplane.
 
 ### Temple form — optional
 
@@ -118,11 +118,11 @@ Three render modes are available:
 - **Solid** — projected polygon faces without edge overlay.
 - **Solid + edges** — opaque faces plus dark, non-transparent structural edges. The edges remain fully opaque once a dimension has emerged, while new Z/W edges still fade in during dimensional transitions.
 
-The 4D prism construction explicitly generates its 2D boundary faces: the faces of the two W-separated 3D copies plus the W-connected faces between corresponding edges. After 4D → 3D and 3D → 2D projection, faces are depth-sorted so nearer faces cover farther faces.
+The solid layer now uses **WebGL2 with a real depth buffer**. Projected faces are triangulated and depth-tested per pixel rather than painter-sorted as whole polygons. Coincident shared faces are removed before rendering to prevent z-fighting.
 
-In Form color mode all dimensions now use the same neutral solid material. This avoids false bands and patchwork colors from giving W faces a different material. Solid faces are opaque at the completed dimension, while the newly emerging W geometry can fade in during the transition.
+Face colors are intrinsic to the face family/orientation and no longer brighten or darken according to current camera depth. This removes the color "breathing" and draw-order flashes that appeared while rotating in 4D.
 
-The current Canvas renderer uses painter-style face sorting rather than a per-pixel depth buffer. It handles ordinary occlusion well, but intersecting projected faces can still be imperfect in extreme views.
+Wireframe and interaction overlays remain on the existing Canvas layer. If WebGL2 is unavailable, Hypermandala falls back to the older Canvas face renderer.
 
 ## Color
 
