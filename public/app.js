@@ -1014,6 +1014,42 @@
     );
   }
 
+  function addSquarePrismCentered(
+    centerZ,
+    size,
+    height,
+    regionId,
+  ) {
+    addCenteredPrism(
+      0,
+      0,
+      centerZ,
+      size / Math.sqrt(2),
+      4,
+      height,
+      Math.PI / 4,
+      regionId,
+    );
+  }
+
+  function addSquarePrismBase(
+    baseZ,
+    size,
+    height,
+    regionId,
+  ) {
+    addPrism(
+      0,
+      0,
+      baseZ,
+      size / Math.sqrt(2),
+      4,
+      height,
+      Math.PI / 4,
+      regionId,
+    );
+  }
+
   function stupaLayerSpecs() {
     const complex = state.complexity === 'complex';
     const layers = complex
@@ -1164,7 +1200,7 @@
 
   function addLayerCentered(layer, centerZ, height, regionId = layer.regionId) {
     if (layer.kind === 'square') {
-      addCenteredCube(0, 0, centerZ, layer.size, 0, regionId);
+      addSquarePrismCentered(centerZ, layer.size, height, regionId);
     } else {
       addCenteredPrism(
         0,
@@ -1181,7 +1217,7 @@
 
   function addLayerBase(layer, baseZ, height, regionId = layer.regionId) {
     if (layer.kind === 'square') {
-      addCube(0, 0, baseZ, layer.size, 0, regionId);
+      addSquarePrismBase(baseZ, layer.size, height, regionId);
     } else {
       addPrism(
         0,
@@ -1299,12 +1335,10 @@
 
     spec.squares.forEach((size, index) => {
       placeSymmetric((centerZ) => {
-        addCenteredCube(
-          0,
-          0,
+        addSquarePrismCentered(
           centerZ,
           size,
-          0,
+          layerHeight,
           'borobudur-square-' + index,
         );
       }, layerHeight);
@@ -1368,12 +1402,10 @@
     let z = 0;
 
     spec.squares.forEach((size, index) => {
-      addCube(
-        0,
-        0,
+      addSquarePrismBase(
         z,
         size,
-        0,
+        squareHeight,
         'borobudur-square-' + index,
       );
       z += squareHeight + gap;
