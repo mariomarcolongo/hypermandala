@@ -1,7 +1,10 @@
 /*
- * Hypermandala — square → cube → hypercube mandala explorer.
+ * Hypermandala — dimensional mandala explorer.
+ * 2D plans expand into 3D primitive structures and symmetric 4D W-extrusions.
+ *
  * Independent implementation inspired by the interaction model of
- * Tarek Sherif's Tesseract Explorer (MIT): https://github.com/tsherif/tesseract-explorer
+ * Tarek Sherif's Tesseract Explorer (MIT):
+ * https://github.com/tsherif/tesseract-explorer
  *
  * Copyright (C) 2026 Mario Marcolongo and contributors.
  * Licensed under GNU AGPL v3 or later. See ../LICENSE.
@@ -14,16 +17,23 @@
   const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
   const basisCanvas = document.getElementById('basisCanvas');
   const basisCtx = basisCanvas.getContext('2d');
+  const previewCanvas = document.getElementById('previewCanvas');
+  const previewCtx = previewCanvas.getContext('2d');
 
   const dimensionValue = document.getElementById('dimensionValue');
   const dimensionStatus = document.getElementById('dimensionStatus');
+  const symmetryStatus = document.getElementById('symmetryStatus');
   const hint = document.getElementById('hint');
   const resetAllButton = document.getElementById('resetAll');
+
   const dimensionButtons = [...document.querySelectorAll('[data-dimension]')];
   const projectionButtons = [...document.querySelectorAll('[data-projection]')];
   const colorButtons = [...document.querySelectorAll('[data-color]')];
+  const renderButtons = [...document.querySelectorAll('[data-render]')];
   const presetButtons = [...document.querySelectorAll('[data-preset]')];
   const complexityButtons = [...document.querySelectorAll('[data-complexity]')];
+  const formButtons = [...document.querySelectorAll('[data-form]')];
+
   const rotationRows = document.getElementById('rotationRows');
   const scaleRows = document.getElementById('scaleRows');
 
@@ -63,19 +73,27 @@
     transition: null,
     zMix: 0,
     wMix: 0,
-    projection: 'perspective',
-    colorMode: 'form',
+
     preset: 'square',
     complexity: 'simple',
+    formStyle: 'symmetric',
+
+    projection: 'perspective',
+    colorMode: 'form',
+    renderMode: 'solid-edges',
+
     rotations: { xw: 0, yw: 0, zw: 0, xy: 0, xz: 0, yz: 0 },
     auto: { xw: false, yw: false, zw: false, xy: false, xz: false, yz: false },
     scales: { x: 1, y: 1, z: 1, w: 1 },
+
     cameraYaw: -0.62,
     cameraPitch: 0.58,
     zoom: 1,
+
     pointerDown: false,
     pointerX: 0,
     pointerY: 0,
+
     width: innerWidth,
     height: innerHeight,
     dpr: 1,
@@ -84,7 +102,9 @@
 
   const modules = [];
   const planEdges = [];
+  const planFaces = [];
   const planEdgeKeys = new Set();
+  const planFaceKeys = new Set();
   const rotationUI = {};
   const scaleUI = {};
 
@@ -109,10 +129,29 @@
     const key = first.join(',') + '|' + second.join(',');
     if (planEdgeKeys.has(key)) return;
     planEdgeKeys.add(key);
-    planEdges.push({ a: [first[0], first[1], 0, 0], b: [second[0], second[1], 0, 0], axis });
+    planEdges.push({
+      a: [first[0], first[1], 0, 0],
+      b: [second[0], second[1], 0, 0],
+      axis,
+    });
   }
 
-  function extrudeTo4D(vertices3, edges3, wHalf, footprint, planExtra = []) {
+  function addPlanFace(points) {
+    const normalized = points.map((p) => [
+      Number(p[0].toFixed(4)),
+      Number(p[1].toFixed(4)),
+    ]);
+    const sorted = [...normalized]
+      .map((p) => p.join(','))
+      .sort()
+      .join('|');
+
+    if (planFaceKeys.has(sorted)) return;
+    planFaceKeys.add(sorted);
+    planFaces.push(normalized.map((p) => [p[0], p[1], 0, 0]));
+  }
+
+  function extrudeTo4D(vertices3, edges3, faces3, wHalf, footprint, planExtra = []) {
     const vertices = [];
     for (const w of [-wHalf, wHalf]) {
       for (const p of vertices3) vertices.push([p[0], p[1], p[2], w]);
@@ -120,22 +159,44 @@
 
     const n = vertices3.length;
     const edges = [];
+    const faces = [];
+
     for (let layer = 0; layer < 2; layer += 1) {
+      const offset = layer * n;
       for (const edge of edges3) {
         edges.push({
-          a: edge.a + layer * n,
-          b: edge.b + layer * n,
+          a: edge.a + offset,
+          b: edge.b + offset,
           axis: edge.axis,
           wLayer: layer === 0 ? -1 : 1,
         });
       }
+      for (const face of faces3) {
+        faces.push({
+          indices: face.indices.map((index) => index + offset),
+          axis: face.axis || 'n',
+          wLayer: layer === 0 ? -1 : 1,
+          bridge: false,
+        });
+      }
     }
+
     for (let i = 0; i < n; i += 1) {
       edges.push({ a: i, b: i + n, axis: 'w', wLayer: 0 });
     }
 
-    modules.push({ vertices, edges });
+    for (const edge of edges3) {
+      faces.push({
+        indices: [edge.a, edge.b, edge.b + n, edge.a + n],
+        axis: 'w',
+        wLayer: 0,
+        bridge: true,
+      });
+    }
 
+    modules.push({ vertices, edges, faces });
+
+    addPlanFace(footprint);
     for (let i = 0; i < footprint.length; i += 1) {
       const planAxis = footprint.length === 4 ? (i % 2 === 0 ? 'x' : 'y') : 'n';
       addPlanEdge(footprint[i], footprint[(i + 1) % footprint.length], planAxis);
@@ -143,14 +204,15 @@
     for (const edge of planExtra) addPlanEdge(edge[0], edge[1], 'n');
   }
 
-  function addCube(cx, cy, baseZ, size, rotation = 0) {
+  function cubeData(cx, cy, baseZ, size, rotation = 0) {
     const h = size / 2;
     const vertices3 = [];
+
     for (let zBit = 0; zBit < 2; zBit += 1) {
       for (let yBit = 0; yBit < 2; yBit += 1) {
         for (let xBit = 0; xBit < 2; xBit += 1) {
-          let x = (xBit ? h : -h);
-          let y = (yBit ? h : -h);
+          let x = xBit ? h : -h;
+          let y = yBit ? h : -h;
           [x, y] = rotateXYPoint(x, y, rotation);
           vertices3.push([cx + x, cy + y, baseZ + zBit * size]);
         }
@@ -161,55 +223,61 @@
     for (let i = 0; i < 8; i += 1) {
       for (let axis = 0; axis < 3; axis += 1) {
         const j = i ^ (1 << axis);
-        if (i < j) edges3.push({ a: i, b: j, axis: axis === 0 ? 'x' : axis === 1 ? 'y' : 'z' });
+        if (i < j) {
+          edges3.push({
+            a: i,
+            b: j,
+            axis: axis === 0 ? 'x' : axis === 1 ? 'y' : 'z',
+          });
+        }
       }
     }
 
+    const faces3 = [
+      { indices: [0,2,6,4], axis: 'x' },
+      { indices: [1,5,7,3], axis: 'x' },
+      { indices: [0,4,5,1], axis: 'y' },
+      { indices: [2,3,7,6], axis: 'y' },
+      { indices: [0,1,3,2], axis: 'z' },
+      { indices: [4,6,7,5], axis: 'z' },
+    ];
+
     const footprint = [
-      [-h, -h], [h, -h], [h, h], [-h, h],
+      [-h,-h], [h,-h], [h,h], [-h,h],
     ].map(([x, y]) => {
       const p = rotateXYPoint(x, y, rotation);
       return [cx + p[0], cy + p[1]];
     });
 
-    extrudeTo4D(vertices3, edges3, size * 0.5, footprint);
+    return { vertices3, edges3, faces3, footprint };
   }
 
-  function addPyramid(cx, cy, baseZ, size, height, rotation = 0) {
-    const h = size / 2;
-    const base = [
-      [-h, -h], [h, -h], [h, h], [-h, h],
-    ].map(([x, y]) => {
-      const p = rotateXYPoint(x, y, rotation);
-      return [cx + p[0], cy + p[1], baseZ];
-    });
+  function addCube(cx, cy, baseZ, size, rotation = 0) {
+    const data = cubeData(cx, cy, baseZ, size, rotation);
+    extrudeTo4D(
+      data.vertices3,
+      data.edges3,
+      data.faces3,
+      size * 0.5,
+      data.footprint,
+    );
+  }
 
-    const vertices3 = [...base, [cx, cy, baseZ + height]];
-    const edges3 = [
-      { a: 0, b: 1, axis: 'x' },
-      { a: 1, b: 2, axis: 'y' },
-      { a: 2, b: 3, axis: 'x' },
-      { a: 3, b: 0, axis: 'y' },
-      { a: 0, b: 4, axis: 'n' },
-      { a: 1, b: 4, axis: 'n' },
-      { a: 2, b: 4, axis: 'n' },
-      { a: 3, b: 4, axis: 'n' },
-    ];
-
-    const footprint = base.map((p) => [p[0], p[1]]);
-    const center = [cx, cy];
-    const extra = footprint.map((p) => [p, center]);
-    extrudeTo4D(vertices3, edges3, size * 0.5, footprint, extra);
+  function addCenteredCube(cx, cy, centerZ, size, rotation = 0) {
+    addCube(cx, cy, centerZ - size / 2, size, rotation);
   }
 
   function polygonFootprint(cx, cy, radius, sides, rotation = 0) {
     return Array.from({ length: sides }, (_, i) => {
       const angle = rotation + (i / sides) * TAU;
-      return [cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius];
+      return [
+        cx + Math.cos(angle) * radius,
+        cy + Math.sin(angle) * radius,
+      ];
     });
   }
 
-  function addPrism(cx, cy, baseZ, radius, sides, height, rotation = 0) {
+  function prismData(cx, cy, baseZ, radius, sides, height, rotation = 0) {
     const footprint = polygonFootprint(cx, cy, radius, sides, rotation);
     const vertices3 = [
       ...footprint.map(([x, y]) => [x, y, baseZ]),
@@ -217,19 +285,51 @@
     ];
 
     const edges3 = [];
+    const faces3 = [];
+
     for (let i = 0; i < sides; i += 1) {
       const next = (i + 1) % sides;
       edges3.push({ a: i, b: next, axis: 'n' });
       edges3.push({ a: i + sides, b: next + sides, axis: 'n' });
       edges3.push({ a: i, b: i + sides, axis: 'z' });
+      faces3.push({
+        indices: [i, next, next + sides, i + sides],
+        axis: 'n',
+      });
     }
 
-    const center = [cx, cy];
-    const spokes = footprint.map((point) => [point, center]);
-    extrudeTo4D(vertices3, edges3, radius * 0.34, footprint, spokes);
+    faces3.push({
+      indices: Array.from({ length: sides }, (_, i) => sides - 1 - i),
+      axis: 'z',
+    });
+    faces3.push({
+      indices: Array.from({ length: sides }, (_, i) => i + sides),
+      axis: 'z',
+    });
+
+    return { vertices3, edges3, faces3, footprint };
   }
 
-  function addPolygonPyramid(cx, cy, baseZ, radius, sides, height, rotation = 0) {
+  function addPrism(cx, cy, baseZ, radius, sides, height, rotation = 0) {
+    const data = prismData(cx, cy, baseZ, radius, sides, height, rotation);
+    const center = [cx, cy];
+    const spokes = data.footprint.map((point) => [point, center]);
+
+    extrudeTo4D(
+      data.vertices3,
+      data.edges3,
+      data.faces3,
+      radius * 0.34,
+      data.footprint,
+      spokes,
+    );
+  }
+
+  function addCenteredPrism(cx, cy, centerZ, radius, sides, height, rotation = 0) {
+    addPrism(cx, cy, centerZ - height / 2, radius, sides, height, rotation);
+  }
+
+  function pyramidData(cx, cy, baseZ, radius, sides, height, rotation = 0) {
     const footprint = polygonFootprint(cx, cy, radius, sides, rotation);
     const vertices3 = [
       ...footprint.map(([x, y]) => [x, y, baseZ]),
@@ -237,54 +337,183 @@
     ];
     const apex = sides;
     const edges3 = [];
+    const faces3 = [];
 
     for (let i = 0; i < sides; i += 1) {
       const next = (i + 1) % sides;
       edges3.push({ a: i, b: next, axis: 'n' });
       edges3.push({ a: i, b: apex, axis: 'n' });
+      faces3.push({ indices: [i, next, apex], axis: 'n' });
+    }
+
+    faces3.push({
+      indices: Array.from({ length: sides }, (_, i) => sides - 1 - i),
+      axis: 'z',
+    });
+
+    return { vertices3, edges3, faces3, footprint };
+  }
+
+  function addPolygonPyramid(cx, cy, baseZ, radius, sides, height, rotation = 0) {
+    const data = pyramidData(cx, cy, baseZ, radius, sides, height, rotation);
+    const center = [cx, cy];
+    const spokes = data.footprint.map((point) => [point, center]);
+
+    extrudeTo4D(
+      data.vertices3,
+      data.edges3,
+      data.faces3,
+      radius * 0.34,
+      data.footprint,
+      spokes,
+    );
+  }
+
+  function addPyramid(cx, cy, baseZ, size, height, rotation = 0) {
+    const radius = size / Math.sqrt(2);
+    addPolygonPyramid(cx, cy, baseZ, radius, 4, height, rotation + Math.PI / 4);
+  }
+
+  function addBipyramid(cx, cy, centerZ, radius, sides, height, rotation = 0) {
+    const footprint = polygonFootprint(cx, cy, radius, sides, rotation);
+    const vertices3 = [
+      ...footprint.map(([x, y]) => [x, y, centerZ]),
+      [cx, cy, centerZ + height],
+      [cx, cy, centerZ - height],
+    ];
+
+    const upper = sides;
+    const lower = sides + 1;
+    const edges3 = [];
+    const faces3 = [];
+
+    for (let i = 0; i < sides; i += 1) {
+      const next = (i + 1) % sides;
+      edges3.push({ a: i, b: next, axis: 'n' });
+      edges3.push({ a: i, b: upper, axis: 'n' });
+      edges3.push({ a: i, b: lower, axis: 'n' });
+
+      faces3.push({ indices: [i, next, upper], axis: 'n' });
+      faces3.push({ indices: [next, i, lower], axis: 'n' });
     }
 
     const center = [cx, cy];
     const spokes = footprint.map((point) => [point, center]);
-    extrudeTo4D(vertices3, edges3, radius * 0.34, footprint, spokes);
+
+    extrudeTo4D(
+      vertices3,
+      edges3,
+      faces3,
+      radius * 0.34,
+      footprint,
+      spokes,
+    );
+  }
+
+  function addSquareBipyramid(cx, cy, centerZ, size, height, rotation = 0) {
+    addBipyramid(
+      cx,
+      cy,
+      centerZ,
+      size / Math.sqrt(2),
+      4,
+      height,
+      rotation + Math.PI / 4,
+    );
   }
 
   function resetGeometry() {
     modules.length = 0;
     planEdges.length = 0;
+    planFaces.length = 0;
     planEdgeKeys.clear();
+    planFaceKeys.clear();
   }
 
-  function buildSquareTemple() {
-    resetGeometry();
-
-    const size = 0.34;
-    const spacing = 0.47;
+  function squareBaseCells(complex) {
     const base = [];
-
     for (let gx = -2; gx <= 2; gx += 1) {
       for (let gy = -2; gy <= 2; gy += 1) {
         if (Math.abs(gx) + Math.abs(gy) <= 2) base.push([gx, gy]);
       }
     }
-    base.push([3, 0], [-3, 0], [0, 3], [0, -3]);
+    base.push([3,0],[-3,0],[0,3],[0,-3]);
 
-    if (state.complexity === 'complex') {
+    if (complex) {
       base.push(
-        [2, 1], [2, -1], [-2, 1], [-2, -1],
-        [1, 2], [1, -2], [-1, 2], [-1, -2],
+        [2,1],[2,-1],[-2,1],[-2,-1],
+        [1,2],[1,-2],[-1,2],[-1,-2],
+      );
+    }
+    return base;
+  }
+
+  function squareSecondCells(complex) {
+    return complex
+      ? [[0,0],[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]
+      : [[0,0],[1,0],[-1,0],[0,1],[0,-1]];
+  }
+
+  function buildSquareSymmetric() {
+    resetGeometry();
+    const complex = state.complexity === 'complex';
+    const size = 0.34;
+    const spacing = 0.47;
+
+    for (const [gx, gy] of squareBaseCells(complex)) {
+      addCenteredCube(gx * spacing, gy * spacing, 0, size, 0);
+    }
+
+    const secondZ = 0.48;
+    for (const sign of [-1, 1]) {
+      for (const [gx, gy] of squareSecondCells(complex)) {
+        addCenteredCube(gx * spacing, gy * spacing, sign * secondZ, size, 0);
+      }
+    }
+
+    addSquareBipyramid(0, 0, 0, size * 1.18, size * 1.6, 0);
+
+    for (const [gx, gy] of [[3,0],[-3,0],[0,3],[0,-3]]) {
+      addSquareBipyramid(
+        gx * spacing,
+        gy * spacing,
+        0,
+        size * 0.76,
+        size * 0.78,
+        0,
       );
     }
 
-    for (const [gx, gy] of base) {
+    if (complex) {
+      const highZ = 0.88;
+      for (const sign of [-1, 1]) {
+        addCenteredCube(0, 0, sign * highZ, size * 0.82, Math.PI / 4);
+      }
+
+      for (const [gx, gy] of [[2,2],[2,-2],[-2,2],[-2,-2]]) {
+        addSquareBipyramid(
+          gx * spacing,
+          gy * spacing,
+          0,
+          size * 0.58,
+          size * 0.6,
+          Math.PI / 4,
+        );
+      }
+    }
+  }
+
+  function buildSquareTemple() {
+    resetGeometry();
+    const complex = state.complexity === 'complex';
+    const size = 0.34;
+    const spacing = 0.47;
+
+    for (const [gx, gy] of squareBaseCells(complex)) {
       addCube(gx * spacing, gy * spacing, 0, size, 0);
     }
 
-    const second = state.complexity === 'complex'
-      ? [[0,0], [1,0], [-1,0], [0,1], [0,-1], [1,1], [1,-1], [-1,1], [-1,-1]]
-      : [[0,0], [1,0], [-1,0], [0,1], [0,-1]];
-
-    for (const [gx, gy] of second) {
+    for (const [gx, gy] of squareSecondCells(complex)) {
       addCube(gx * spacing, gy * spacing, size, size, 0);
     }
 
@@ -292,40 +521,107 @@
     addPyramid(0, 0, size * 3, size * 1.16, size * 1.12, 0);
 
     for (const [gx, gy] of [[3,0],[-3,0],[0,3],[0,-3]]) {
-      addPyramid(gx * spacing, gy * spacing, size, size * 0.82, size * 0.72, 0);
+      addPyramid(
+        gx * spacing,
+        gy * spacing,
+        size,
+        size * 0.82,
+        size * 0.72,
+        0,
+      );
     }
 
-    if (state.complexity === 'complex') {
+    if (complex) {
       for (const [gx, gy] of [[2,2],[2,-2],[-2,2],[-2,-2]]) {
-        addPyramid(gx * spacing, gy * spacing, 0, size * 0.68, size * 0.58, Math.PI / 4);
+        addPyramid(
+          gx * spacing,
+          gy * spacing,
+          0,
+          size * 0.68,
+          size * 0.58,
+          Math.PI / 4,
+        );
       }
     }
   }
 
-  function buildTriangleYantra() {
-    resetGeometry();
-
-    const layers = state.complexity === 'complex'
+  function yantraLayerSpecs() {
+    return state.complexity === 'complex'
       ? [
-          [1.48, 0.00, -Math.PI / 2],
-          [1.28, 0.12, Math.PI / 2],
-          [1.08, 0.24, -Math.PI / 2],
-          [0.88, 0.36, Math.PI / 2],
-          [0.68, 0.48, -Math.PI / 2],
-          [0.48, 0.60, Math.PI / 2],
+          [1.48, -Math.PI / 2],
+          [1.28, Math.PI / 2],
+          [1.08, -Math.PI / 2],
+          [0.88, Math.PI / 2],
+          [0.68, -Math.PI / 2],
+          [0.48, Math.PI / 2],
         ]
       : [
-          [1.42, 0.00, -Math.PI / 2],
-          [1.04, 0.18, Math.PI / 2],
-          [0.72, 0.36, -Math.PI / 2],
-          [0.46, 0.54, Math.PI / 2],
+          [1.42, -Math.PI / 2],
+          [1.04, Math.PI / 2],
+          [0.72, -Math.PI / 2],
+          [0.46, Math.PI / 2],
         ];
+  }
 
-    for (const [radius, baseZ, rotation] of layers) {
-      addPrism(0, 0, baseZ, radius, 3, 0.14, rotation);
+  function buildYantraSymmetric() {
+    resetGeometry();
+
+    const layers = yantraLayerSpecs();
+    layers.forEach(([radius, rotation], index) => {
+      const thickness = 0.12 + index * 0.025;
+      addCenteredPrism(0, 0, 0, radius, 3, thickness, rotation);
+    });
+
+    addBipyramid(0, 0, 0, 0.34, 3, 0.62, -Math.PI / 2);
+
+    const satelliteCount = state.complexity === 'complex' ? 12 : 6;
+    const ringRadius = state.complexity === 'complex' ? 1.38 : 1.24;
+    const satelliteRadius = state.complexity === 'complex' ? 0.19 : 0.23;
+
+    for (let i = 0; i < satelliteCount; i += 1) {
+      const angle = (i / satelliteCount) * TAU - Math.PI / 2;
+      const cx = Math.cos(angle) * ringRadius;
+      const cy = Math.sin(angle) * ringRadius;
+      const rotation = angle + Math.PI / 2 + (i % 2 ? Math.PI : 0);
+      addCenteredPrism(cx, cy, 0, satelliteRadius, 3, 0.18, rotation);
     }
 
-    addPolygonPyramid(0, 0, layers[layers.length - 1][1] + 0.14, 0.34, 3, 0.48, -Math.PI / 2);
+    if (state.complexity === 'complex') {
+      for (let i = 0; i < 6; i += 1) {
+        const angle = (i / 6) * TAU - Math.PI / 2;
+        const cx = Math.cos(angle) * 0.82;
+        const cy = Math.sin(angle) * 0.82;
+        addBipyramid(
+          cx,
+          cy,
+          0,
+          0.18,
+          3,
+          0.34,
+          angle + Math.PI / 2,
+        );
+      }
+    }
+  }
+
+  function buildYantraTemple() {
+    resetGeometry();
+    const layers = yantraLayerSpecs();
+
+    layers.forEach(([radius, rotation], index) => {
+      addPrism(
+        0,
+        0,
+        index * 0.12,
+        radius,
+        3,
+        0.14,
+        rotation,
+      );
+    });
+
+    const topZ = (layers.length - 1) * 0.12 + 0.14;
+    addPolygonPyramid(0, 0, topZ, 0.34, 3, 0.48, -Math.PI / 2);
 
     const satelliteCount = state.complexity === 'complex' ? 12 : 6;
     const ringRadius = state.complexity === 'complex' ? 1.38 : 1.24;
@@ -344,74 +640,232 @@
         const angle = (i / 6) * TAU - Math.PI / 2;
         const cx = Math.cos(angle) * 0.82;
         const cy = Math.sin(angle) * 0.82;
-        addPolygonPyramid(cx, cy, 0.5, 0.18, 3, 0.28, angle + Math.PI / 2);
+        addPolygonPyramid(
+          cx,
+          cy,
+          0.5,
+          0.18,
+          3,
+          0.28,
+          angle + Math.PI / 2,
+        );
       }
     }
   }
 
-  function buildHexagonalMandala() {
-    resetGeometry();
-
-    const centralLayers = state.complexity === 'complex'
+  function hexLayerSpecs() {
+    return state.complexity === 'complex'
       ? [
-          [1.28, 0.00, 0],
-          [1.02, 0.14, Math.PI / 6],
-          [0.78, 0.28, 0],
-          [0.56, 0.42, Math.PI / 6],
+          [1.28, 0],
+          [1.02, Math.PI / 6],
+          [0.78, 0],
+          [0.56, Math.PI / 6],
         ]
       : [
-          [1.22, 0.00, 0],
-          [0.86, 0.18, Math.PI / 6],
-          [0.52, 0.36, 0],
+          [1.22, 0],
+          [0.86, Math.PI / 6],
+          [0.52, 0],
         ];
+  }
 
-    for (const [radius, baseZ, rotation] of centralLayers) {
-      addPrism(0, 0, baseZ, radius, 6, 0.15, rotation);
+  function addHexSatelliteRing(centerZ) {
+    for (let i = 0; i < 6; i += 1) {
+      const angle = (i / 6) * TAU;
+      addCenteredPrism(
+        Math.cos(angle) * 1.08,
+        Math.sin(angle) * 1.08,
+        centerZ,
+        0.28,
+        6,
+        0.2,
+        Math.PI / 6,
+      );
     }
+  }
 
-    addPolygonPyramid(
-      0,
-      0,
-      centralLayers[centralLayers.length - 1][1] + 0.15,
-      0.36,
-      6,
-      0.44,
-      Math.PI / 6,
-    );
+  function buildHexSymmetric() {
+    resetGeometry();
 
-    const firstRingCount = 6;
-    for (let i = 0; i < firstRingCount; i += 1) {
-      const angle = (i / firstRingCount) * TAU;
-      const cx = Math.cos(angle) * 1.08;
-      const cy = Math.sin(angle) * 1.08;
-      addPrism(cx, cy, 0.12, 0.28, 6, 0.2, Math.PI / 6);
+    const layers = hexLayerSpecs();
+    layers.forEach(([radius, rotation], index) => {
+      addCenteredPrism(
+        0,
+        0,
+        0,
+        radius,
+        6,
+        0.14 + index * 0.035,
+        rotation,
+      );
+    });
+
+    addBipyramid(0, 0, 0, 0.36, 6, 0.58, Math.PI / 6);
+    addHexSatelliteRing(0);
+
+    if (state.complexity === 'complex') {
+      for (let i = 0; i < 12; i += 1) {
+        const angle = (i / 12) * TAU + Math.PI / 12;
+        addCenteredPrism(
+          Math.cos(angle) * 1.55,
+          Math.sin(angle) * 1.55,
+          0,
+          0.17,
+          6,
+          0.15,
+          i % 2 ? Math.PI / 6 : 0,
+        );
+      }
+
+      for (let i = 0; i < 6; i += 1) {
+        const angle = (i / 6) * TAU;
+        addBipyramid(
+          Math.cos(angle) * 0.72,
+          Math.sin(angle) * 0.72,
+          0,
+          0.19,
+          6,
+          0.34,
+          Math.PI / 6,
+        );
+      }
+    }
+  }
+
+  function buildHexTemple() {
+    resetGeometry();
+
+    const layers = hexLayerSpecs();
+    layers.forEach(([radius, rotation], index) => {
+      addPrism(
+        0,
+        0,
+        index * 0.14,
+        radius,
+        6,
+        0.15,
+        rotation,
+      );
+    });
+
+    const topZ = (layers.length - 1) * 0.14 + 0.15;
+    addPolygonPyramid(0, 0, topZ, 0.36, 6, 0.44, Math.PI / 6);
+
+    for (let i = 0; i < 6; i += 1) {
+      const angle = (i / 6) * TAU;
+      addPrism(
+        Math.cos(angle) * 1.08,
+        Math.sin(angle) * 1.08,
+        0.12,
+        0.28,
+        6,
+        0.2,
+        Math.PI / 6,
+      );
     }
 
     if (state.complexity === 'complex') {
       for (let i = 0; i < 12; i += 1) {
         const angle = (i / 12) * TAU + Math.PI / 12;
-        const cx = Math.cos(angle) * 1.55;
-        const cy = Math.sin(angle) * 1.55;
-        addPrism(cx, cy, 0, 0.17, 6, 0.15, i % 2 ? Math.PI / 6 : 0);
+        addPrism(
+          Math.cos(angle) * 1.55,
+          Math.sin(angle) * 1.55,
+          0,
+          0.17,
+          6,
+          0.15,
+          i % 2 ? Math.PI / 6 : 0,
+        );
       }
 
       for (let i = 0; i < 6; i += 1) {
         const angle = (i / 6) * TAU;
-        const cx = Math.cos(angle) * 0.72;
-        const cy = Math.sin(angle) * 0.72;
-        addPolygonPyramid(cx, cy, 0.48, 0.19, 6, 0.28, Math.PI / 6);
+        addPolygonPyramid(
+          Math.cos(angle) * 0.72,
+          Math.sin(angle) * 0.72,
+          0.48,
+          0.19,
+          6,
+          0.28,
+          Math.PI / 6,
+        );
       }
+    }
+  }
+
+  function expectedRotationOrder() {
+    if (state.preset === 'square') return 4;
+    if (state.preset === 'hex') return 6;
+    return 3;
+  }
+
+  function geometryPointKey(point) {
+    return point.map((value) => (Math.round(value * 1000) / 1000).toFixed(3)).join(',');
+  }
+
+  function geometrySymmetryAudit() {
+    const set = new Set();
+    const points = [];
+
+    for (const module of modules) {
+      for (const p of module.vertices) {
+        const key = geometryPointKey(p);
+        if (!set.has(key)) {
+          set.add(key);
+          points.push(p);
+        }
+      }
+    }
+
+    const order = expectedRotationOrder();
+    const angle = TAU / order;
+    let rotation = true;
+    let mirrorZ = true;
+    let mirrorW = true;
+
+    for (const p of points) {
+      const xy = rotateXYPoint(p[0], p[1], angle);
+      if (!set.has(geometryPointKey([xy[0], xy[1], p[2], p[3]]))) rotation = false;
+      if (!set.has(geometryPointKey([p[0], p[1], -p[2], p[3]]))) mirrorZ = false;
+      if (!set.has(geometryPointKey([p[0], p[1], p[2], -p[3]]))) mirrorW = false;
+      if (!rotation && !mirrorZ && !mirrorW) break;
+    }
+
+    return { order, rotation, mirrorZ, mirrorW };
+  }
+
+  function updateSymmetryStatus() {
+    const audit = geometrySymmetryAudit();
+    symmetryStatus.className = 'symmetry-status';
+
+    if (state.formStyle === 'symmetric') {
+      const ok = audit.rotation && audit.mirrorZ && audit.mirrorW;
+      symmetryStatus.classList.add(ok ? 'is-ok' : 'is-warning');
+      symmetryStatus.textContent = ok
+        ? audit.order + '-fold XY · ±Z · ±W symmetry verified'
+        : 'symmetry audit warning';
+    } else {
+      const ok = audit.rotation && audit.mirrorW;
+      symmetryStatus.classList.add(ok ? 'is-directional' : 'is-warning');
+      symmetryStatus.textContent = ok
+        ? audit.order + '-fold XY · ±W · +Z temple direction'
+        : 'temple symmetry audit warning';
     }
   }
 
   function buildActiveMandala() {
     if (state.preset === 'yantra') {
-      buildTriangleYantra();
+      if (state.formStyle === 'temple') buildYantraTemple();
+      else buildYantraSymmetric();
     } else if (state.preset === 'hex') {
-      buildHexagonalMandala();
+      if (state.formStyle === 'temple') buildHexTemple();
+      else buildHexSymmetric();
     } else {
-      buildSquareTemple();
+      if (state.formStyle === 'temple') buildSquareTemple();
+      else buildSquareSymmetric();
     }
+
+    updateSymmetryStatus();
+    drawPreview();
   }
 
   function rotatePlane(point, a, b, angle) {
@@ -447,6 +901,7 @@
     for (const config of ROTATION_CONFIG) {
       rotatePlane(p, config.a, config.b, activeAngle(config));
     }
+
     return p;
   }
 
@@ -455,11 +910,16 @@
       return [p[0], p[1], p[2]];
     }
 
-    const cameraW = 3.4;
-    const focal = 3.4;
-    const denom = Math.max(0.72, cameraW - p[3]);
+    const cameraW = 3.6;
+    const focal = 3.6;
+    const denom = Math.max(0.8, cameraW - p[3]);
     const factor = focal / denom;
-    return [p[0] * factor, p[1] * factor, p[2] * factor];
+
+    return [
+      p[0] * factor,
+      p[1] * factor,
+      p[2] * factor,
+    ];
   }
 
   function cameraTransform(p) {
@@ -491,11 +951,11 @@
 
     const cameraZ = 5.8;
     const factor = cameraZ / Math.max(2.6, cameraZ - p3[2]);
-    const scale = Math.min(state.width, state.height) * 0.255 * state.zoom;
+    const scale = Math.min(state.width, state.height) * 0.245 * state.zoom;
 
     return {
-      x: state.width * 0.46 + p3[0] * factor * scale,
-      y: state.height * 0.48 + p3[1] * factor * scale,
+      x: state.width * 0.47 + p3[0] * factor * scale,
+      y: state.height * 0.49 + p3[1] * factor * scale,
       depth: p3[2],
       w: p4[3],
     };
@@ -509,7 +969,12 @@
         : axis === 'w' ? COLORS.w
         : COLORS.neutral;
     }
-    return axis === 'w' ? '#d7b45f' : axis === 'n' ? '#f0eadf' : COLORS.form;
+
+    return axis === 'w'
+      ? '#d8b662'
+      : axis === 'n'
+        ? '#eee7d8'
+        : COLORS.form;
   }
 
   function drawLine(a, b, color, width, alpha) {
@@ -523,42 +988,139 @@
     ctx.globalAlpha = 1;
   }
 
-  function drawPlan(alpha) {
-    if (alpha <= 0.001) return;
-
-    for (const edge of planEdges) {
-      const a = projectToScreen(edge.a);
-      const b = projectToScreen(edge.b);
-      drawLine(a, b, axisColor(edge.axis), 1.15, alpha * 0.9);
+  function polygonArea2D(points) {
+    let sum = 0;
+    for (let i = 0; i < points.length; i += 1) {
+      const a = points[i];
+      const b = points[(i + 1) % points.length];
+      sum += a.x * b.y - b.x * a.y;
     }
+    return sum * 0.5;
+  }
+
+  function rawPolygonArea(points) {
+    let sum = 0;
+    for (let i = 0; i < points.length; i += 1) {
+      const a = points[i];
+      const b = points[(i + 1) % points.length];
+      sum += a[0] * b[1] - b[0] * a[1];
+    }
+    return Math.abs(sum * 0.5);
+  }
+
+  function faceVisibility(face) {
+    if (face.bridge) return state.wMix;
+    if (face.wLayer === 1) return state.wMix;
+    return 1;
   }
 
   function edgeVisibility(edge) {
     if (edge.axis === 'w') return state.wMix;
     if (edge.axis === 'z') return state.zMix;
-
-    if (edge.wLayer === 1) return mix(0, 0.78, state.wMix);
-    if (edge.wLayer === -1) return mix(1, 0.78, state.wMix);
+    if (edge.wLayer === 1) return state.wMix;
     return 1;
   }
 
-  function drawModules(alpha) {
+  function faceFillColor(axis, depth) {
+    if (state.colorMode === 'axis') return axisColor(axis);
+
+    const normalized = clamp((depth + 1.8) / 3.8, 0, 1);
+    const light = 31 + normalized * 23;
+    const saturation = axis === 'w' ? 39 : 21;
+    const hue = axis === 'w' ? 43 : 38;
+    return 'hsl(' + hue + ' ' + saturation + '% ' + light + '%)';
+  }
+
+  function drawPlanFaces(alpha) {
+    if (state.renderMode === 'wire' || alpha <= 0.001) return;
+
+    const sorted = [...planFaces].sort((a, b) => rawPolygonArea(b) - rawPolygonArea(a));
+    for (const face of sorted) {
+      const points = face.map(projectToScreen);
+      if (Math.abs(polygonArea2D(points)) < 0.2) continue;
+
+      ctx.beginPath();
+      points.forEach((p, index) => {
+        if (index === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      });
+      ctx.closePath();
+      ctx.fillStyle = state.colorMode === 'axis' ? '#d9dde4' : '#c9b995';
+      ctx.globalAlpha = alpha * 0.16;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function drawPlanEdges(alpha) {
     if (alpha <= 0.001) return;
 
+    for (const edge of planEdges) {
+      const a = projectToScreen(edge.a);
+      const b = projectToScreen(edge.b);
+      drawLine(a, b, axisColor(edge.axis), 1.15, alpha * 0.92);
+    }
+  }
+
+  function drawFaces(alpha) {
+    if (state.renderMode === 'wire' || alpha <= 0.001) return;
+
     const rendered = [];
+
+    for (const module of modules) {
+      for (const face of module.faces) {
+        const visibility = faceVisibility(face);
+        if (visibility <= 0.002) continue;
+
+        const points = face.indices.map((index) => projectToScreen(module.vertices[index]));
+        if (Math.abs(polygonArea2D(points)) < 0.45) continue;
+
+        const depth = points.reduce((sum, p) => sum + p.depth, 0) / points.length;
+        rendered.push({ face, points, depth, visibility });
+      }
+    }
+
+    rendered.sort((a, b) => a.depth - b.depth);
+
+    for (const item of rendered) {
+      ctx.beginPath();
+      item.points.forEach((p, index) => {
+        if (index === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      });
+      ctx.closePath();
+
+      ctx.fillStyle = faceFillColor(item.face.axis, item.depth);
+      ctx.globalAlpha = alpha
+        * item.visibility
+        * (state.renderMode === 'solid' ? 0.985 : 0.93);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function drawEdges(alpha) {
+    if (state.renderMode === 'solid' || alpha <= 0.001) return;
+
+    const rendered = [];
+
     for (const module of modules) {
       for (const edge of module.edges) {
+        const visibility = edgeVisibility(edge);
+        if (visibility <= 0.002) continue;
+
         const a = projectToScreen(module.vertices[edge.a]);
         const b = projectToScreen(module.vertices[edge.b]);
         const dx = b.x - a.x;
         const dy = b.y - a.y;
-        if (dx * dx + dy * dy < 0.3) continue;
+        if (dx * dx + dy * dy < 0.25) continue;
 
         rendered.push({
           edge,
           a,
           b,
           depth: (a.depth + b.depth) * 0.5,
+          visibility,
         });
       }
     }
@@ -566,20 +1128,34 @@
     rendered.sort((a, b) => a.depth - b.depth);
 
     for (const item of rendered) {
-      const depth = clamp((item.depth + 1.4) / 3.2, 0, 1);
-      const visibility = edgeVisibility(item.edge);
-      if (visibility <= 0.002) continue;
-      const width = 0.7 + depth * 0.55 + (item.edge.axis === 'w' ? 0.12 : 0);
-      const lineAlpha = alpha * visibility * (0.34 + depth * 0.53);
-      drawLine(item.a, item.b, axisColor(item.edge.axis), width, lineAlpha);
+      const depth = clamp((item.depth + 1.6) / 3.5, 0, 1);
+      const width = 0.72 + depth * 0.52 + (item.edge.axis === 'w' ? 0.14 : 0);
+      const lineAlpha = alpha
+        * item.visibility
+        * (state.renderMode === 'wire' ? 0.82 : 0.72)
+        * (0.55 + depth * 0.42);
+
+      drawLine(
+        item.a,
+        item.b,
+        axisColor(item.edge.axis),
+        width,
+        lineAlpha,
+      );
     }
   }
 
   function drawVertices(alpha) {
-    if (alpha <= 0.001 || state.zMix < 0.15) return;
-    const seen = new Set();
+    if (
+      state.renderMode === 'solid'
+      || alpha <= 0.001
+      || state.zMix < 0.15
+    ) return;
 
-    ctx.fillStyle = state.colorMode === 'axis' ? 'rgba(248,248,245,.86)' : 'rgba(245,239,225,.72)';
+    const seen = new Set();
+    ctx.fillStyle = state.colorMode === 'axis'
+      ? 'rgba(248,248,245,.86)'
+      : 'rgba(245,239,225,.70)';
 
     for (const module of modules) {
       for (const vertex of module.vertices) {
@@ -587,12 +1163,14 @@
         const key = Math.round(p.x * 2) + ':' + Math.round(p.y * 2);
         if (seen.has(key)) continue;
         seen.add(key);
-        ctx.globalAlpha = alpha * (0.32 + state.wMix * 0.2);
+
+        ctx.globalAlpha = alpha * (0.2 + state.wMix * 0.13);
         ctx.beginPath();
-        ctx.arc(p.x, p.y, 1.05, 0, TAU);
+        ctx.arc(p.x, p.y, 0.95, 0, TAU);
         ctx.fill();
       }
     }
+
     ctx.globalAlpha = 1;
   }
 
@@ -601,11 +1179,11 @@
 
     const radius = Math.min(state.width, state.height) * 0.38;
     const glow = ctx.createRadialGradient(
-      state.width * 0.46,
-      state.height * 0.47,
+      state.width * 0.47,
+      state.height * 0.48,
       0,
-      state.width * 0.46,
-      state.height * 0.47,
+      state.width * 0.47,
+      state.height * 0.48,
       radius,
     );
     glow.addColorStop(0, 'rgba(105,116,136,.055)');
@@ -617,15 +1195,73 @@
     ctx.lineJoin = 'round';
 
     const planAlpha = 1 - state.zMix;
-    drawPlan(planAlpha);
-    drawModules(state.zMix);
+    drawPlanFaces(planAlpha);
+    drawPlanEdges(planAlpha);
+
+    drawFaces(state.zMix);
+    drawEdges(state.zMix);
     drawVertices(state.zMix);
+  }
+
+  function drawPreview() {
+    const width = previewCanvas.width;
+    const height = previewCanvas.height;
+    previewCtx.clearRect(0, 0, width, height);
+
+    if (!planEdges.length) return;
+
+    const points = [];
+    for (const edge of planEdges) {
+      points.push(edge.a, edge.b);
+    }
+
+    const minX = Math.min(...points.map((p) => p[0]));
+    const maxX = Math.max(...points.map((p) => p[0]));
+    const minY = Math.min(...points.map((p) => p[1]));
+    const maxY = Math.max(...points.map((p) => p[1]));
+
+    const spanX = Math.max(0.01, maxX - minX);
+    const spanY = Math.max(0.01, maxY - minY);
+    const scale = Math.min((width - 20) / spanX, (height - 20) / spanY);
+    const cx = (minX + maxX) * 0.5;
+    const cy = (minY + maxY) * 0.5;
+
+    const map = (p) => ({
+      x: width * 0.5 + (p[0] - cx) * scale,
+      y: height * 0.5 + (p[1] - cy) * scale,
+    });
+
+    const sortedFaces = [...planFaces].sort((a, b) => rawPolygonArea(b) - rawPolygonArea(a));
+    for (const face of sortedFaces) {
+      const projected = face.map(map);
+      previewCtx.beginPath();
+      projected.forEach((p, index) => {
+        if (index === 0) previewCtx.moveTo(p.x, p.y);
+        else previewCtx.lineTo(p.x, p.y);
+      });
+      previewCtx.closePath();
+      previewCtx.fillStyle = 'rgba(225,218,201,.06)';
+      previewCtx.fill();
+    }
+
+    previewCtx.lineCap = 'round';
+    previewCtx.lineJoin = 'round';
+    previewCtx.strokeStyle = 'rgba(235,231,220,.76)';
+    previewCtx.lineWidth = 1.1;
+
+    for (const edge of planEdges) {
+      const a = map(edge.a);
+      const b = map(edge.b);
+      previewCtx.beginPath();
+      previewCtx.moveTo(a.x, a.y);
+      previewCtx.lineTo(b.x, b.y);
+      previewCtx.stroke();
+    }
   }
 
   function basisPoint(source) {
     const p4 = transform4D(source, false);
-    const p3 = cameraTransform(project4Dto3D(p4));
-    return p3;
+    return cameraTransform(project4Dto3D(p4));
   }
 
   function drawBasis() {
@@ -645,17 +1281,21 @@
       || (axis.min === 3 && state.zMix > 0.025)
       || (axis.min === 4 && state.wMix > 0.025)
     ));
+
     const points = active.map((axis) => ({ axis, p: basisPoint(axis.vector) }));
     let max = 0.01;
     for (const item of points) max = Math.max(max, Math.hypot(item.p[0], item.p[1]));
+
     const scale = 45 / max;
     const ox = width / 2;
     const oy = height / 2;
 
     basisCtx.lineCap = 'round';
+
     for (const item of points) {
       const x = ox + item.p[0] * scale;
       const y = oy + item.p[1] * scale;
+
       basisCtx.beginPath();
       basisCtx.moveTo(ox, oy);
       basisCtx.lineTo(x, y);
@@ -720,7 +1360,14 @@
 
       row.append(label, input, value, auto);
       rotationRows.append(row);
-      rotationUI[config.key] = { row, input, value, auto, config };
+
+      rotationUI[config.key] = {
+        row,
+        input,
+        value,
+        auto,
+        config,
+      };
     }
   }
 
@@ -754,7 +1401,13 @@
 
       row.append(label, input, value);
       scaleRows.append(row);
-      scaleUI[config.key] = { row, input, value, config };
+
+      scaleUI[config.key] = {
+        row,
+        input,
+        value,
+        config,
+      };
     }
   }
 
@@ -771,6 +1424,14 @@
     state.colorMode = mode;
     colorButtons.forEach((button) => {
       button.classList.toggle('is-active', button.dataset.color === mode);
+    });
+  }
+
+  function setRenderMode(mode) {
+    if (!['wire','solid','solid-edges'].includes(mode)) return;
+    state.renderMode = mode;
+    renderButtons.forEach((button) => {
+      button.classList.toggle('is-active', button.dataset.render === mode);
     });
   }
 
@@ -797,6 +1458,7 @@
     if (![2,3,4].includes(target) || state.transition || target === state.dimension) return;
 
     state.requestedDimension = target;
+
     if (state.dimension === 2 && target === 4) state.queue = [3,4];
     else if (state.dimension === 4 && target === 2) state.queue = [3,2];
     else state.queue = [target];
@@ -820,16 +1482,26 @@
 
   function updateTransition(now) {
     if (!state.transition) return;
-    const t = clamp((now - state.transition.start) / state.transition.duration, 0, 1);
+
+    const t = clamp(
+      (now - state.transition.start) / state.transition.duration,
+      0,
+      1,
+    );
     const e = smoother(t);
+
     state.zMix = mix(state.transition.fromZ, state.transition.toZ, e);
     state.wMix = mix(state.transition.fromW, state.transition.toW, e);
+
     if (t >= 1) completeStage();
   }
 
   function effectiveDimension() {
     if (!state.transition) return state.dimension;
-    return Math.max(state.transition.fromDimension, state.transition.toDimension);
+    return Math.max(
+      state.transition.fromDimension,
+      state.transition.toDimension,
+    );
   }
 
   function updateControlAvailability() {
@@ -854,21 +1526,34 @@
 
   function updateUI() {
     if (state.transition) {
-      dimensionValue.textContent = state.transition.fromDimension + 'D → ' + state.transition.toDimension + 'D';
+      dimensionValue.textContent =
+        state.transition.fromDimension
+        + 'D → '
+        + state.transition.toDimension
+        + 'D';
       dimensionStatus.textContent = 'unfolding';
     } else {
       dimensionValue.textContent = state.dimension + 'D';
-      dimensionStatus.textContent = state.dimension === 2
-        ? 'mandala plan'
-        : state.dimension === 3
-          ? 'cube temple'
-          : '4D projection';
+
+      if (state.dimension === 2) {
+        dimensionStatus.textContent = 'mandala plan';
+      } else if (state.dimension === 3) {
+        dimensionStatus.textContent =
+          state.formStyle === 'temple'
+            ? 'temple view'
+            : 'symmetric form';
+      } else {
+        dimensionStatus.textContent = '4D projection';
+      }
     }
 
     dimensionButtons.forEach((button) => {
       const d = Number(button.dataset.dimension);
       button.classList.toggle('is-active', !state.transition && d === state.dimension);
-      button.classList.toggle('is-target', state.requestedDimension === d && d !== state.dimension);
+      button.classList.toggle(
+        'is-target',
+        state.requestedDimension === d && d !== state.dimension,
+      );
       button.disabled = Boolean(state.transition);
     });
 
@@ -882,8 +1567,10 @@
     state.cameraYaw = -0.62;
     state.cameraPitch = 0.58;
     state.zoom = 1;
+
     setProjection('perspective');
     setColorMode('form');
+    setRenderMode('solid-edges');
 
     for (const config of ROTATION_CONFIG) {
       const ui = rotationUI[config.key];
@@ -891,6 +1578,7 @@
       ui.value.textContent = '0°';
       ui.auto.setAttribute('aria-pressed', 'false');
     }
+
     for (const config of SCALE_CONFIG) {
       const ui = scaleUI[config.key];
       ui.input.value = '1';
@@ -901,8 +1589,10 @@
   function updateAutorotation(dt) {
     for (const config of ROTATION_CONFIG) {
       if (!state.auto[config.key] || effectiveDimension() < config.minDim) continue;
+
       let next = state.rotations[config.key] + dt * 28;
       if (next > 180) next -= 360;
+
       state.rotations[config.key] = next;
 
       const ui = rotationUI[config.key];
@@ -920,11 +1610,24 @@
     canvas.height = Math.round(state.height * state.dpr);
     canvas.style.width = state.width + 'px';
     canvas.style.height = state.height + 'px';
+
     ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
   }
 
   function hideHint() {
     hint.classList.add('is-hidden');
+  }
+
+  function rebuildFromChoice(buttons, button, stateKey, dataKey) {
+    if (state.transition) return;
+
+    state[stateKey] = button.dataset[dataKey];
+    buttons.forEach((item) => {
+      item.classList.toggle('is-active', item === button);
+    });
+
+    buildActiveMandala();
+    hideHint();
   }
 
   dimensionButtons.forEach((button) => {
@@ -945,23 +1648,43 @@
     });
   });
 
+  renderButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      setRenderMode(button.dataset.render);
+      hideHint();
+    });
+  });
+
   presetButtons.forEach((button) => {
     button.addEventListener('click', () => {
-      if (state.transition) return;
-      state.preset = button.dataset.preset;
-      presetButtons.forEach((item) => item.classList.toggle('is-active', item === button));
-      buildActiveMandala();
-      hideHint();
+      rebuildFromChoice(
+        presetButtons,
+        button,
+        'preset',
+        'preset',
+      );
     });
   });
 
   complexityButtons.forEach((button) => {
     button.addEventListener('click', () => {
-      if (state.transition) return;
-      state.complexity = button.dataset.complexity;
-      complexityButtons.forEach((item) => item.classList.toggle('is-active', item === button));
-      buildActiveMandala();
-      hideHint();
+      rebuildFromChoice(
+        complexityButtons,
+        button,
+        'complexity',
+        'complexity',
+      );
+    });
+  });
+
+  formButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      rebuildFromChoice(
+        formButtons,
+        button,
+        'formStyle',
+        'form',
+      );
     });
   });
 
@@ -983,24 +1706,33 @@
 
     const dx = event.clientX - state.pointerX;
     const dy = event.clientY - state.pointerY;
+
     state.pointerX = event.clientX;
     state.pointerY = event.clientY;
 
     if (state.dimension === 2 && !state.transition) {
       state.rotations.xy += dx * 0.42;
-      state.rotations.xy = ((state.rotations.xy + 180) % 360 + 360) % 360 - 180;
+      state.rotations.xy =
+        ((state.rotations.xy + 180) % 360 + 360) % 360 - 180;
+
       const ui = rotationUI.xy;
       ui.input.value = String(state.rotations.xy);
       ui.value.textContent = Math.round(state.rotations.xy) + '°';
     } else {
       state.cameraYaw += dx * 0.005;
-      state.cameraPitch = clamp(state.cameraPitch + dy * 0.005, -1.45, 1.45);
+      state.cameraPitch = clamp(
+        state.cameraPitch + dy * 0.005,
+        -1.45,
+        1.45,
+      );
     }
   });
 
   function pointerUp(event) {
     state.pointerDown = false;
-    if (canvas.hasPointerCapture?.(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+    if (canvas.hasPointerCapture?.(event.pointerId)) {
+      canvas.releasePointerCapture(event.pointerId);
+    }
   }
 
   canvas.addEventListener('pointerup', pointerUp);
@@ -1008,7 +1740,11 @@
 
   canvas.addEventListener('wheel', (event) => {
     event.preventDefault();
-    state.zoom = clamp(state.zoom * Math.exp(-event.deltaY * 0.001), 0.55, 1.9);
+    state.zoom = clamp(
+      state.zoom * Math.exp(-event.deltaY * 0.001),
+      0.55,
+      1.9,
+    );
     hideHint();
   }, { passive: false });
 
@@ -1021,8 +1757,15 @@
   window.addEventListener('resize', resize, { passive: true });
 
   window.addEventListener('keydown', (event) => {
-    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLButtonElement) return;
-    if (event.key === '2' || event.key === '3' || event.key === '4') requestDimension(Number(event.key));
+    if (
+      event.target instanceof HTMLInputElement
+      || event.target instanceof HTMLButtonElement
+    ) return;
+
+    if (event.key === '2' || event.key === '3' || event.key === '4') {
+      requestDimension(Number(event.key));
+    }
+
     if (event.key.toLowerCase() === 'r') resetAll();
   });
 
@@ -1035,12 +1778,13 @@
     updateUI();
     drawScene();
     drawBasis();
+
     requestAnimationFrame(tick);
   }
 
-  buildActiveMandala();
   createRotationControls();
   createScaleControls();
+  buildActiveMandala();
   resetAll();
   resize();
   updateUI();
