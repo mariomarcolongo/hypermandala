@@ -1222,7 +1222,8 @@
     drawVertices(edgeAlpha);
   }
 
-  function drawPreview() {
+  function drawPreviewToCanvas(previewCanvas) {
+    const previewCtx = previewCanvas.getContext('2d');
     const width = previewCanvas.width;
     const height = previewCanvas.height;
     previewCtx.clearRect(0, 0, width, height);
@@ -1230,9 +1231,7 @@
     if (!planEdges.length) return;
 
     const points = [];
-    for (const edge of planEdges) {
-      points.push(edge.a, edge.b);
-    }
+    for (const edge of planEdges) points.push(edge.a, edge.b);
 
     const minX = Math.min(...points.map((p) => p[0]));
     const maxX = Math.max(...points.map((p) => p[0]));
@@ -1241,7 +1240,7 @@
 
     const spanX = Math.max(0.01, maxX - minX);
     const spanY = Math.max(0.01, maxY - minY);
-    const scale = Math.min((width - 20) / spanX, (height - 20) / spanY);
+    const scale = Math.min((width - 14) / spanX, (height - 14) / spanY);
     const cx = (minX + maxX) * 0.5;
     const cy = (minY + maxY) * 0.5;
 
@@ -1250,7 +1249,9 @@
       y: height * 0.5 + (p[1] - cy) * scale,
     });
 
-    const sortedFaces = [...planFaces].sort((a, b) => rawPolygonArea(b) - rawPolygonArea(a));
+    const sortedFaces = [...planFaces]
+      .sort((a, b) => rawPolygonArea(b) - rawPolygonArea(a));
+
     for (const face of sortedFaces) {
       const projected = face.map(map);
       previewCtx.beginPath();
@@ -1259,14 +1260,14 @@
         else previewCtx.lineTo(p.x, p.y);
       });
       previewCtx.closePath();
-      previewCtx.fillStyle = 'rgba(225,218,201,.06)';
+      previewCtx.fillStyle = 'rgba(225,218,201,.055)';
       previewCtx.fill();
     }
 
     previewCtx.lineCap = 'round';
     previewCtx.lineJoin = 'round';
-    previewCtx.strokeStyle = 'rgba(235,231,220,.76)';
-    previewCtx.lineWidth = 1.1;
+    previewCtx.strokeStyle = 'rgba(240,237,228,.80)';
+    previewCtx.lineWidth = 1;
 
     for (const edge of planEdges) {
       const a = map(edge.a);
@@ -1276,6 +1277,19 @@
       previewCtx.lineTo(b.x, b.y);
       previewCtx.stroke();
     }
+  }
+
+  function drawAllPreviews() {
+    const selectedPreset = state.preset;
+
+    for (const preset of ['square', 'yantra', 'hex']) {
+      state.preset = preset;
+      buildGeometryForCurrentChoice();
+      drawPreviewToCanvas(previewCanvases[preset]);
+    }
+
+    state.preset = selectedPreset;
+    buildGeometryForCurrentChoice();
   }
 
   function basisPoint(source) {
