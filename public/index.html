@@ -73,17 +73,22 @@
   </aside>
 
   <aside class="mandala-dock" aria-label="Mandala library">
-    <div class="mandala-dock__preview">
-      <canvas id="previewCanvas" width="150" height="150" aria-label="2D preview of selected mandala"></canvas>
-      <span>2D preview</span>
+    <div class="mandala-dock__title">Mandala</div>
+    <div class="mandala-library" id="presetControl">
+      <button type="button" class="mandala-card is-active" data-preset="square">
+        <canvas id="previewSquare" width="120" height="120" aria-hidden="true"></canvas>
+        <span>Square</span>
+      </button>
+      <button type="button" class="mandala-card" data-preset="yantra">
+        <canvas id="previewYantra" width="120" height="120" aria-hidden="true"></canvas>
+        <span>Yantra</span>
+      </button>
+      <button type="button" class="mandala-card" data-preset="hex">
+        <canvas id="previewHex" width="120" height="120" aria-hidden="true"></canvas>
+        <span>Hex</span>
+      </button>
     </div>
-    <div class="mandala-dock__controls">
-      <div class="mandala-dock__title">Mandala</div>
-      <div class="preset-grid preset-grid--dock" id="presetControl">
-        <button type="button" data-preset="square" class="is-active">Square</button>
-        <button type="button" data-preset="yantra">Yantra</button>
-        <button type="button" data-preset="hex">Hex</button>
-      </div>
+    <div class="mandala-dock__options">
       <div class="dock-option">
         <span>Complexity</span>
         <div class="segmented" id="complexityControl">
@@ -98,7 +103,6 @@
           <button type="button" data-form="temple">Temple</button>
         </div>
       </div>
-      <div class="symmetry-status" id="symmetryStatus">symmetry checking…</div>
     </div>
   </aside>
 
