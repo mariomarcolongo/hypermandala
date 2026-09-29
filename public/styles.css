@@ -452,16 +452,14 @@ a:focus-visible {
   left: max(18px, env(safe-area-inset-left));
   bottom: 62px;
   z-index: 5;
-  display: grid;
-  grid-template-columns: 104px minmax(210px, 260px);
-  gap: 10px;
-  width: min(560px, calc(100vw - 36px));
+  width: min(540px, calc(100vw - 36px));
   padding: 10px;
   border: 1px solid var(--panel-border);
   border-radius: 16px;
   background: rgba(12,14,17,.78);
   backdrop-filter: blur(18px) saturate(120%);
   -webkit-backdrop-filter: blur(18px) saturate(120%);
+  transition: width 180ms ease, padding 180ms ease;
 }
 .mandala-dock__preview {
   display: grid;
@@ -485,13 +483,50 @@ a:focus-visible {
 .mandala-dock__controls {
   min-width: 0;
 }
+.mandala-dock__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
 .mandala-dock__title {
-  margin: 2px 0 7px;
+  margin: 0;
   color: rgba(245,246,248,.82);
   font-size: 10px;
   font-weight: 760;
   text-transform: uppercase;
   letter-spacing: .1em;
+}
+.mandala-dock__toggle {
+  width: 28px;
+  min-width: 28px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 8px;
+  background: rgba(255,255,255,.035);
+  color: rgba(245,246,248,.72);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  transition: transform 160ms ease, background 160ms ease;
+}
+.mandala-dock__toggle:hover {
+  background: rgba(255,255,255,.08);
+}
+.mandala-dock__body {
+  margin-top: 9px;
+}
+.mandala-dock.is-collapsed {
+  width: auto;
+  min-width: 160px;
+  padding: 8px 10px;
+}
+.mandala-dock.is-collapsed .mandala-dock__body {
+  display: none;
+}
+.mandala-dock.is-collapsed .mandala-dock__toggle {
+  transform: rotate(90deg);
 }
 .preset-grid--dock {
   grid-template-columns: repeat(3, 1fr);
@@ -529,8 +564,7 @@ a:focus-visible {
   .mandala-dock {
     left: 12px;
     bottom: 82px;
-    width: min(360px, calc(100vw - 300px));
-    grid-template-columns: 88px minmax(180px, 1fr);
+    width: min(500px, calc(100vw - 300px));
   }
   .mandala-dock__preview canvas {
     width: 80px;
@@ -544,7 +578,6 @@ a:focus-visible {
     right: 8px;
     bottom: 50vh;
     width: auto;
-    grid-template-columns: 82px 1fr;
   }
 }
 
@@ -554,7 +587,6 @@ a:focus-visible {
     right: 8px;
     bottom: calc(43vh + 84px);
     width: auto;
-    grid-template-columns: 72px 1fr;
     padding: 8px;
   }
   .mandala-dock__preview canvas {
@@ -588,13 +620,14 @@ a:focus-visible {
 }
 .mandala-library {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
 }
 .mandala-card {
   display: grid;
   grid-template-rows: 74px auto;
-  place-items: center;
+  align-items: center;
+  justify-items: center;
   min-width: 0;
   padding: 5px 5px 6px;
   border: 1px solid rgba(255,255,255,.065);
@@ -618,6 +651,9 @@ a:focus-visible {
   width: 72px;
   height: 72px;
   display: block;
+  justify-self: center;
+  align-self: center;
+  margin: 0 auto;
   opacity: .9;
 }
 .mandala-card span {
@@ -635,17 +671,11 @@ a:focus-visible {
 @media (max-width: 960px) {
   .mandala-dock {
     width: min(500px, calc(100vw - 300px));
-    grid-template-columns: 1fr;
-  }
-}
-@media (max-width: 760px) {
-  .mandala-dock {
-    grid-template-columns: 1fr;
   }
 }
 @media (max-width: 600px) {
   .mandala-library {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 4px;
   }
   .mandala-card {
