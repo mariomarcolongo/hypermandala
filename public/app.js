@@ -276,6 +276,206 @@
     transitionDirection: 0,
   };
 
+  const SETTINGS_KEY = 'hypermandala-settings-v2';
+  let settingsDirty = false;
+  let lastSettingsSave = 0;
+  let restoredDockCollapsed = false;
+
+  function finiteNumber(value, fallback, min = -Infinity, max = Infinity) {
+    return Number.isFinite(value)
+      ? clamp(value, min, max)
+      : fallback;
+  }
+
+  function markSettingsDirty() {
+    settingsDirty = true;
+  }
+
+  function exportedSettings() {
+    return {
+      version: 2,
+      preset: state.preset,
+      complexity: state.complexity,
+      spacingStyle: state.spacingStyle,
+      dimension: state.dimension,
+      projection: state.projection,
+      colorMode: state.colorMode,
+      renderMode: state.renderMode,
+      rotations: { ...state.rotations },
+      auto: { ...state.auto },
+      scales: { ...state.scales },
+      zoom: state.zoom,
+      cameraYaw: state.cameraYaw,
+      cameraPitch: state.cameraPitch,
+      formsCollapsed: Boolean(
+        geometricFormsDock?.classList.contains('is-collapsed'),
+      ),
+    };
+  }
+
+  function persistSettings(force = false) {
+    if (typeof localStorage === 'undefined') return;
+
+    const now = Date.now();
+    if (!force && (!settingsDirty || now - lastSettingsSave < 350)) {
+      return;
+    }
+
+    try {
+      localStorage.setItem(
+        SETTINGS_KEY,
+        JSON.stringify(exportedSettings()),
+      );
+      settingsDirty = false;
+      lastSettingsSave = now;
+    } catch (error) {
+      // Storage may be unavailable in private/restricted contexts.
+    }
+  }
+
+  function restoreSettings() {
+    if (typeof localStorage === 'undefined') return false;
+
+    let saved;
+    try {
+      saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
+    } catch (error) {
+      return false;
+    }
+
+    if (!saved || typeof saved !== 'object') return false;
+
+    // Migrate the former generic Yantra preset to the specific Sri Yantra.
+    if (saved.preset === 'yantra') saved.preset = 'sriyantra';
+
+    if (Object.hasOwn(PRESET_META, saved.preset)) {
+      state.preset = saved.preset;
+    }
+
+    if (['simple', 'complex'].includes(saved.complexity)) {
+      state.complexity = saved.complexity;
+    }
+    if (['compact', 'separated'].includes(saved.spacingStyle)) {
+      state.spacingStyle = saved.spacingStyle;
+    }
+
+    const dimension = Number(saved.dimension);
+    if ([2,3,4].includes(dimension)) {
+      state.dimension = dimension;
+      state.requestedDimension = dimension;
+      state.zMix = dimension >= 3 ? 1 : 0;
+      state.wMix = dimension >= 4 ? 1 : 0;
+    }
+
+    if (['perspective', 'orthographic', 'isometric'].includes(saved.projection)) {
+      state.projection = saved.projection;
+    }
+    if (['form', 'axis', 'classic'].includes(saved.colorMode)) {
+      state.colorMode = saved.colorMode;
+    }
+    if (['wire', 'solid', 'solid-edges'].includes(saved.renderMode)) {
+      state.renderMode = saved.renderMode;
+    }
+
+    for (const config of ROTATION_CONFIG) {
+      const value = saved.rotations?.[config.key];
+      if (Number.isFinite(value)) {
+        state.rotations[config.key] = finiteNumber(value, 0, -180, 180);
+      }
+      if (typeof saved.auto?.[config.key] === 'boolean') {
+        state.auto[config.key] = saved.auto[config.key];
+      }
+    }
+
+    for (const config of SCALE_CONFIG) {
+      const value = saved.scales?.[config.key];
+      if (Number.isFinite(value)) {
+        state.scales[config.key] = finiteNumber(value, 1, 0, 1.4);
+      }
+    }
+
+    state.zoom = finiteNumber(saved.zoom, 1, 0.55, 1.9);
+    state.cameraYaw = finiteNumber(saved.cameraYaw, -0.62, -Math.PI, Math.PI);
+    state.cameraPitch = finiteNumber(saved.cameraPitch, 0.58, -Math.PI / 2, Math.PI / 2);
+    restoredDockCollapsed = saved.formsCollapsed === true;
+
+    state.queue = [];
+    state.transition = null;
+    state.transitionDirection = 0;
+    return true;
+  }
+
+  function syncSettingsUI() {
+    presetButtons.forEach((button) => {
+      button.classList.toggle(
+        'is-active',
+        button.dataset.preset === state.preset,
+      );
+    });
+    complexityButtons.forEach((button) => {
+      button.classList.toggle(
+        'is-active',
+        button.dataset.complexity === state.complexity,
+      );
+    });
+    spacingButtons.forEach((button) => {
+      button.classList.toggle(
+        'is-active',
+        button.dataset.spacing === state.spacingStyle,
+      );
+    });
+    projectionButtons.forEach((button) => {
+      button.classList.toggle(
+        'is-active',
+        button.dataset.projection === state.projection,
+      );
+    });
+    colorButtons.forEach((button) => {
+      button.classList.toggle(
+        'is-active',
+        button.dataset.color === state.colorMode,
+      );
+    });
+    renderButtons.forEach((button) => {
+      button.classList.toggle(
+        'is-active',
+        button.dataset.render === state.renderMode,
+      );
+    });
+
+    for (const config of ROTATION_CONFIG) {
+      const ui = rotationUI[config.key];
+      if (!ui) continue;
+      ui.input.value = String(state.rotations[config.key]);
+      ui.value.textContent = Math.round(state.rotations[config.key]) + '°';
+      ui.auto.setAttribute(
+        'aria-pressed',
+        String(state.auto[config.key]),
+      );
+    }
+
+    for (const config of SCALE_CONFIG) {
+      const ui = scaleUI[config.key];
+      if (!ui) continue;
+      ui.input.value = String(state.scales[config.key]);
+      ui.value.textContent = '×' + state.scales[config.key].toFixed(2);
+    }
+
+    geometricFormsDock?.classList.toggle(
+      'is-collapsed',
+      restoredDockCollapsed,
+    );
+    if (toggleGeometricForms) {
+      toggleGeometricForms.setAttribute(
+        'aria-expanded',
+        String(!restoredDockCollapsed),
+      );
+      toggleGeometricForms.title = restoredDockCollapsed
+        ? 'Expand geometric forms'
+        : 'Collapse geometric forms';
+    }
+  }
+
   const modules = [];
   const planEdges = [];
   const planFaces = [];
