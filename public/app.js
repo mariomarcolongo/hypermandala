@@ -608,9 +608,6 @@
     const seen = new Set();
 
     const add = (x, y) => {
-      const radius = Math.hypot(x, y);
-      if (radius < 0.055) return;
-
       const point = [
         Math.round(x * 10000) / 10000,
         Math.round(y * 10000) / 10000,
@@ -621,13 +618,51 @@
       points.push(point);
     };
 
-    for (const edge of planEdges) {
-      add(edge.a[0], edge.a[1]);
-      add(edge.b[0], edge.b[1]);
+    add(0, 0);
+
+    if (state.preset === 'square') {
+      const size = 0.34;
+      for (const [gx, gy] of squareBaseCells(state.complexity === 'complex')) {
+        add(gx * size, gy * size);
+      }
+      return points;
     }
 
-    // A single central seed represents the bindu / shrine center.
-    points.push([0, 0]);
+    if (state.preset === 'yantra') {
+      for (const [radius, rotation] of yantraLayerSpecs()) {
+        for (const point of polygonFootprint(0, 0, radius, 3, rotation)) {
+          add(point[0], point[1]);
+        }
+      }
+      return points;
+    }
+
+    for (const [radius, rotation] of hexLayerSpecs()) {
+      for (const point of polygonFootprint(0, 0, radius, 6, rotation)) {
+        add(point[0], point[1]);
+      }
+    }
+
+    const firstRingRadius = 1.58;
+    for (let i = 0; i < 6; i += 1) {
+      const angle = (i / 6) * TAU;
+      add(
+        Math.cos(angle) * firstRingRadius,
+        Math.sin(angle) * firstRingRadius,
+      );
+    }
+
+    if (state.complexity === 'complex') {
+      const outerRingRadius = 2.02;
+      for (let i = 0; i < 12; i += 1) {
+        const angle = (i / 12) * TAU + Math.PI / 12;
+        add(
+          Math.cos(angle) * outerRingRadius,
+          Math.sin(angle) * outerRingRadius,
+        );
+      }
+    }
+
     return points;
   }
 
