@@ -29,12 +29,17 @@
     hex: document.getElementById('previewHex'),
     stupa: document.getElementById('previewStupa'),
     borobudur: document.getElementById('previewBorobudur'),
+    castel: document.getElementById('previewCastel'),
+    kukulkan: document.getElementById('previewKukulkan'),
+    lalibela: document.getElementById('previewLalibela'),
   };
 
   const dimensionValue = document.getElementById('dimensionValue');
   const dimensionStatus = document.getElementById('dimensionStatus');
   const hint = document.getElementById('hint');
   const resetAllButton = document.getElementById('resetAll');
+  const geometricFormsDock = document.getElementById('geometricFormsDock');
+  const toggleGeometricForms = document.getElementById('toggleGeometricForms');
 
   const dimensionButtons = [...document.querySelectorAll('[data-dimension]')];
   const projectionButtons = [...document.querySelectorAll('[data-projection]')];
@@ -110,6 +115,28 @@
 
   const BOROBUDUR_CENTER = '#d7bd78';
 
+  const CASTEL_COLORS = {
+    wall: '#d5c39d',
+    inner: '#bba47e',
+    tower: '#a88e68',
+    accent: '#b96855',
+  };
+
+  const KUKULKAN_COLORS = [
+    '#b9aa83',
+    '#c5b58b',
+    '#d0c095',
+    '#dacba5',
+    '#e5d8b8',
+  ];
+
+  const LALIBELA_COLORS = {
+    court: '#6e4a3d',
+    body: '#9a6049',
+    roof: '#b87958',
+    center: '#d1a27d',
+  };
+
   const CLASSIC_SHADE = {
     x: 0.93,
     y: 0.98,
@@ -159,6 +186,21 @@
       kind: 'architecture',
       plan: 'Borobudur geometric plan',
       spatial: 'Borobudur architecture',
+    },
+    castel: {
+      kind: 'architecture',
+      plan: 'octagonal castle plan',
+      spatial: 'Castel del Monte form',
+    },
+    kukulkan: {
+      kind: 'architecture',
+      plan: 'step-pyramid plan',
+      spatial: 'Kukulcán pyramid form',
+    },
+    lalibela: {
+      kind: 'architecture',
+      plan: 'cruciform rock-hewn plan',
+      spatial: 'Bete Giyorgis form',
     },
   };
 
@@ -402,6 +444,34 @@
           Math.min(index, BOROBUDUR_STUPA_COLORS.length - 1)
         ],
       );
+    }
+
+    if (regionId === 'castel-wall') return hexToRgb(CASTEL_COLORS.wall);
+    if (regionId === 'castel-inner') return hexToRgb(CASTEL_COLORS.inner);
+    if (regionId === 'castel-tower') return hexToRgb(CASTEL_COLORS.tower);
+    if (regionId === 'castel-accent') return hexToRgb(CASTEL_COLORS.accent);
+
+    if (regionId?.startsWith('kukulkan-level-')) {
+      const index = Number(regionId.split('-')[2]);
+      return hexToRgb(
+        KUKULKAN_COLORS[Math.min(index, KUKULKAN_COLORS.length - 1)],
+      );
+    }
+    if (regionId === 'kukulkan-stair') return hexToRgb('#8f7d5e');
+    if (regionId === 'kukulkan-temple') return hexToRgb('#eee1bd');
+
+    if (regionId === 'lalibela-court') return hexToRgb(LALIBELA_COLORS.court);
+    if (regionId === 'lalibela-body') return hexToRgb(LALIBELA_COLORS.body);
+    if (regionId === 'lalibela-roof') return hexToRgb(LALIBELA_COLORS.roof);
+    if (regionId === 'lalibela-center') return hexToRgb(LALIBELA_COLORS.center);
+
+    if (regionId?.startsWith('square-ring-')) {
+      const index = Number(regionId.split('-')[2]);
+      return hexToRgb(['#d1af49','#4968aa','#c94b40','#f0e4c2'][index % 4]);
+    }
+    if (regionId?.startsWith('square-gate-')) {
+      const direction = regionId.slice('square-gate-'.length);
+      return classicRegionRgb('square-' + direction, fallbackX, fallbackY);
     }
 
     // Fallback is only for legacy/unclassified geometry.
@@ -890,6 +960,168 @@
     addPlanLoop(points, fill, regionId, paintOrder);
   }
 
+  function rectFootprint(
+    cx,
+    cy,
+    width,
+    height,
+    rotation = 0,
+  ) {
+    const hw = width / 2;
+    const hh = height / 2;
+    return [
+      [-hw,-hh], [hw,-hh], [hw,hh], [-hw,hh],
+    ].map(([x, y]) => {
+      const p = rotateXYPoint(x, y, rotation);
+      return [cx + p[0], cy + p[1]];
+    });
+  }
+
+  function addPlanRect(
+    cx,
+    cy,
+    width,
+    height,
+    rotation = 0,
+    fill = true,
+    regionId = 'unclassified',
+    paintOrder = 0,
+  ) {
+    addPlanLoop(
+      rectFootprint(cx, cy, width, height, rotation),
+      fill,
+      regionId,
+      paintOrder,
+    );
+  }
+
+  function footprintPrismData(points, baseZ, height) {
+    const footprint = points.map((p) => [p[0], p[1]]);
+    const n = footprint.length;
+    const vertices3 = [
+      ...footprint.map(([x, y]) => [x, y, baseZ]),
+      ...footprint.map(([x, y]) => [x, y, baseZ + height]),
+    ];
+    const edges3 = [];
+    const faces3 = [];
+
+    for (let i = 0; i < n; i += 1) {
+      const next = (i + 1) % n;
+      edges3.push({ a: i, b: next, axis: 'n' });
+      edges3.push({ a: i + n, b: next + n, axis: 'n' });
+      edges3.push({ a: i, b: i + n, axis: 'z' });
+      faces3.push({
+        indices: [i, next, next + n, i + n],
+        axis: 'n',
+      });
+    }
+
+    faces3.push({
+      indices: Array.from({ length: n }, (_, i) => n - 1 - i),
+      axis: 'z',
+    });
+    faces3.push({
+      indices: Array.from({ length: n }, (_, i) => i + n),
+      axis: 'z',
+    });
+
+    return { vertices3, edges3, faces3, footprint };
+  }
+
+  function addFootprintPrism(
+    points,
+    baseZ,
+    height,
+    regionId = 'unclassified',
+  ) {
+    const data = footprintPrismData(points, baseZ, height);
+    const cx = points.reduce((sum, p) => sum + p[0], 0) / points.length;
+    const cy = points.reduce((sum, p) => sum + p[1], 0) / points.length;
+    const localRadius = Math.max(
+      0.08,
+      ...points.map((p) => Math.hypot(p[0] - cx, p[1] - cy)),
+    );
+
+    extrudeTo4D(
+      data.vertices3,
+      data.edges3,
+      data.faces3,
+      localRadius * 0.34,
+      data.footprint,
+      [],
+      regionId,
+    );
+  }
+
+  function addFootprintPrismCentered(
+    points,
+    centerZ,
+    height,
+    regionId = 'unclassified',
+  ) {
+    addFootprintPrism(
+      points,
+      centerZ - height / 2,
+      height,
+      regionId,
+    );
+  }
+
+  function addRectPrismBase(
+    cx,
+    cy,
+    width,
+    height2D,
+    baseZ,
+    height3D,
+    rotation,
+    regionId,
+  ) {
+    addFootprintPrism(
+      rectFootprint(cx, cy, width, height2D, rotation),
+      baseZ,
+      height3D,
+      regionId,
+    );
+  }
+
+  function addRectPrismCentered(
+    cx,
+    cy,
+    width,
+    height2D,
+    centerZ,
+    height3D,
+    rotation,
+    regionId,
+  ) {
+    addFootprintPrismCentered(
+      rectFootprint(cx, cy, width, height2D, rotation),
+      centerZ,
+      height3D,
+      regionId,
+    );
+  }
+
+  function polygonRingSectors(
+    outerRadius,
+    innerRadius,
+    sides,
+    rotation = 0,
+  ) {
+    const outer = polygonFootprint(0, 0, outerRadius, sides, rotation);
+    const inner = polygonFootprint(0, 0, innerRadius, sides, rotation);
+    return outer.map((point, i) => {
+      const next = (i + 1) % sides;
+      return [
+        point,
+        outer[next],
+        inner[next],
+        inner[i],
+      ];
+    });
+  }
+
   function addPlanPoint(
     cx,
     cy,
@@ -909,13 +1141,131 @@
     );
   }
 
+  function squareComplexPieces() {
+    const pieces = [];
+
+    const addFrame = (size, thickness, level, order) => {
+      const side = size - thickness;
+      pieces.push(
+        {
+          points: rectFootprint(0, side / 2, size, thickness, 0),
+          regionId: 'square-gate-east',
+          level,
+          paintOrder: order,
+        },
+        {
+          points: rectFootprint(0, -side / 2, size, thickness, 0),
+          regionId: 'square-gate-west',
+          level,
+          paintOrder: order,
+        },
+        {
+          points: rectFootprint(-side / 2, 0, thickness, size - 2 * thickness, 0),
+          regionId: 'square-gate-south',
+          level,
+          paintOrder: order,
+        },
+        {
+          points: rectFootprint(side / 2, 0, thickness, size - 2 * thickness, 0),
+          regionId: 'square-gate-north',
+          level,
+          paintOrder: order,
+        },
+      );
+    };
+
+    addFrame(2.46, 0.18, 0, 0);
+
+    const gateOffset = 1.31;
+    pieces.push(
+      {
+        points: rectFootprint(0, gateOffset, 0.62, 0.34, 0),
+        regionId: 'square-gate-east',
+        level: 0,
+        paintOrder: 1,
+      },
+      {
+        points: rectFootprint(0, -gateOffset, 0.62, 0.34, 0),
+        regionId: 'square-gate-west',
+        level: 0,
+        paintOrder: 1,
+      },
+      {
+        points: rectFootprint(-gateOffset, 0, 0.34, 0.62, 0),
+        regionId: 'square-gate-south',
+        level: 0,
+        paintOrder: 1,
+      },
+      {
+        points: rectFootprint(gateOffset, 0, 0.34, 0.62, 0),
+        regionId: 'square-gate-north',
+        level: 0,
+        paintOrder: 1,
+      },
+    );
+
+    addFrame(1.72, 0.14, 1, 5);
+
+    for (const sx of [-1, 1]) {
+      for (const sy of [-1, 1]) {
+        const cx = sx * 0.66;
+        const cy = sy * 0.66;
+        pieces.push({
+          points: rectFootprint(cx, cy, 0.30, 0.30, Math.PI / 4),
+          regionId: squareRegionId(cx, cy),
+          level: 2,
+          paintOrder: 10,
+        });
+      }
+    }
+
+    pieces.push(
+      {
+        points: rectFootprint(0, 0, 1.12, 1.12, 0),
+        regionId: 'square-center',
+        level: 3,
+        paintOrder: 20,
+      },
+      {
+        points: rectFootprint(0, 0, 0.78, 0.78, Math.PI / 4),
+        regionId: 'square-center',
+        level: 4,
+        paintOrder: 30,
+      },
+      {
+        points: rectFootprint(0, 0, 0.42, 0.42, 0),
+        regionId: 'square-center',
+        level: 5,
+        paintOrder: 40,
+      },
+    );
+
+    return pieces;
+  }
+
+  function buildSquareComplexPlan() {
+    clearPlan();
+    for (const piece of squareComplexPieces()) {
+      addPlanLoop(
+        piece.points,
+        true,
+        piece.regionId,
+        piece.paintOrder,
+      );
+    }
+  }
+
   function buildSquarePlan() {
+    if (state.complexity === 'complex') {
+      buildSquareComplexPlan();
+      return;
+    }
+
     clearPlan();
     const size = 0.34;
     const spacing = size;
-    const complex = state.complexity === 'complex';
 
-    for (const [gx, gy] of squareBaseCells(complex)) {
+    for (const [gx, gy] of squareBaseCells()) {
       const cx = gx * spacing;
       const cy = gy * spacing;
       addPlanSquareCell(
@@ -929,8 +1279,6 @@
       );
     }
 
-    // These guides are also higher-dimensional footprints, so they are
-    // real colored regions rather than outline-only decorations.
     addPlanSquareCell(
       0,
       0,
@@ -940,18 +1288,6 @@
       'square-center',
       20,
     );
-
-    if (complex) {
-      addPlanSquareCell(
-        0,
-        0,
-        size * 0.46,
-        0,
-        true,
-        'square-center',
-        30,
-      );
-    }
   }
 
   function buildYantraPlan() {
@@ -1038,6 +1374,267 @@
     );
   }
 
+  function castelSpec() {
+    return state.complexity === 'complex'
+      ? {
+          outerRadius: 1.46,
+          innerRadius: 0.78,
+          innerWallRadius: 0.65,
+          towerRadius: 0.29,
+        }
+      : {
+          outerRadius: 1.40,
+          innerRadius: 0.76,
+          innerWallRadius: null,
+          towerRadius: 0.27,
+        };
+  }
+
+  function buildCastelPlan() {
+    clearPlan();
+    const spec = castelSpec();
+    const rotation = Math.PI / 8;
+
+    for (const sector of polygonRingSectors(
+      spec.outerRadius,
+      spec.innerRadius,
+      8,
+      rotation,
+    )) {
+      addPlanLoop(sector, true, 'castel-wall', 0);
+    }
+
+    const towerCenters = polygonFootprint(
+      0,
+      0,
+      spec.outerRadius,
+      8,
+      rotation,
+    );
+
+    for (const [cx, cy] of towerCenters) {
+      addPlanRegularPolygon(
+        cx,
+        cy,
+        spec.towerRadius,
+        8,
+        rotation,
+        true,
+        'castel-tower',
+        10,
+      );
+    }
+
+    if (spec.innerWallRadius) {
+      for (const sector of polygonRingSectors(
+        spec.innerRadius,
+        spec.innerWallRadius,
+        8,
+        rotation,
+      )) {
+        addPlanLoop(sector, true, 'castel-inner', 20);
+      }
+    }
+
+    addPlanRegularPolygon(
+      0,
+      0,
+      spec.innerWallRadius || spec.innerRadius,
+      8,
+      rotation,
+      false,
+      'castel-accent',
+      100,
+    );
+  }
+
+  function kukulkanSpec() {
+    const complex = state.complexity === 'complex';
+    return {
+      sizes: complex
+        ? [2.82,2.58,2.34,2.10,1.86,1.62,1.38,1.14,0.90]
+        : [2.62,2.18,1.74,1.30,0.88],
+      stairWidth: complex ? 0.24 : 0.27,
+      templeSize: complex ? 0.62 : 0.58,
+    };
+  }
+
+  function kukulkanStairPieces(spec) {
+    const pieces = [];
+
+    for (let i = 0; i < spec.sizes.length - 1; i += 1) {
+      const outer = spec.sizes[i];
+      const inner = spec.sizes[i + 1];
+      const band = (outer - inner) / 2;
+      const center = (outer + inner) / 4;
+      const order = 20 + i;
+
+      pieces.push(
+        {
+          points: rectFootprint(
+            0,
+            center,
+            spec.stairWidth,
+            band,
+            0,
+          ),
+          level: i,
+          paintOrder: order,
+        },
+        {
+          points: rectFootprint(
+            0,
+            -center,
+            spec.stairWidth,
+            band,
+            0,
+          ),
+          level: i,
+          paintOrder: order,
+        },
+        {
+          points: rectFootprint(
+            center,
+            0,
+            band,
+            spec.stairWidth,
+            0,
+          ),
+          level: i,
+          paintOrder: order,
+        },
+        {
+          points: rectFootprint(
+            -center,
+            0,
+            band,
+            spec.stairWidth,
+            0,
+          ),
+          level: i,
+          paintOrder: order,
+        },
+      );
+    }
+
+    return pieces;
+  }
+
+  function buildKukulkanPlan() {
+    clearPlan();
+    const spec = kukulkanSpec();
+
+    spec.sizes.forEach((size, index) => {
+      addPlanSquareCell(
+        0,
+        0,
+        size,
+        0,
+        true,
+        'kukulkan-level-' + index,
+        index,
+      );
+    });
+
+    for (const piece of kukulkanStairPieces(spec)) {
+      addPlanLoop(
+        piece.points,
+        true,
+        'kukulkan-stair',
+        piece.paintOrder,
+      );
+    }
+
+    addPlanSquareCell(
+      0,
+      0,
+      spec.templeSize,
+      0,
+      true,
+      'kukulkan-temple',
+      100,
+    );
+  }
+
+  function lalibelaCrossCells(size, spacing, regionId, order) {
+    return [
+      [0,0],
+      [spacing,0],
+      [-spacing,0],
+      [0,spacing],
+      [0,-spacing],
+    ].map(([cx, cy]) => ({
+      points: rectFootprint(cx, cy, size, size, 0),
+      regionId,
+      paintOrder: order,
+    }));
+  }
+
+  function lalibelaCourtPieces(size, thickness) {
+    const side = size - thickness;
+    return [
+      rectFootprint(0, side / 2, size, thickness, 0),
+      rectFootprint(0, -side / 2, size, thickness, 0),
+      rectFootprint(-side / 2, 0, thickness, size - 2 * thickness, 0),
+      rectFootprint(side / 2, 0, thickness, size - 2 * thickness, 0),
+    ];
+  }
+
+  function buildLalibelaPlan() {
+    clearPlan();
+    const complex = state.complexity === 'complex';
+
+    for (const points of lalibelaCourtPieces(
+      complex ? 2.72 : 2.56,
+      0.12,
+    )) {
+      addPlanLoop(points, true, 'lalibela-court', 0);
+    }
+
+    const bodySize = complex ? 0.66 : 0.70;
+    const bodySpacing = bodySize;
+
+    for (const cell of lalibelaCrossCells(
+      bodySize,
+      bodySpacing,
+      'lalibela-body',
+      10,
+    )) {
+      addPlanLoop(
+        cell.points,
+        true,
+        cell.regionId,
+        cell.paintOrder,
+      );
+    }
+
+    if (complex) {
+      for (const cell of lalibelaCrossCells(
+        0.42,
+        bodySpacing,
+        'lalibela-roof',
+        20,
+      )) {
+        addPlanLoop(
+          cell.points,
+          true,
+          cell.regionId,
+          cell.paintOrder,
+        );
+      }
+    }
+
+    addPlanSquareCell(
+      0,
+      0,
+      complex ? 0.30 : 0.34,
+      0,
+      true,
+      'lalibela-center',
+      100,
+    );
+  }
+
   function addSquarePrismCentered(
     centerZ,
     size,
@@ -1076,24 +1673,44 @@
 
   function stupaLayerSpecs() {
     const complex = state.complexity === 'complex';
-    const layers = complex
+
+    const raw = complex
       ? [
-          { kind: 'square', size: 2.50 },
-          { kind: 'square', size: 2.02 },
-          { kind: 'square', size: 1.58 },
-          { kind: 'polygon', radius: 0.64, sides: 16 },
-          { kind: 'polygon', radius: 0.48, sides: 16 },
+          { kind: 'square', size: 2.28, height: 0.12 },
+          { kind: 'square', size: 1.98, height: 0.12 },
+          { kind: 'square', size: 1.68, height: 0.11 },
+          { kind: 'polygon', radius: 0.78, sides: 20, height: 0.10 },
+          { kind: 'polygon', radius: 0.88, sides: 20, height: 0.11 },
+          { kind: 'polygon', radius: 0.82, sides: 20, height: 0.11 },
+          { kind: 'polygon', radius: 0.70, sides: 20, height: 0.10 },
+          { kind: 'polygon', radius: 0.54, sides: 20, height: 0.10 },
+          { kind: 'square', size: 0.58, height: 0.11 },
+          { kind: 'polygon', radius: 0.34, sides: 16, height: 0.07 },
+          { kind: 'polygon', radius: 0.29, sides: 16, height: 0.07 },
+          { kind: 'polygon', radius: 0.24, sides: 16, height: 0.07 },
+          { kind: 'polygon', radius: 0.19, sides: 16, height: 0.07 },
+          { kind: 'polygon', radius: 0.14, sides: 16, height: 0.07 },
+          { kind: 'polygon', radius: 0.10, sides: 16, height: 0.07 },
+          { kind: 'polygon', radius: 0.065, sides: 12, height: 0.18, center: true },
         ]
       : [
-          { kind: 'square', size: 2.30 },
-          { kind: 'square', size: 1.72 },
-          { kind: 'polygon', radius: 0.58, sides: 16 },
-          { kind: 'polygon', radius: 0.42, sides: 16 },
+          { kind: 'square', size: 2.20, height: 0.14 },
+          { kind: 'square', size: 1.82, height: 0.13 },
+          { kind: 'polygon', radius: 0.72, sides: 18, height: 0.11 },
+          { kind: 'polygon', radius: 0.82, sides: 18, height: 0.13 },
+          { kind: 'polygon', radius: 0.64, sides: 18, height: 0.12 },
+          { kind: 'square', size: 0.52, height: 0.12 },
+          { kind: 'polygon', radius: 0.28, sides: 14, height: 0.09 },
+          { kind: 'polygon', radius: 0.20, sides: 14, height: 0.09 },
+          { kind: 'polygon', radius: 0.12, sides: 14, height: 0.09 },
+          { kind: 'polygon', radius: 0.065, sides: 12, height: 0.17, center: true },
         ];
 
-    return layers.map((layer, index) => ({
+    return raw.map((layer, index) => ({
       ...layer,
-      regionId: 'stupa-layer-' + index + '-of-' + layers.length,
+      regionId: layer.center
+        ? 'stupa-center'
+        : 'stupa-layer-' + index + '-of-' + raw.length,
     }));
   }
 
@@ -1125,17 +1742,6 @@
         );
       }
     });
-
-    addPlanRegularPolygon(
-      0,
-      0,
-      state.complexity === 'complex' ? 0.20 : 0.18,
-      20,
-      0,
-      true,
-      'stupa-center',
-      100,
-    );
   }
 
   function borobudurSpec() {
@@ -1143,40 +1749,64 @@
 
     return complex
       ? {
-          squares: [2.80, 2.45, 2.10, 1.75, 1.40],
-          circles: [0.78, 0.61, 0.45],
+          squares: [2.82, 2.58, 2.34, 2.10, 1.86],
+          circles: [0.82, 0.66, 0.50],
           satelliteCounts: [32, 24, 16],
-          satelliteRadii: [0.70, 0.54, 0.39],
-          satelliteSizes: [0.035, 0.034, 0.032],
-          centerRadius: 0.20,
+          satelliteRadii: [0.72, 0.58, 0.44],
+          satelliteSizes: [0.055, 0.050, 0.046],
+          centerRadius: 0.22,
         }
       : {
-          squares: [2.55, 2.05, 1.55],
-          circles: [0.72, 0.50],
+          squares: [2.60, 2.20, 1.80],
+          circles: [0.78, 0.55],
           satelliteCounts: [16, 8],
-          satelliteRadii: [0.65, 0.43],
-          satelliteSizes: [0.045, 0.040],
-          centerRadius: 0.19,
+          satelliteRadii: [0.68, 0.47],
+          satelliteSizes: [0.066, 0.058],
+          centerRadius: 0.21,
         };
+  }
+
+  function borobudurSmallStupaProfile(radius) {
+    return [
+      { radius, height: radius * 0.72 },
+      { radius: radius * 0.82, height: radius * 1.05 },
+      { radius: radius * 0.48, height: radius * 0.92 },
+    ];
+  }
+
+  function borobudurCentralProfile(radius) {
+    return [
+      { radius: radius * 0.92, height: 0.07 },
+      { radius: radius * 1.18, height: 0.13 },
+      { radius, height: 0.12 },
+      { radius: radius * 0.70, height: 0.11 },
+      { radius: radius * 0.42, height: 0.20 },
+    ];
   }
 
   function addBorobudurSatellitePlanRing(spec, ringIndex) {
     const count = spec.satelliteCounts[ringIndex];
     const ringRadius = spec.satelliteRadii[ringIndex];
     const radius = spec.satelliteSizes[ringIndex];
+    const profile = borobudurSmallStupaProfile(radius);
 
     for (let i = 0; i < count; i += 1) {
       const angle = (i / count) * TAU;
-      addPlanRegularPolygon(
-        Math.cos(angle) * ringRadius,
-        Math.sin(angle) * ringRadius,
-        radius,
-        8,
-        Math.PI / 8,
-        true,
-        'borobudur-stupa-' + ringIndex,
-        60 + ringIndex,
-      );
+      const cx = Math.cos(angle) * ringRadius;
+      const cy = Math.sin(angle) * ringRadius;
+
+      profile.forEach((part, partIndex) => {
+        addPlanRegularPolygon(
+          cx,
+          cy,
+          part.radius,
+          8,
+          Math.PI / 8,
+          true,
+          'borobudur-stupa-' + ringIndex,
+          60 + ringIndex * 5 + partIndex,
+        );
+      });
     }
   }
 
@@ -1210,16 +1840,18 @@
       addBorobudurSatellitePlanRing(spec, index);
     });
 
-    addPlanRegularPolygon(
-      0,
-      0,
-      spec.centerRadius,
-      24,
-      Math.PI / 24,
-      true,
-      'borobudur-center',
-      100,
-    );
+    borobudurCentralProfile(spec.centerRadius).forEach((part, index) => {
+      addPlanRegularPolygon(
+        0,
+        0,
+        part.radius,
+        24,
+        Math.PI / 24,
+        true,
+        'borobudur-center',
+        100 + index,
+      );
+    });
   }
 
   function addLayerCentered(layer, centerZ, height, regionId = layer.regionId) {
@@ -1261,46 +1893,62 @@
   function buildStupaTemple() {
     resetGeometry();
     const layers = stupaLayerSpecs();
-    const gap = state.spacingStyle === 'separated' ? 0.06 : 0;
-    const height = 0.14;
+    const gap = state.spacingStyle === 'separated' ? 0.035 : 0;
     let z = 0;
 
     for (const layer of layers) {
-      addLayerBase(layer, z, height);
-      z += height + gap;
+      if (layer.kind === 'square') {
+        addSquarePrismBase(
+          z,
+          layer.size,
+          layer.height,
+          layer.regionId,
+        );
+      } else {
+        addPrism(
+          0,
+          0,
+          z,
+          layer.radius,
+          layer.sides,
+          layer.height,
+          0,
+          layer.regionId,
+        );
+      }
+      z += layer.height + gap;
     }
-
-    const center = {
-      kind: 'polygon',
-      radius: state.complexity === 'complex' ? 0.20 : 0.18,
-      sides: 20,
-      regionId: 'stupa-center',
-    };
-    addLayerBase(center, z, 0.24);
   }
 
   function addBorobudurSatelliteModules(
     spec,
     ringIndex,
-    centerZ,
-    height,
+    baseZ,
   ) {
     const count = spec.satelliteCounts[ringIndex];
     const ringRadius = spec.satelliteRadii[ringIndex];
     const radius = spec.satelliteSizes[ringIndex];
+    const profile = borobudurSmallStupaProfile(radius);
 
     for (let i = 0; i < count; i += 1) {
       const angle = (i / count) * TAU;
-      addCenteredPrism(
-        Math.cos(angle) * ringRadius,
-        Math.sin(angle) * ringRadius,
-        centerZ,
-        radius,
-        8,
-        height,
-        Math.PI / 8,
-        'borobudur-stupa-' + ringIndex,
-      );
+      const cx = Math.cos(angle) * ringRadius;
+      const cy = Math.sin(angle) * ringRadius;
+      let z = baseZ;
+
+      for (const part of profile) {
+        addPrism(
+          cx,
+          cy,
+          z,
+          part.radius,
+          8,
+          part.height,
+          Math.PI / 8,
+          'borobudur-stupa-' + ringIndex,
+        );
+        z += part.height;
+      }
     }
   }
 
@@ -1309,10 +1957,9 @@
   function buildBorobudurTemple() {
     resetGeometry();
     const spec = borobudurSpec();
-    const gap = state.spacingStyle === 'separated' ? 0.045 : 0;
-    const squareHeight = 0.13;
-    const circleHeight = 0.11;
-    const satelliteHeight = 0.10;
+    const gap = state.spacingStyle === 'separated' ? 0.035 : 0;
+    const squareHeight = 0.115;
+    const circleHeight = 0.085;
     let z = 0;
 
     spec.squares.forEach((size, index) => {
@@ -1340,23 +1987,25 @@
       addBorobudurSatelliteModules(
         spec,
         index,
-        z + circleHeight + satelliteHeight * 0.5,
-        satelliteHeight,
+        z + circleHeight,
       );
 
-      z += circleHeight + satelliteHeight + gap;
+      z += circleHeight + 0.10 + gap;
     });
 
-    addPrism(
-      0,
-      0,
-      z,
-      spec.centerRadius,
-      24,
-      0.30,
-      Math.PI / 24,
-      'borobudur-center',
-    );
+    for (const part of borobudurCentralProfile(spec.centerRadius)) {
+      addPrism(
+        0,
+        0,
+        z,
+        part.radius,
+        24,
+        part.height,
+        Math.PI / 24,
+        'borobudur-center',
+      );
+      z += part.height;
+    }
   }
 
   function buildPlanForPreset() {
@@ -1364,14 +2013,17 @@
     else if (state.preset === 'hex') buildHexPlan();
     else if (state.preset === 'stupa') buildStupaPlan();
     else if (state.preset === 'borobudur') buildBorobudurPlan();
+    else if (state.preset === 'castel') buildCastelPlan();
+    else if (state.preset === 'kukulkan') buildKukulkanPlan();
+    else if (state.preset === 'lalibela') buildLalibelaPlan();
     else buildSquarePlan();
   }
 
-  function squareBaseCells(complex) {
+  function squareBaseCells() {
     const base = [];
     for (let gx = -2; gx <= 2; gx += 1) {
       for (let gy = -2; gy <= 2; gy += 1) {
-        if (complex || Math.abs(gx) + Math.abs(gy) <= 2) {
+        if (Math.abs(gx) + Math.abs(gy) <= 2) {
           base.push([gx, gy]);
         }
       }
@@ -1380,20 +2032,55 @@
     return base;
   }
 
-  function squareSecondCells(complex) {
-    return complex
-      ? [[0,0],[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]
-      : [[0,0],[1,0],[-1,0],[0,1],[0,-1]];
+  function squareSecondCells() {
+    return [[0,0],[1,0],[-1,0],[0,1],[0,-1]];
+  }
+
+  function buildSquareComplexMandala() {
+    resetGeometry();
+    const separated = state.spacingStyle === 'separated';
+    const step = separated ? 0.30 : 0.15;
+    const height = 0.11;
+
+    for (const piece of squareComplexPieces()) {
+      if (piece.level === 0) {
+        addFootprintPrismCentered(
+          piece.points,
+          0,
+          height,
+          piece.regionId,
+        );
+        continue;
+      }
+
+      const z = piece.level * step;
+      addFootprintPrismCentered(
+        piece.points,
+        z,
+        height,
+        piece.regionId,
+      );
+      addFootprintPrismCentered(
+        piece.points,
+        -z,
+        height,
+        piece.regionId,
+      );
+    }
   }
 
   function buildSquareMandala() {
+    if (state.complexity === 'complex') {
+      buildSquareComplexMandala();
+      return;
+    }
+
     resetGeometry();
-    const complex = state.complexity === 'complex';
     const separated = state.spacingStyle === 'separated';
     const size = 0.34;
     const spacing = size;
 
-    for (const [gx, gy] of squareBaseCells(complex)) {
+    for (const [gx, gy] of squareBaseCells()) {
       const cx = gx * spacing;
       const cy = gy * spacing;
       addCenteredCube(
@@ -1408,7 +2095,7 @@
 
     const secondZ = separated ? size * 1.65 : size;
     for (const sign of [-1, 1]) {
-      for (const [gx, gy] of squareSecondCells(complex)) {
+      for (const [gx, gy] of squareSecondCells()) {
         const cx = gx * spacing;
         const cy = gy * spacing;
         addCenteredCube(
@@ -1436,24 +2123,6 @@
         Math.PI / 4,
         'square-center',
       );
-    }
-
-    if (complex) {
-      const innerSize = size * 0.46;
-      const innerZ = separated
-        ? diamondZ + size * 0.95
-        : diamondZ + diamondSize * 0.5 + innerSize * 0.5;
-
-      for (const sign of [-1, 1]) {
-        addCenteredCube(
-          0,
-          0,
-          sign * innerZ,
-          innerSize,
-          0,
-          'square-center',
-        );
-      }
     }
   }
 
@@ -1685,11 +2354,180 @@
   
 
 
+  function buildCastelForm() {
+    resetGeometry();
+    const spec = castelSpec();
+    const rotation = Math.PI / 8;
+    const separated = state.spacingStyle === 'separated';
+    const gap = separated ? 0.08 : 0;
+
+    const wallHeight = 0.56;
+    for (const sector of polygonRingSectors(
+      spec.outerRadius,
+      spec.innerRadius,
+      8,
+      rotation,
+    )) {
+      addFootprintPrism(
+        sector,
+        0,
+        wallHeight,
+        'castel-wall',
+      );
+    }
+
+    const towerCenters = polygonFootprint(
+      0,
+      0,
+      spec.outerRadius,
+      8,
+      rotation,
+    );
+
+    for (const [cx, cy] of towerCenters) {
+      addPrism(
+        cx,
+        cy,
+        0,
+        spec.towerRadius,
+        8,
+        wallHeight + 0.16 + gap,
+        rotation,
+        'castel-tower',
+      );
+    }
+
+    if (spec.innerWallRadius) {
+      for (const sector of polygonRingSectors(
+        spec.innerRadius,
+        spec.innerWallRadius,
+        8,
+        rotation,
+      )) {
+        addFootprintPrism(
+          sector,
+          gap,
+          wallHeight - 0.08,
+          'castel-inner',
+        );
+      }
+    }
+  }
+
+  function buildKukulkanForm() {
+    resetGeometry();
+    const spec = kukulkanSpec();
+    const separated = state.spacingStyle === 'separated';
+    const gap = separated ? 0.045 : 0;
+    const levelHeight = state.complexity === 'complex' ? 0.095 : 0.13;
+
+    spec.sizes.forEach((size, index) => {
+      addSquarePrismBase(
+        index * (levelHeight + gap),
+        size,
+        levelHeight,
+        'kukulkan-level-' + index,
+      );
+    });
+
+    for (const piece of kukulkanStairPieces(spec)) {
+      const baseZ =
+        piece.level * (levelHeight + gap)
+        + levelHeight
+        + gap * 0.25;
+
+      addFootprintPrism(
+        piece.points,
+        baseZ,
+        Math.max(0.035, levelHeight * 0.35),
+        'kukulkan-stair',
+      );
+    }
+
+    const templeBase = spec.sizes.length * (levelHeight + gap);
+    addSquarePrismBase(
+      templeBase,
+      spec.templeSize,
+      state.complexity === 'complex' ? 0.24 : 0.22,
+      'kukulkan-temple',
+    );
+  }
+
+  function buildLalibelaForm() {
+    resetGeometry();
+    const complex = state.complexity === 'complex';
+    const separated = state.spacingStyle === 'separated';
+    const gap = separated ? 0.06 : 0;
+
+    for (const points of lalibelaCourtPieces(
+      complex ? 2.72 : 2.56,
+      0.12,
+    )) {
+      addFootprintPrism(
+        points,
+        0,
+        0.07,
+        'lalibela-court',
+      );
+    }
+
+    const bodySize = complex ? 0.66 : 0.70;
+    const bodySpacing = bodySize;
+    const bodyBase = 0.07 + gap;
+    const bodyHeight = complex ? 0.62 : 0.58;
+
+    for (const cell of lalibelaCrossCells(
+      bodySize,
+      bodySpacing,
+      'lalibela-body',
+      10,
+    )) {
+      addFootprintPrism(
+        cell.points,
+        bodyBase,
+        bodyHeight,
+        cell.regionId,
+      );
+    }
+
+    if (complex) {
+      for (const cell of lalibelaCrossCells(
+        0.42,
+        bodySpacing,
+        'lalibela-roof',
+        20,
+      )) {
+        addFootprintPrism(
+          cell.points,
+          bodyBase + bodyHeight + gap,
+          0.11,
+          cell.regionId,
+        );
+      }
+    }
+
+    addFootprintPrism(
+      rectFootprint(
+        0,
+        0,
+        complex ? 0.30 : 0.34,
+        complex ? 0.30 : 0.34,
+        0,
+      ),
+      bodyBase + bodyHeight + (complex ? 0.11 : 0) + gap,
+      0.10,
+      'lalibela-center',
+    );
+  }
+
   function buildGeometryForCurrentChoice() {
     if (state.preset === 'yantra') buildYantraMandala();
     else if (state.preset === 'hex') buildHexMandala();
     else if (state.preset === 'stupa') buildStupaTemple();
     else if (state.preset === 'borobudur') buildBorobudurTemple();
+    else if (state.preset === 'castel') buildCastelForm();
+    else if (state.preset === 'kukulkan') buildKukulkanForm();
+    else if (state.preset === 'lalibela') buildLalibelaForm();
     else buildSquareMandala();
   }
 
@@ -2458,6 +3296,7 @@
 
     const points = [];
     for (const edge of planEdges) points.push(edge.a, edge.b);
+    for (const face of planFaces) points.push(...face);
 
     const minX = Math.min(...points.map((p) => p[0]));
     const maxX = Math.max(...points.map((p) => p[0]));
@@ -2466,7 +3305,11 @@
 
     const spanX = Math.max(0.01, maxX - minX);
     const spanY = Math.max(0.01, maxY - minY);
-    const scale = Math.min((width - 14) / spanX, (height - 14) / spanY);
+    const padding = 18;
+    const scale = Math.min(
+      (width - padding) / spanX,
+      (height - padding) / spanY,
+    );
     const cx = (minX + maxX) * 0.5;
     const cy = (minY + maxY) * 0.5;
 
@@ -2527,7 +3370,16 @@
   function drawAllPreviews() {
     const selectedPreset = state.preset;
 
-    for (const preset of ['square', 'yantra', 'hex', 'stupa', 'borobudur']) {
+    for (const preset of [
+      'square',
+      'yantra',
+      'hex',
+      'stupa',
+      'borobudur',
+      'castel',
+      'kukulkan',
+      'lalibela',
+    ]) {
       state.preset = preset;
       buildPlanForPreset();
       drawPreviewToCanvas(previewCanvases[preset]);
@@ -3023,6 +3875,14 @@
   resetAllButton.addEventListener('click', () => {
     resetAll();
     hideHint();
+  });
+
+  toggleGeometricForms?.addEventListener('click', () => {
+    const collapsed = geometricFormsDock.classList.toggle('is-collapsed');
+    toggleGeometricForms.setAttribute('aria-expanded', String(!collapsed));
+    toggleGeometricForms.title = collapsed
+      ? 'Expand geometric forms'
+      : 'Collapse geometric forms';
   });
 
   canvas.addEventListener('pointerdown', (event) => {
