@@ -563,3 +563,79 @@ a:focus-visible {
 .symmetry-status.is-ok { color: rgba(128,220,164,.55); }
 .symmetry-status.is-directional { color: rgba(240,196,92,.50); }
 .symmetry-status.is-warning { color: rgba(255,107,107,.62); }
+
+
+/* persistent mandala library */
+.mandala-dock {
+  grid-template-columns: 1fr;
+  width: min(390px, calc(100vw - 36px));
+  gap: 8px;
+}
+.mandala-library {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.mandala-card {
+  display: grid;
+  grid-template-rows: 74px auto;
+  place-items: center;
+  min-width: 0;
+  padding: 5px 5px 6px;
+  border: 1px solid rgba(255,255,255,.065);
+  border-radius: 11px;
+  background: rgba(255,255,255,.022);
+  color: rgba(238,239,242,.48);
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+.mandala-card:hover {
+  color: var(--text);
+  border-color: rgba(255,255,255,.13);
+  transform: translateY(-1px);
+}
+.mandala-card.is-active {
+  color: var(--text);
+  background: rgba(255,255,255,.08);
+  border-color: rgba(255,255,255,.15);
+}
+.mandala-card canvas {
+  width: 72px;
+  height: 72px;
+  display: block;
+  opacity: .9;
+}
+.mandala-card span {
+  margin-top: 2px;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .05em;
+}
+.mandala-dock__options {
+  display: grid;
+  gap: 2px;
+}
+.symmetry-status { display: none !important; }
+
+@media (max-width: 960px) {
+  .mandala-dock {
+    width: min(360px, calc(100vw - 300px));
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 760px) {
+  .mandala-dock {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 600px) {
+  .mandala-library { gap: 4px; }
+  .mandala-card {
+    grid-template-rows: 52px auto;
+    padding: 4px;
+  }
+  .mandala-card canvas {
+    width: 50px;
+    height: 50px;
+  }
+}
