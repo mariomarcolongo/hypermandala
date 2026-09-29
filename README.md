@@ -15,23 +15,25 @@ Hypermandala now distinguishes the mathematical dimensional form from the archit
 The default obeys a collapse / expansion rule:
 
 - **2D** — only X/Y are expressed. Geometry that exists at +Z and -Z collapses onto the same plan.
-- **3D** — latent ±Z structure separates symmetrically. The default form is therefore not an upward-only temple.
-- **4D** — every 3D primitive has a symmetric ±W extrusion. When W is collapsed, its two sides coincide with the 3D object; when W expands, the hidden 4D structure separates.
+- **3D** — the 2D mandala landmarks seed a collision-free orbit of small cubic cells. New cells occupy the signed X/Y/Z symmetry orbit and emerge as Z opens.
+- **4D** — the same landmarks close into the signed X/Y/Z/W orbit of hypercubic cells. W-only cells emerge only when the fourth dimension opens.
 
 This allows higher-dimensional geometry to emerge during dimensional expansion even when its lower-dimensional collapse looks simple.
 
 In **Symmetric** mode no coordinate axis is structurally privileged.
 
-- In **3D**, the generated module set is closed under all signed permutations of X/Y/Z: axis swaps such as X↔Z and Y↔Z, plus sign reflections.
-- In **4D**, that closure extends to signed permutations of X/Y/Z/W, including swaps such as X↔W.
+- In **3D**, the cell centers are closed under all signed permutations of X/Y/Z.
+- In **4D**, the center set is closed under all signed permutations of X/Y/Z/W.
+- All symmetric modules use the same axis-aligned hypercubic cell, so closing the symmetry group never requires intersecting different solid types.
+- Cell size is chosen from the minimum Chebyshev separation of the full 4D center orbit, guaranteeing no positive-volume overlap between cells.
 
-This is stronger than simple mirror or radial symmetry. It gives the non-Temple construction the same coordinate structure regardless of which axis is treated as X, Y, Z, or—at 4D—W.
+Runtime geometry audits cover every family in Simple and Complex modes and verify both symmetry closure and zero interior overlap.
 
 ### Temple form — optional
 
-**Temple** is an explicit 3D-form option. It keeps the same mandala plan and 4D W extrusion, but intentionally gives Z a preferred upward direction to create a stepped architectural interpretation.
+**Temple** is an explicit architectural option. It keeps the richer cube/prism/pyramid vocabulary and intentionally gives Z a preferred upward direction. The collision-free isotropic cell-orbit construction applies to Symmetric mode, not Temple.
 
-The transition is automatic and deliberately staged so the higher dimension can be seen emerging from the lower one. During 2D → 3D the plan remains visible while Z separates before the camera tilts; during 3D → 4D the original 3D structure remains the anchor while the opposite W copy and W-connected geometry emerge. There is no fractional-dimension slider:
+The transition is automatic and deliberately staged so the higher dimension can be seen emerging from the lower one. Seed cells are already present in the lower-dimensional plan; new 3D symmetry cells grow from points as Z opens, and new 4D orbit cells grow from their collapsed 3D locations as W opens. The camera waits until late in the 2D → 3D transition before tilting, so geometry emergence remains visually primary. There is no fractional-dimension slider:
 
 ```
 square → cube → hypercube
@@ -222,7 +224,7 @@ Temple remains an optional architectural interpretation. Its levels and roofs ar
 
 The dimensional form now separates **form** from **spacing**.
 
-- **Compact** is the default. Adjacent Z layers are positioned from their actual thicknesses so they touch rather than float apart. The dimension still visibly emerges during the 2D → 3D animation.
-- **Separated** keeps the more exploded, airy interpretation where hidden layers move farther apart along Z.
+- **Compact** is the default. In Symmetric mode, cells occupy 96% of the nearest collision-free center spacing, leaving only a tiny safety gap. In Temple mode, adjacent architectural levels touch.
+- **Separated** reduces symmetric cell size and preserves larger gaps; Temple adds explicit inter-level spacing.
 
-Spacing applies to both Symmetric and Temple forms. It changes only the Z layout; the 2D mandala plan remains identical.
+The 2D mandala plan remains identical in either spacing mode.

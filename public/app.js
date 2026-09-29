@@ -595,6 +595,182 @@
     planFaceKeys.clear();
   }
 
+  function clearModules() {
+    modules.length = 0;
+  }
+
+  function centerKey(center) {
+    return center.map(symmetryCoord).join(',');
+  }
+
+  function collectPlanLandmarks() {
+    const points = [];
+    const seen = new Set();
+
+    const add = (x, y) => {
+      const point = [
+        Math.round(x * 10000) / 10000,
+        Math.round(y * 10000) / 10000,
+      ];
+      const key = point.join(',');
+      if (seen.has(key)) return;
+      seen.add(key);
+      points.push(point);
+    };
+
+    add(0, 0);
+
+    if (state.preset === 'square') {
+      const size = 0.34;
+      for (const [gx, gy] of squareBaseCells(state.complexity === 'complex')) {
+        add(gx * size, gy * size);
+      }
+      return points;
+    }
+
+    if (state.preset === 'yantra') {
+      for (const [radius, rotation] of yantraLayerSpecs()) {
+        for (const point of polygonFootprint(0, 0, radius, 3, rotation)) {
+          add(point[0], point[1]);
+        }
+      }
+      return points;
+    }
+
+    for (const [radius, rotation] of hexLayerSpecs()) {
+      for (const point of polygonFootprint(0, 0, radius, 6, rotation)) {
+        add(point[0], point[1]);
+      }
+    }
+
+    const firstRingRadius = 1.58;
+    for (let i = 0; i < 6; i += 1) {
+      const angle = (i / 6) * TAU;
+      add(
+        Math.cos(angle) * firstRingRadius,
+        Math.sin(angle) * firstRingRadius,
+      );
+    }
+
+    if (state.complexity === 'complex') {
+      const outerRingRadius = 2.02;
+      for (let i = 0; i < 12; i += 1) {
+        const angle = (i / 12) * TAU + Math.PI / 12;
+        add(
+          Math.cos(angle) * outerRingRadius,
+          Math.sin(angle) * outerRingRadius,
+        );
+      }
+    }
+
+    return points;
+  }
+
+  function uniqueSignedPermutationCenters(seedCenters, dimensions) {
+    const permutations = dimensions === 3
+      ? XYZ_PERMUTATIONS.map((xyz) => [xyz[0], xyz[1], xyz[2], 3])
+      : [
+          [0,1,2,3],[0,1,3,2],[0,2,1,3],[0,2,3,1],
+          [0,3,1,2],[0,3,2,1],[1,0,2,3],[1,0,3,2],
+          [1,2,0,3],[1,2,3,0],[1,3,0,2],[1,3,2,0],
+          [2,0,1,3],[2,0,3,1],[2,1,0,3],[2,1,3,0],
+          [2,3,0,1],[2,3,1,0],[3,0,1,2],[3,0,2,1],
+          [3,1,0,2],[3,1,2,0],[3,2,0,1],[3,2,1,0],
+        ];
+
+    const signs = [-1, 1];
+    const map = new Map();
+
+    for (const seed of seedCenters) {
+      const source = [seed[0], seed[1], 0, 0];
+
+      for (const permutation of permutations) {
+        for (const sx of signs) {
+          for (const sy of signs) {
+            for (const sz of signs) {
+              const wSigns = dimensions === 4 ? signs : [1];
+
+              for (const sw of wSigns) {
+                const sign = [sx, sy, sz, sw];
+                const center = permutation.map(
+                  (sourceIndex, outputIndex) => source[sourceIndex] * sign[outputIndex],
+                );
+                const key = centerKey(center);
+                if (!map.has(key)) map.set(key, center);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return map;
+  }
+
+  function minimumChebyshevDistance(centers) {
+    let min = Infinity;
+
+    for (let i = 0; i < centers.length; i += 1) {
+      for (let j = i + 1; j < centers.length; j += 1) {
+        let distance = 0;
+        for (let axis = 0; axis < 4; axis += 1) {
+          distance = Math.max(
+            distance,
+            Math.abs(centers[i][axis] - centers[j][axis]),
+          );
+        }
+        if (distance > 1e-6) min = Math.min(min, distance);
+      }
+    }
+
+    return Number.isFinite(min) ? min : 0.2;
+  }
+
+  function addOrbitHypercube(center, size, stage) {
+    addCenteredCube(center[0], center[1], center[2], size, 0);
+    const module = modules[modules.length - 1];
+
+    for (const vertex of module.vertices) {
+      vertex[3] += center[3];
+    }
+
+    module.center = [...center];
+    module.stage = stage;
+    module.hyperOnly = stage === 4;
+    module.spatialOnly = stage === 3;
+  }
+
+  function buildSymmetricOrbitFromPlan() {
+    clearModules();
+
+    const landmarks = collectPlanLandmarks();
+    const seedMap = new Map(
+      landmarks.map(([x, y]) => {
+        const center = [x, y, 0, 0];
+        return [centerKey(center), center];
+      }),
+    );
+
+    const spatialMap = uniqueSignedPermutationCenters(landmarks, 3);
+    const hyperMap = uniqueSignedPermutationCenters(landmarks, 4);
+
+    const allCenters = [...hyperMap.values()];
+    const minDistance = minimumChebyshevDistance(allCenters);
+    const sizeFactor = state.spacingStyle === 'separated' ? 0.58 : 0.96;
+    const cellSize = clamp(minDistance * sizeFactor, 0.045, 0.18);
+
+    for (const center of hyperMap.values()) {
+      const key = centerKey(center);
+      const stage = seedMap.has(key)
+        ? 2
+        : spatialMap.has(key)
+          ? 3
+          : 4;
+
+      addOrbitHypercube(center, cellSize, stage);
+    }
+  }
+
   function symmetryCoord(value) {
     if (Math.abs(value) < 1e-8) return 0;
     return Math.round(value * 100000) / 100000;
@@ -607,112 +783,11 @@
       .join('|');
   }
 
-  const AXIS_NAMES = ['x', 'y', 'z', 'w'];
-  const AXIS_INDEX = { x: 0, y: 1, z: 2, w: 3 };
   const XYZ_PERMUTATIONS = [
     [0,1,2], [0,2,1],
     [1,0,2], [1,2,0],
     [2,0,1], [2,1,0],
   ];
-
-  function transformModuleSymmetry(
-    module,
-    permutation,
-    signs,
-    hyperOnly = false,
-  ) {
-    const inverse = [0, 0, 0, 0];
-    for (let outputAxis = 0; outputAxis < 4; outputAxis += 1) {
-      inverse[permutation[outputAxis]] = outputAxis;
-    }
-
-    const mapAxis = (axis) => {
-      if (!(axis in AXIS_INDEX)) return axis;
-      return AXIS_NAMES[inverse[AXIS_INDEX[axis]]];
-    };
-
-    return {
-      hyperOnly: hyperOnly || Boolean(module.hyperOnly),
-      vertices: module.vertices.map((point) => [
-        point[permutation[0]] * signs[0],
-        point[permutation[1]] * signs[1],
-        point[permutation[2]] * signs[2],
-        point[permutation[3]] * signs[3],
-      ]),
-      edges: module.edges.map((edge) => ({
-        ...edge,
-        axis: mapAxis(edge.axis),
-        wLayer: hyperOnly ? 0 : edge.wLayer,
-      })),
-      faces: module.faces.map((face) => ({
-        ...face,
-        indices: [...face.indices],
-        axis: mapAxis(face.axis),
-        wLayer: hyperOnly ? 0 : face.wLayer,
-        bridge: hyperOnly ? false : face.bridge,
-      })),
-    };
-  }
-
-  function enforceAxisIsotropicSymmetry() {
-    const seed = [...modules];
-    const seen = new Set();
-    const spatial = [];
-    const signs = [-1, 1];
-
-    // 3D: signed permutations of X/Y/Z (the full octahedral coordinate group).
-    for (const module of seed) {
-      for (const xyz of XYZ_PERMUTATIONS) {
-        const permutation = [xyz[0], xyz[1], xyz[2], 3];
-
-        for (const sx of signs) {
-          for (const sy of signs) {
-            for (const sz of signs) {
-              const transformed = transformModuleSymmetry(
-                module,
-                permutation,
-                [sx, sy, sz, 1],
-                false,
-              );
-              const signature = moduleSignature(transformed);
-              if (seen.has(signature)) continue;
-              seen.add(signature);
-              spatial.push(transformed);
-            }
-          }
-        }
-      }
-    }
-
-    // 4D: S4/S3 has four cosets. Because the spatial set above is already
-    // invariant under signed XYZ permutations and each extrusion is ±W
-    // symmetric, adding the three W-axis swaps closes the set under signed
-    // permutations of X/Y/Z/W without generating 384 copies per seed module.
-    const hyper = [...spatial];
-    const wSwaps = [
-      [3,1,2,0],
-      [0,3,2,1],
-      [0,1,3,2],
-    ];
-
-    for (const module of spatial) {
-      for (const permutation of wSwaps) {
-        const transformed = transformModuleSymmetry(
-          module,
-          permutation,
-          [1,1,1,1],
-          true,
-        );
-        const signature = moduleSignature(transformed);
-        if (seen.has(signature)) continue;
-        seen.add(signature);
-        hyper.push(transformed);
-      }
-    }
-
-    modules.length = 0;
-    modules.push(...hyper);
-  }
 
   function clearPlan() {
     planEdges.length = 0;
@@ -1148,25 +1223,19 @@
 
 
   function buildGeometryForCurrentChoice() {
-    if (state.preset === 'yantra') {
-      if (state.formStyle === 'temple') buildYantraTemple();
-      else buildYantraSymmetric();
-    } else if (state.preset === 'hex') {
-      if (state.formStyle === 'temple') buildHexTemple();
-      else buildHexSymmetric();
-    } else {
-      if (state.formStyle === 'temple') buildSquareTemple();
-      else buildSquareSymmetric();
+    if (state.formStyle === 'symmetric') {
+      buildSymmetricOrbitFromPlan();
+      return;
     }
 
-    if (state.formStyle === 'symmetric') {
-      enforceAxisIsotropicSymmetry();
-    }
+    if (state.preset === 'yantra') buildYantraTemple();
+    else if (state.preset === 'hex') buildHexTemple();
+    else buildSquareTemple();
   }
 
   function buildActiveMandala() {
-    buildGeometryForCurrentChoice();
     buildPlanForPreset();
+    buildGeometryForCurrentChoice();
     updateGeometryStats();
     drawAllPreviews();
     updateGeometryStats();
@@ -1231,7 +1300,7 @@
 
     // Let the new dimension visibly separate before the viewpoint tilts.
     // This preserves the feeling that the volume grows out of the 2D mandala.
-    const viewMix = smoother(clamp((state.zMix - 0.30) / 0.70, 0, 1));
+    const viewMix = smoother(clamp((state.zMix - 0.62) / 0.38, 0, 1));
 
     const yaw = state.cameraYaw * viewMix;
     let c = Math.cos(yaw);
@@ -1269,19 +1338,33 @@
   }
 
   function moduleEmergence(module) {
-    return module.hyperOnly ? smoother(state.wMix) : 1;
+    if (module.stage === 3) {
+      return smoother(clamp((state.zMix - 0.03) / 0.97, 0, 1));
+    }
+    if (module.stage === 4) {
+      return smoother(clamp((state.wMix - 0.03) / 0.97, 0, 1));
+    }
+    if (module.hyperOnly) return smoother(state.wMix);
+    return 1;
   }
 
   function projectModulePoint(module, source) {
     const emergence = moduleEmergence(module);
-    if (emergence >= 0.9999) return projectToScreen(source);
 
-    return projectToScreen([
-      source[0] * emergence,
-      source[1] * emergence,
-      source[2] * emergence,
-      source[3],
-    ]);
+    if (
+      emergence >= 0.9999
+      || !module.center
+      || (module.stage !== 3 && module.stage !== 4)
+    ) {
+      return projectToScreen(source);
+    }
+
+    const animated = module.center.map((centerValue, axis) => {
+      const local = source[axis] - centerValue;
+      return centerValue + local * emergence;
+    });
+
+    return projectToScreen(animated);
   }
 
   function axisColor(axis) {
@@ -1812,7 +1895,7 @@
     // Keep the originating mandala visible while the new dimension separates.
     // It only fades late in the transition, so the viewer can follow where
     // every emerging volume came from.
-    const planFade = smoother(clamp((state.zMix - 0.58) / 0.42, 0, 1));
+    const planFade = smoother(clamp((state.zMix - 0.72) / 0.28, 0, 1));
     const planAlpha = 1 - planFade;
 
     // Faces arrive after the first geometric separation; edges lead the motion.
@@ -1891,13 +1974,11 @@
 
     for (const preset of ['square', 'yantra', 'hex']) {
       state.preset = preset;
-      buildGeometryForCurrentChoice();
       buildPlanForPreset();
       drawPreviewToCanvas(previewCanvases[preset]);
     }
 
     state.preset = selectedPreset;
-    buildGeometryForCurrentChoice();
     buildPlanForPreset();
   }
 
@@ -2098,7 +2179,7 @@
       toZ,
       toW,
       start: performance.now(),
-      duration: reducedMotion ? 80 : 1750,
+      duration: reducedMotion ? 80 : 2150,
     };
   }
 
