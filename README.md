@@ -158,7 +158,7 @@ The solid layer uses **WebGL2 with a real depth buffer**. Projected faces are tr
 
 Solid faces are now genuinely opaque in the GPU renderer: blending is disabled while depth writing is enabled. Higher-dimensional geometry emerges by changing its geometry/scale rather than by stacking depth-writing translucent faces. This removes the depth/alpha interaction that caused color popping and flashing.
 
-Face colors are intrinsic to the face family/orientation and no longer brighten or darken according to camera depth. Axis labels are remapped when symmetry operations permute coordinate axes, so Axis coloring remains consistent after X/Y/Z/W swaps.
+Face colors are intrinsic to the face family/orientation and no longer brighten or darken according to camera depth. Axis coloring remains tied to X/Y/Z/W orientation while Classic coloring remains tied to semantic sacred-plan regions.
 
 Wireframe and interaction overlays remain on the existing Canvas layer. If WebGL2 is unavailable, Hypermandala falls back to the older Canvas face renderer.
 
@@ -285,4 +285,4 @@ Spacing is a real geometric control again:
 - **Compact** is the default. Symmetric families keep mirrored Z layers close/touching; architectural families keep adjacent terraces touching.
 - **Separated** moves layers farther apart while leaving the XY sacred plan unchanged.
 
-The 2D mandala itself never changes when spacing changes.
+The 2D sacred plan itself never changes when spacing changes.
