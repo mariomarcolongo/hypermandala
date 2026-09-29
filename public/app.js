@@ -82,7 +82,7 @@
 
     projection: 'perspective',
     colorMode: 'form',
-    renderMode: 'solid-edges',
+    renderMode: 'wire',
 
     rotations: { xw: 0, yw: 0, zw: 0, xy: 0, xz: 0, yz: 0 },
     auto: { xw: false, yw: false, zw: false, xy: false, xz: false, yz: false },
@@ -1619,7 +1619,7 @@
 
     setProjection('perspective');
     setColorMode('form');
-    setRenderMode('solid-edges');
+    setRenderMode('wire');
 
     for (const config of ROTATION_CONFIG) {
       const ui = rotationUI[config.key];
