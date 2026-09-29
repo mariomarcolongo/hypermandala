@@ -1,41 +1,94 @@
 # Hypermandala
 
-**One geometric rule explored as a 2D mandala, a 3D temple, and a 4D structure through W-slices.**
+**A geometric mandala that unfolds from 2D squares into 3D temple blocks and then into a true 4D projection.**
 
-Hypermandala is a dependency-free Canvas visualization inspired by the relationship between mandala plans and temple architecture.
+Hypermandala is a dependency-free Canvas visualization. Its interaction model is inspired by [Tarek Sherif's Tesseract Explorer](https://github.com/tsherif/tesseract-explorer): the 4D object is manipulated in 4D space, projected into 3D, and then viewed with an ordinary 3D camera.
+
+No source code from Tesseract Explorer is required by Hypermandala; the implementation here is independent.
 
 ## Dimensional model
 
-The dimensions are discrete states:
+The same primitive architecture is used across all dimensions:
 
-- **2D — plan:** a clean nested square/diamond mandala.
-- **3D — temple:** the same rings rise into a stepped shrine.
-- **4D — W slices:** the temple becomes a family of related 3D cross-sections distributed along a fourth spatial coordinate.
+- **2D** — a mandala plan built from square cells and triangular roof lines.
+- **3D** — the square cells extrude into cubes and the roof lines become square pyramids, forming a stepped temple.
+- **4D** — every cube is extruded along W into a tesseract-like module, and every pyramid becomes a 4D prism.
 
-Clicking 2D, 3D, or 4D triggers an automatic transition. There is no user-controlled fractional-dimension slider.
+The transition is automatic. There is no fractional-dimension slider:
+
+```
+square → cube → hypercube
+2D       3D      4D
+```
+
+Going directly from 2D to 4D automatically passes through 3D, and vice versa.
+
+## 4D exploration
+
+Hypermandala supports rotations in all six coordinate planes:
+
+- **XY**
+- **XZ**
+- **YZ**
+- **XW**
+- **YW**
+- **ZW**
+
+The XW/YW/ZW rotations are the ones that most directly reveal the fourth coordinate.
+
+Each rotation plane also has an **A** button for autorotation.
+
+The small **projected basis** gizmo shows how the X, Y, Z, and W basis directions appear after the current 4D rotation and projection.
+
+## Projection
+
+Two 4D → 3D projection modes are available:
+
+- **Perspective** — a virtual 4D camera sits along W; geometry farther away in W projects smaller.
+- **Orthographic** — W is flattened without perspective scaling.
+
+After the 4D → 3D projection, mouse drag orbits an ordinary 3D camera and the wheel zooms.
+
+## Axis scale
+
+X, Y, Z, and W can be scaled independently. This is especially useful for understanding the dimensional construction:
+
+- reducing **Z** collapses the temple toward its 2D square plan;
+- reducing **W** collapses each tesseract-like module toward its 3D cube.
+
+The 2D / 3D / 4D buttons perform these dimensional changes automatically.
 
 ## Geometry
 
-The construction deliberately uses one repeated rule:
+The temple is deliberately made from a small vocabulary of simple primitives:
 
-`square → diamond → square → diamond → … → apex`
+- axis-aligned squares;
+- cubes;
+- square pyramids;
+- 4D prisms / tesseract-like cube extrusions.
 
-Adjacent levels are connected corner-to-corner, and four cardinal ground axes pass through the plan. This keeps the object visually coherent in both plan and elevation.
+The base plan uses a symmetric diamond arrangement of square cells with four cardinal extensions. Higher levels use progressively fewer cubes, ending in a central pyramidal roof.
 
-In 4D, the 3D temple varies continuously with `w`: its scale, twist, and height change smoothly. Several faint reference slices show the larger 4D structure while the selected slice remains bright.
+This is intentionally much simpler than the previous procedural mandala so the 4D structure remains readable.
+
+## Color
+
+- **Form** — mostly neutral geometry, with W edges highlighted.
+- **Axis** — X red, Y green, Z blue, W gold.
 
 ## Controls
 
-- **X / Y:** translate the mandala in 2D, 3D, or 4D.
-- **Z:** translate it vertically in 3D or 4D.
-- **W slice:** in 4D, move the slice hyperplane through the fourth coordinate. This does not translate the whole object; it selects a different 3D cross-section of the 4D structure.
-- **Drag:** rotate the visible 2D/3D view.
-- **Shift + drag in 4D:** rotate through planes involving W.
-- **Scroll / trackpad:** zoom.
-- **center:** reset X/Y/Z and the W slice to zero.
-- **reset view:** restore the camera.
+- **2D / 3D / 4D** — automatic dimensional transitions.
+- **Drag** — rotate the 2D plan or orbit the 3D projection.
+- **Wheel / trackpad** — zoom.
+- **Rotation planes** — rotate the object in 4D.
+- **A** — autorotate an individual plane.
+- **Axis scale** — scale X/Y/Z/W.
+- **Projection** — perspective or orthographic.
+- **Color** — form or axis.
+- **Reset** — restore rotations, scale, camera, projection, and color.
 
-The scene renders only the spatial axes that can be shown directly in the current view: X and Y in 2D, then X/Y/Z in 3D and 4D. W is deliberately not drawn as another in-scene axis, because that would falsely make it look like an ordinary 3D direction. Instead, W is shown in a separate coordinate rail outside the projected scene; its marker selects the active 3D slice.
+Keyboard: `2`, `3`, `4` switch dimensions; `R` resets.
 
 ## Run locally
 

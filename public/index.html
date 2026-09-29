@@ -3,38 +3,23 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#080807" />
-  <meta name="description" content="A clean geometric mandala explored as a 2D plan, 3D temple and 4D sliced structure." />
+  <meta name="theme-color" content="#070809" />
+  <meta name="description" content="A geometric mandala that unfolds from squares to cubes to 4D hypercubes." />
   <title>Hypermandala</title>
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <canvas id="mandala" aria-label="Interactive geometric mandala with X, Y and Z axes and a fourth-dimensional slice coordinate"></canvas>
+  <canvas id="mandala" aria-label="Interactive 2D, 3D and 4D geometric mandala explorer"></canvas>
 
   <header class="brand">
     <div class="brand__name">Hypermandala</div>
-    <div class="brand__tagline">one geometry · more dimensions</div>
+    <div class="brand__tagline">square · cube · hypercube</div>
   </header>
 
   <div class="dimension-readout" aria-live="polite">
     <strong id="dimensionValue">2D</strong>
-    <span id="dimensionStatus">plan</span>
+    <span id="dimensionStatus">mandala plan</span>
   </div>
-
-  <aside class="w-coordinate" id="sliceReadout" aria-live="polite" aria-hidden="true">
-    <div class="w-coordinate__head">
-      <span>Fourth coordinate</span>
-      <strong>W = <span id="sliceValue">0.00</span></strong>
-    </div>
-    <div class="w-coordinate__scale" aria-hidden="true">
-      <span>−1</span>
-      <div class="w-coordinate__rail">
-        <i id="wMarker"></i>
-      </div>
-      <span>+1</span>
-    </div>
-    <small>3D slice position · W is not drawn as a 3D axis</small>
-  </aside>
 
   <nav class="dimension-switcher" aria-label="Choose dimension">
     <button type="button" data-dimension="2" class="is-active">2D</button>
@@ -42,17 +27,49 @@
     <button type="button" data-dimension="4">4D</button>
   </nav>
 
-  <section class="axis-panel" aria-label="Coordinates and fourth-dimensional slice">
-    <div class="axis-panel__head">
-      <span>Position / slice</span>
-      <button id="resetPosition" type="button">center</button>
+  <aside class="control-panel" aria-label="4D explorer controls">
+    <div class="control-panel__title">
+      <span>Explorer</span>
+      <button id="resetAll" type="button">reset</button>
     </div>
-    <div id="axisRows" class="axis-rows"></div>
-  </section>
 
-  <div class="hint" id="hint">move X/Y · drag to rotate · scroll to zoom</div>
+    <section class="control-section">
+      <div class="control-section__label">Projection</div>
+      <div class="segmented" id="projectionControl">
+        <button type="button" data-projection="perspective" class="is-active">Perspective</button>
+        <button type="button" data-projection="orthographic">Orthographic</button>
+      </div>
+    </section>
 
-  <button class="reset-view" id="resetView" type="button" aria-label="Reset view">reset view</button>
+    <section class="control-section">
+      <div class="control-section__label">Color</div>
+      <div class="segmented" id="colorControl">
+        <button type="button" data-color="form" class="is-active">Form</button>
+        <button type="button" data-color="axis">Axis</button>
+      </div>
+    </section>
+
+    <section class="control-section rotation-section">
+      <div class="control-section__head">
+        <span class="control-section__label">Rotation planes</span>
+        <span class="control-section__note">auto</span>
+      </div>
+      <div id="rotationRows" class="control-rows"></div>
+    </section>
+
+    <section class="control-section scale-section">
+      <div class="control-section__label">Axis scale</div>
+      <div id="scaleRows" class="control-rows"></div>
+    </section>
+  </aside>
+
+  <div class="basis-gizmo" id="basisGizmo" aria-label="Projected coordinate basis">
+    <canvas id="basisCanvas" width="150" height="150"></canvas>
+    <span>projected basis</span>
+  </div>
+
+  <div class="hint" id="hint">drag to orbit · scroll to zoom</div>
+
   <a class="source" href="https://github.com/jnton/hypermandala" target="_blank" rel="noreferrer">source</a>
 
   <noscript><div class="noscript">Hypermandala needs JavaScript to render the interactive geometry.</div></noscript>
