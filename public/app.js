@@ -654,7 +654,9 @@
   function buildYantraPlan() {
     clearPlan();
     for (const [radius, rotation] of yantraLayerSpecs()) {
-      addPlanRegularPolygon(0, 0, radius, 3, rotation, false);
+      // These are visual regions as well as structural outlines. Keeping
+      // planFaces here lets Solid / Classic color the actual yantra faces.
+      addPlanRegularPolygon(0, 0, radius, 3, rotation, true);
     }
     addPlanPoint(0, 0, 0.028);
   }
@@ -662,7 +664,7 @@
   function buildHexPlan() {
     clearPlan();
     for (const [radius, rotation] of hexLayerSpecs()) {
-      addPlanRegularPolygon(0, 0, radius, 6, rotation, false);
+      addPlanRegularPolygon(0, 0, radius, 6, rotation, true);
     }
 
     const ringRadius = 1.58;
@@ -674,7 +676,7 @@
         0.22,
         6,
         Math.PI / 6,
-        false,
+        true,
       );
     }
 
@@ -688,7 +690,7 @@
           0.15,
           6,
           i % 2 ? Math.PI / 6 : 0,
-          false,
+          true,
         );
       }
     }
@@ -1341,7 +1343,7 @@
         : state.colorMode === 'classic'
           ? classicPlanColor(face)
           : '#c9b995';
-      ctx.globalAlpha = alpha * (state.colorMode === 'classic' ? 0.62 : 0.16);
+      ctx.globalAlpha = alpha * (state.colorMode === 'classic' ? 0.76 : 0.16);
       ctx.fill();
       ctx.globalAlpha = 1;
     }
@@ -1828,6 +1830,29 @@
     basisCtx.globalAlpha = 1;
   }
 
+  function wrapDegrees(value) {
+    return ((value + 180) % 360 + 360) % 360 - 180;
+  }
+
+  function syncRotationControl(key) {
+    const ui = rotationUI[key];
+    if (!ui) return;
+    ui.input.value = String(state.rotations[key]);
+    ui.value.textContent = Math.round(state.rotations[key]) + '°';
+  }
+
+  function setRotationValue(key, value) {
+    state.rotations[key] = wrapDegrees(value);
+    syncRotationControl(key);
+  }
+
+  function stopAutorotation(key) {
+    if (!state.auto[key]) return;
+    state.auto[key] = false;
+    const ui = rotationUI[key];
+    if (ui) ui.auto.setAttribute('aria-pressed', 'false');
+  }
+
   function createRotationControls() {
     for (const config of ROTATION_CONFIG) {
       const row = document.createElement('div');
@@ -1837,6 +1862,7 @@
       const label = document.createElement('span');
       label.className = 'control-row__label';
       label.textContent = config.label;
+      label.title = 'Rotate the object in the ' + config.label + ' coordinate plane';
 
       const input = document.createElement('input');
       input.type = 'range';
@@ -1891,6 +1917,11 @@
       const label = document.createElement('span');
       label.className = 'control-row__label';
       label.textContent = config.label;
+      label.title =
+        config.key === 'x' ? 'Stretch the X direction of the mandala plan'
+        : config.key === 'y' ? 'Stretch the Y direction of the mandala plan'
+        : config.key === 'z' ? 'Stretch or collapse the added 3D depth; 0 collapses toward 2D'
+        : 'Stretch or collapse the fourth dimension; 0 collapses toward 3D';
 
       const input = document.createElement('input');
       input.type = 'range';
@@ -1898,15 +1929,19 @@
       input.max = '1.4';
       input.step = '0.02';
       input.value = '1';
-      input.setAttribute('aria-label', 'Scale ' + config.label + ' axis');
+      input.setAttribute(
+        'aria-label',
+        'Dimension stretch ' + config.label + ': 1 normal, 0 collapsed',
+      );
+      input.title = label.title;
 
       const value = document.createElement('span');
       value.className = 'control-row__value';
-      value.textContent = '1.00';
+      value.textContent = '×1.00';
 
       input.addEventListener('input', () => {
         state.scales[config.key] = Number(input.value);
-        value.textContent = state.scales[config.key].toFixed(2);
+        value.textContent = '×' + state.scales[config.key].toFixed(2);
         hideHint();
       });
 
@@ -2174,7 +2209,7 @@
     for (const config of SCALE_CONFIG) {
       const ui = scaleUI[config.key];
       ui.input.value = '1';
-      ui.value.textContent = '1.00';
+      ui.value.textContent = '×1.00';
     }
   }
 
@@ -2308,6 +2343,7 @@
 
   canvas.addEventListener('pointermove', (event) => {
     if (!state.pointerDown) return;
+    if (state.transition || state.formTransition) return;
 
     const dx = event.clientX - state.pointerX;
     const dy = event.clientY - state.pointerY;
@@ -2315,22 +2351,24 @@
     state.pointerX = event.clientX;
     state.pointerY = event.clientY;
 
-    if (state.dimension === 2 && !state.transition && !state.formTransition) {
-      state.rotations.xy += dx * 0.42;
-      state.rotations.xy =
-        ((state.rotations.xy + 180) % 360 + 360) % 360 - 180;
-
-      const ui = rotationUI.xy;
-      ui.input.value = String(state.rotations.xy);
-      ui.value.textContent = Math.round(state.rotations.xy) + '°';
-    } else {
-      state.cameraYaw += dx * 0.005;
-      state.cameraPitch = clamp(
-        state.cameraPitch + dy * 0.005,
-        -1.45,
-        1.45,
-      );
+    if (state.dimension === 2) {
+      stopAutorotation('xy');
+      setRotationValue('xy', state.rotations.xy + dx * 0.42);
+      return;
     }
+
+    if (event.shiftKey) {
+      stopAutorotation('xy');
+      setRotationValue('xy', state.rotations.xy + dx * 0.42);
+      return;
+    }
+
+    // Mouse drag now manipulates the same object-rotation planes shown in
+    // the Explorer instead of an invisible second camera-orbit state.
+    stopAutorotation('xz');
+    stopAutorotation('yz');
+    setRotationValue('xz', state.rotations.xz + dx * 0.34);
+    setRotationValue('yz', state.rotations.yz + dy * 0.34);
   });
 
   function pointerUp(event) {
@@ -2354,6 +2392,9 @@
   }, { passive: false });
 
   canvas.addEventListener('dblclick', () => {
+    setRotationValue('xy', 0);
+    setRotationValue('xz', 0);
+    setRotationValue('yz', 0);
     state.cameraYaw = -0.62;
     state.cameraPitch = 0.58;
     state.zoom = 1;
