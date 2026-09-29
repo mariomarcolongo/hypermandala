@@ -200,7 +200,7 @@ That is why architecture can belong in Hypermandala: the plan itself carries the
 
 ### Complexity
 
-Each family has **Simple** and **Complex** variants. “Simple” is relative: both versions must remain structurally meaningful geometric plans. Complexity changes the generated geometry itself rather than merely adding decoration, so the extra structure participates in 3D and 4D transformations.
+Each family has **Complex** and **Simple** variants, with **Complex as the default**. “Simple” is relative: both versions must remain structurally meaningful geometric plans. Complexity changes the generated geometry itself rather than merely adding decoration, so the extra structure participates in 3D and 4D transformations.
 
 ## Rendering
 
@@ -269,8 +269,8 @@ Classic 2D regions are painted **opaquely** in deterministic outer→inner order
 - **Geometric forms** — choose Square, Sri Yantra, Kali Yantra, Matangi Yantra, Hex, Stupa, Borobudur, Castel del Monte, Kukulcán, or Bete Giyorgis.
 - **Persistent 2D previews** — all ten families are shown in a centered grid using the current complexity and Classic palette.
 - **Collapsible library** — the entire Geometric Forms panel can collapse to a compact header and expand again without changing the current form.
-- **Complexity** — choose Simple or Complex generated geometry.
-- **Spacing** — **Compact** by default, where neighboring Z layers touch; **Separated** preserves the airy exploded-layer look.
+- **Complexity** — **Complex** is the default and first option; Simple is the reduced form.
+- **Spacing** — **Compact** by default. Compact means hierarchy levels are physically contiguous rather than merely close; **Separated** intentionally introduces air between levels.
 - **Rendering** — Solid (default: visible black edges only), Solid + wireframe (full structural overlay), or Wire.
 - **2D / 3D / 4D** — automatic dimensional transitions.
 - **Drag** — XY rotation in 2D; XZ/YZ object rotation in 3D/4D, with the sliders updating live. Shift-drag gives XY twist.
@@ -280,7 +280,7 @@ Classic 2D regions are painted **opaquely** in deterministic outer→inner order
 - **Dimension stretch** — manually scale X/Y/Z/W; 1 is normal and 0 collapses that coordinate.
 - **Projection** — Perspective, Orthographic, or true Isometric.
 - **Color** — Classic (default), Form, or Axis.
-- **Reset** — restore the complete default state, including Square / Simple / Compact / 2D / Perspective / Classic / Solid.
+- **Reset** — restore the complete default state, including Square / Complex / Compact / 2D / Perspective / Classic / Solid.
 - **Persistence** — explorer settings are stored in browser `localStorage` and restored after reload/reopening: selected form, complexity, spacing, dimension, projection, rendering, color mode, rotations, autorotation, dimension stretches, zoom, and Geometric Forms panel collapse state.
 
 Keyboard: `2`, `3`, `4` switch dimensions; `R` resets.
@@ -340,11 +340,33 @@ Current intrinsic mapping:
 
 The yantra and Hex center marks are promoted into culminating ±Z elements. Stupa and Borobudur instead use their central footprints as the top architectural crown.
 
+## Dimensional lift philosophy
+
+The 2D plan remains exact, but the higher-dimensional realization is not required to imitate ordinary construction constraints.
+
+For **reference architecture**, real buildings anchor recognizable topology, proportions and hierarchy. Hypermandala may idealize those forms where gravity, materials or construction economy would otherwise force asymmetry or compromise, especially in 4D.
+
+For **non-architectural geometric forms**, the lift should express the internal logic of the plan rather than behave like arbitrary stacked slabs:
+
+- hierarchy determines elevation;
+- center and periphery remain meaningful;
+- opposite directions are treated symmetrically when the form permits it;
+- repeated elements at one hierarchy level share the same elevation;
+- Compact introduces **no accidental air gaps** between consecutive hierarchy levels;
+- the bindu or central culmination remains geometrically privileged.
+
+The yantra lift is therefore an experimental **double-Meru** construction: the 2D yantra is the equatorial plan, and its hierarchy rises continuously in both +Z and −Z. This deliberately maximizes reflection symmetry in the unrestricted Hypermandala space. Traditional Śrīcakra practice also includes a one-sided pyramidal **Meru** form in which the same plan is elevated toward the bindu, but historical sources do not provide one universal set of Meru proportions.
+
+References:
+- https://www.sriyantrageometry.com/sources
+- https://www.sriyantrageometry.com/
+
 ## 3D spacing
 
-Spacing is a real geometric control again:
+Spacing is a real geometric control:
 
-- **Compact** is the default. Symmetric families keep mirrored Z layers close/touching; architectural families keep adjacent terraces touching.
-- **Separated** moves layers farther apart while leaving the XY geometric plan unchanged.
+- **Compact** is the default. Consecutive hierarchy levels are packed so their surfaces touch rather than float with arbitrary gaps.
+- **Separated** intentionally moves hierarchy levels farther apart while leaving the XY geometric plan unchanged.
+- Architectural forms also use zero inter-level air in Compact unless a void is intrinsic to the reference form.
 
 The 2D geometric plan itself never changes when spacing changes.
