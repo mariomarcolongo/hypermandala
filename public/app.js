@@ -3047,29 +3047,75 @@
     const network = preserveSubdivision
       ? yantraSubdivisionNetwork(pieces)
       : [];
+    const mirror = state.liftMode === 'mirror';
+
+    let mirrorCenters = null;
+    if (mirror) {
+      const gap = state.spacingStyle === 'separated'
+        ? separatedGap
+        : 0;
+      mirrorCenters = [0];
+      let topSurface = layout.rankThickness[0] * 0.5;
+
+      for (let rank = 1; rank < layout.levels.length; rank += 1) {
+        const center =
+          topSurface
+          + gap
+          + layout.rankThickness[rank] * 0.5;
+        mirrorCenters.push(center);
+        topSurface = center + layout.rankThickness[rank] * 0.5;
+      }
+    }
 
     for (const piece of pieces) {
       const rank = layout.rankByLevel.get(piece.level) || 0;
       const height = layout.rankThickness[rank];
-      const z = layout.centers[rank];
       const hierarchyT = layout.levels.length <= 1
         ? 1
         : rank / (layout.levels.length - 1);
       const details = preserveSubdivision
         ? detailSegmentsForPiece(piece, network)
         : [];
+      const liftMeta = {
+        hierarchyT,
+        polarity: regionPolarity(piece.regionId),
+      };
 
-      addFootprintPrismCentered(
-        piece.points,
-        z,
-        height,
-        piece.regionId,
-        details,
-        {
-          hierarchyT,
-          polarity: regionPolarity(piece.regionId),
-        },
-      );
+      if (!mirror) {
+        addFootprintPrismCentered(
+          piece.points,
+          layout.centers[rank],
+          height,
+          piece.regionId,
+          details,
+          liftMeta,
+        );
+        continue;
+      }
+
+      if (rank === 0) {
+        addFootprintPrismCentered(
+          piece.points,
+          0,
+          height,
+          piece.regionId,
+          details,
+          liftMeta,
+        );
+        continue;
+      }
+
+      const z = mirrorCenters[rank];
+      for (const sign of [-1, 1]) {
+        addFootprintPrismCentered(
+          piece.points,
+          sign * z,
+          height,
+          piece.regionId,
+          details,
+          liftMeta,
+        );
+      }
     }
   }
 
@@ -3197,12 +3243,88 @@
     ));
     const centerHeight = 0.17;
     const gap = separated ? 0.15 : 0;
+    const mirror = state.liftMode === 'mirror';
+
+    if (mirror) {
+      const outerMeta = { hierarchyT: 0, polarity: 0 };
+      addHexSatelliteRing(0, satelliteThickness, outerMeta);
+
+      if (state.complexity === 'complex') {
+        const outerRadius = 2.02;
+        for (let i = 0; i < 12; i += 1) {
+          const angle = (i / 12) * TAU + Math.PI / 12;
+          addCenteredPrism(
+            Math.cos(angle) * outerRadius,
+            Math.sin(angle) * outerRadius,
+            0,
+            0.15,
+            6,
+            satelliteThickness,
+            i % 2 ? Math.PI / 6 : 0,
+            'hex-outer-satellite',
+            outerMeta,
+          );
+        }
+      }
+
+      addCenteredPrism(
+        0,
+        0,
+        0,
+        layers[0][0],
+        6,
+        layerThicknesses[0],
+        layers[0][1],
+        'hex-layer-0-of-' + layers.length,
+        outerMeta,
+      );
+
+      let topSurface =
+        Math.max(satelliteThickness, layerThicknesses[0]) * 0.5;
+
+      for (let index = 1; index < layers.length; index += 1) {
+        const thickness = layerThicknesses[index];
+        const z = topSurface + gap + thickness * 0.5;
+        topSurface = z + thickness * 0.5;
+        const hierarchyT = index / layers.length;
+
+        for (const sign of [-1, 1]) {
+          addCenteredPrism(
+            0,
+            0,
+            sign * z,
+            layers[index][0],
+            6,
+            thickness,
+            layers[index][1],
+            'hex-layer-' + index + '-of-' + layers.length,
+            { hierarchyT, polarity: 0 },
+          );
+        }
+      }
+
+      const crownZ = topSurface + gap + centerHeight * 0.5;
+      for (const sign of [-1, 1]) {
+        addCenteredPrism(
+          0,
+          0,
+          sign * crownZ,
+          0.026,
+          12,
+          centerHeight,
+          0,
+          'hex-center',
+          { hierarchyT: 1, polarity: 0 },
+        );
+      }
+      return;
+    }
+
     const thicknesses = [
       satelliteThickness,
       ...layerThicknesses,
       centerHeight,
     ];
-
     const total =
       thicknesses.reduce((sum, value) => sum + value, 0)
       + gap * (thicknesses.length - 1);
@@ -4767,6 +4889,7 @@
     });
 
     buildActiveMandala();
+    updateUI();
     markSettingsDirty();
     hideHint();
   }
