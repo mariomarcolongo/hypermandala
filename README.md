@@ -60,16 +60,20 @@ Two 4D → 3D projection modes are available:
 - **Perspective** — a virtual 4D camera sits along W; geometry farther away in W projects smaller.
 - **Orthographic** — W is flattened without perspective scaling.
 
-After the 4D → 3D projection, mouse drag orbits an ordinary 3D camera and the wheel zooms.
+Mouse drag now rotates the object in the same spatial planes exposed by the controls: horizontal drag changes **XZ**, vertical drag changes **YZ**, and Shift-drag changes **XY**. The corresponding sliders update live. XW/YW/ZW remain explicit 4D rotations because an ordinary 2D drag does not uniquely specify a fourth-dimensional rotation. The wheel zooms.
 
-## Axis scale
+## Dimension stretch
 
-X, Y, Z, and W can be scaled independently. This is especially useful for understanding the dimensional construction:
+The former **Axis scale** control is now labeled **Dimension stretch**:
 
-- reducing **Z** collapses the temple toward its 2D square plan;
-- reducing **W** collapses each tesseract-like module toward its 3D cube.
+- **1.00** — normal size along that coordinate.
+- **0.00** — fully collapse that coordinate.
+- **>1.00** — exaggerate that coordinate to make its structure easier to inspect.
+- **X / Y** — stretch or squash the original 2D mandala plane.
+- **Z** — controls 3D depth; Z = 0 collapses the higher-dimensional form toward its 2D plan.
+- **W** — controls fourth-dimensional extent; W = 0 collapses the 4D object onto its 3D form.
 
-The 2D / 3D / 4D buttons perform these dimensional changes automatically.
+This is independent of the 2D / 3D / 4D buttons: the buttons perform the canonical dimensional transition, while Dimension stretch is a manual inspection tool.
 
 ## Mandala families
 
@@ -153,6 +157,8 @@ Hex is a modern geometric mandala preset, not a canonical Tibetan or Sri Chakra 
 
 Across Classic mode, face orientation changes **brightness**, not hue. This helps distinguish 3D/4D sides without overriding the family-specific color assignment.
 
+Yantra and Hex now also define actual **2D plan faces**, not only colored outlines, so Solid / Solid + edges and Classic can fill their triangular and hexagonal regions in the 2D view.
+
 ## Controls
 
 - **Mandala dock** — choose Square, Yantra, or Hex using the compact library at lower left.
@@ -162,11 +168,11 @@ Across Classic mode, face orientation changes **brightness**, not hue. This help
 - **Spacing** — **Compact** by default, where neighboring Z layers touch; **Separated** preserves the airy exploded-layer look.
 - **Rendering** — Wire, Solid, or Solid + edges.
 - **2D / 3D / 4D** — automatic dimensional transitions.
-- **Drag** — rotate the 2D plan or orbit the 3D projection.
+- **Drag** — XY rotation in 2D; XZ/YZ object rotation in 3D/4D, with the sliders updating live. Shift-drag gives XY twist.
 - **Wheel / trackpad** — zoom.
 - **Rotation planes** — rotate the object in 4D.
 - **A** — autorotate an individual plane.
-- **Axis scale** — scale X/Y/Z/W.
+- **Dimension stretch** — manually scale X/Y/Z/W; 1 is normal and 0 collapses that coordinate.
 - **Projection** — perspective or orthographic.
 - **Color** — Form, Axis, or Classic Mandala.
 - **Reset** — restore rotations, scale, camera, projection, and color.
