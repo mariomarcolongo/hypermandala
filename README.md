@@ -156,6 +156,7 @@ Across Classic mode, face orientation changes **brightness**, not hue. This help
 - **Persistent 2D previews** — all three mandala families are shown at the same time, using the current complexity setting, so the previews help you choose rather than only confirming the current choice.
 - **Complexity** — choose Simple or Complex generated geometry.
 - **3D form** — Symmetric by default, or Temple for an upward architectural interpretation.
+- **Spacing** — **Compact** by default, where neighboring Z layers touch; **Separated** preserves the airy exploded-layer look.
 - **Rendering** — Wire, Solid, or Solid + edges.
 - **2D / 3D / 4D** — automatic dimensional transitions.
 - **Drag** — rotate the 2D plan or orbit the 3D projection.
@@ -208,3 +209,13 @@ The 2D mandala is generated independently from the 3D/4D primitive footprints. H
 The higher-dimensional forms reuse those same measurements. Extra Z/W structure may be hidden by dimensional compression, but it should emerge from the mandala rather than retroactively changing its 2D geometry.
 
 Temple remains an optional architectural interpretation. Its levels and roofs are separated and supported rather than overlapping or penetrating one another.
+
+
+## 3D spacing
+
+The dimensional form now separates **form** from **spacing**.
+
+- **Compact** is the default. Adjacent Z layers are positioned from their actual thicknesses so they touch rather than float apart. The dimension still visibly emerges during the 2D → 3D animation.
+- **Separated** keeps the more exploded, airy interpretation where hidden layers move farther apart along Z.
+
+Spacing applies to both Symmetric and Temple forms. It changes only the Z layout; the 2D mandala plan remains identical.
