@@ -721,7 +721,7 @@
 
     const allCenters = [...hyperMap.values()];
     const minDistance = minimumChebyshevDistance(allCenters);
-    const sizeFactor = state.spacingStyle === 'separated' ? 0.52 : 0.82;
+    const sizeFactor = state.spacingStyle === 'separated' ? 0.58 : 0.96;
     const cellSize = clamp(minDistance * sizeFactor, 0.045, 0.18);
 
     for (const center of hyperMap.values()) {
@@ -1289,25 +1289,19 @@
 
 
   function buildGeometryForCurrentChoice() {
-    if (state.preset === 'yantra') {
-      if (state.formStyle === 'temple') buildYantraTemple();
-      else buildYantraSymmetric();
-    } else if (state.preset === 'hex') {
-      if (state.formStyle === 'temple') buildHexTemple();
-      else buildHexSymmetric();
-    } else {
-      if (state.formStyle === 'temple') buildSquareTemple();
-      else buildSquareSymmetric();
+    if (state.formStyle === 'symmetric') {
+      buildSymmetricOrbitFromPlan();
+      return;
     }
 
-    if (state.formStyle === 'symmetric') {
-      enforceAxisIsotropicSymmetry();
-    }
+    if (state.preset === 'yantra') buildYantraTemple();
+    else if (state.preset === 'hex') buildHexTemple();
+    else buildSquareTemple();
   }
 
   function buildActiveMandala() {
-    buildGeometryForCurrentChoice();
     buildPlanForPreset();
+    buildGeometryForCurrentChoice();
     updateGeometryStats();
     drawAllPreviews();
     updateGeometryStats();
@@ -2032,13 +2026,11 @@
 
     for (const preset of ['square', 'yantra', 'hex']) {
       state.preset = preset;
-      buildGeometryForCurrentChoice();
       buildPlanForPreset();
       drawPreviewToCanvas(previewCanvases[preset]);
     }
 
     state.preset = selectedPreset;
-    buildGeometryForCurrentChoice();
     buildPlanForPreset();
   }
 
