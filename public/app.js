@@ -2006,6 +2006,7 @@
   function project4Dto3D(p) {
     if (
       state.projection === 'orthographic'
+      || state.projection === 'isometric'
       || state.wMix * state.formMorph < 0.001
     ) {
       return [p[0], p[1], p[2]];
@@ -2031,7 +2032,11 @@
     const visibleZ = state.zMix * state.formMorph;
     const viewMix = smoother(clamp((visibleZ - 0.62) / 0.38, 0, 1));
 
-    const yaw = state.cameraYaw * viewMix;
+    const isometric = state.projection === 'isometric';
+    const yaw = (
+      isometric ? -Math.PI / 4 : state.cameraYaw
+    ) * viewMix;
+
     let c = Math.cos(yaw);
     let s = Math.sin(yaw);
     let nx = c * x - s * z;
@@ -2039,7 +2044,12 @@
     x = nx;
     z = nz;
 
-    const pitch = state.cameraPitch * viewMix;
+    const pitch = (
+      isometric
+        ? Math.atan(1 / Math.sqrt(2))
+        : state.cameraPitch
+    ) * viewMix;
+
     c = Math.cos(pitch);
     s = Math.sin(pitch);
     const ny = c * y - s * z;
@@ -2055,7 +2065,9 @@
     const p3 = cameraTransform(project4Dto3D(p4));
 
     const cameraZ = 5.8;
-    const factor = cameraZ / Math.max(2.6, cameraZ - p3[2]);
+    const factor = state.projection === 'isometric'
+      ? 1
+      : cameraZ / Math.max(2.6, cameraZ - p3[2]);
     const scale = Math.min(state.width, state.height) * 0.245 * state.zoom;
 
     return {
@@ -2843,7 +2855,7 @@
   }
 
   function setProjection(mode) {
-    if (mode !== 'perspective' && mode !== 'orthographic') return;
+    if (!['perspective', 'orthographic', 'isometric'].includes(mode)) return;
     state.projection = mode;
     projectionButtons.forEach((button) => {
       button.classList.toggle('is-active', button.dataset.projection === mode);
