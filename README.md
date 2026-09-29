@@ -20,7 +20,12 @@ The default obeys a collapse / expansion rule:
 
 This allows higher-dimensional geometry to emerge during dimensional expansion even when its lower-dimensional collapse looks simple.
 
-In **Symmetric** mode the generated 3D/4D module set is explicitly closed under reflections X→−X, Y→−Y, Z→−Z, and W→−W. This is stricter than radial rotational symmetry: the non-Temple object is mirrored across every coordinate hyperplane.
+In **Symmetric** mode no coordinate axis is structurally privileged.
+
+- In **3D**, the generated module set is closed under all signed permutations of X/Y/Z: axis swaps such as X↔Z and Y↔Z, plus sign reflections.
+- In **4D**, that closure extends to signed permutations of X/Y/Z/W, including swaps such as X↔W.
+
+This is stronger than simple mirror or radial symmetry. It gives the non-Temple construction the same coordinate structure regardless of which axis is treated as X, Y, Z, or—at 4D—W.
 
 ### Temple form — optional
 
@@ -118,9 +123,11 @@ Three render modes are available:
 - **Solid** — projected polygon faces without edge overlay.
 - **Solid + edges** — opaque faces plus dark, non-transparent structural edges. The edges remain fully opaque once a dimension has emerged, while new Z/W edges still fade in during dimensional transitions.
 
-The solid layer now uses **WebGL2 with a real depth buffer**. Projected faces are triangulated and depth-tested per pixel rather than painter-sorted as whole polygons. Coincident shared faces are removed before rendering to prevent z-fighting.
+The solid layer uses **WebGL2 with a real depth buffer**. Projected faces are triangulated and depth-tested per pixel rather than painter-sorted as whole polygons. Coincident shared faces are removed before rendering to prevent z-fighting.
 
-Face colors are intrinsic to the face family/orientation and no longer brighten or darken according to current camera depth. This removes the color "breathing" and draw-order flashes that appeared while rotating in 4D.
+Solid faces are now genuinely opaque in the GPU renderer: blending is disabled while depth writing is enabled. Higher-dimensional geometry emerges by changing its geometry/scale rather than by stacking depth-writing translucent faces. This removes the depth/alpha interaction that caused color popping and flashing.
+
+Face colors are intrinsic to the face family/orientation and no longer brighten or darken according to camera depth. Axis labels are remapped when symmetry operations permute coordinate axes, so Axis coloring remains consistent after X/Y/Z/W swaps.
 
 Wireframe and interaction overlays remain on the existing Canvas layer. If WebGL2 is unavailable, Hypermandala falls back to the older Canvas face renderer.
 
