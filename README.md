@@ -1,6 +1,10 @@
 # Hypermandala
 
-**Geometric 2D plans unfolding into their intrinsic 3D forms and 4D projections.**
+**Interactive 4D mandala, yantra and sacred-geometry explorer.**
+
+Live: https://hypermandala.mariomarcolongo.com/
+
+Geometric 2D plans unfold into intrinsic 3D forms and genuine 4D projections with rotation in all six coordinate planes.
 
 Hypermandala is a dependency-free Canvas visualization. Its interaction model is inspired by [Tarek Sherif's Tesseract Explorer](https://github.com/tsherif/tesseract-explorer): the 4D object is manipulated in 4D space, projected into 3D, and then viewed with an ordinary 3D camera.
 
@@ -283,6 +287,7 @@ Classic 2D regions are painted **opaquely** in deterministic outer→inner order
 - **Collapsible library** — the entire Geometric Forms panel can collapse to a compact header and expand again without changing the current form.
 - **Complexity** — **Complex** is the default and first option; Simple is the reduced form.
 - **Spacing** — **Compact** by default. Compact means hierarchy levels are physically contiguous rather than merely close; **Separated** intentionally introduces air between levels.
+- **Z lift** — **Hierarchy** is the default single outer→inner ascent. **Mirror** is an experimental reflection-symmetric lift for the non-building geometric families. Architecture keeps its intrinsic vertical orientation.
 - **Rendering** — Solid (default: visible black edges only), Solid + wireframe (full structural overlay), or Wire.
 - **2D / 3D / 4D** — automatic dimensional transitions.
 - **Drag** — XY rotation in 2D; in 3D/4D, horizontal motion gives XY spin + XZ tilt and vertical motion gives YZ tilt. Shift-drag gives pure XY. Sliders update live.
@@ -292,8 +297,8 @@ Classic 2D regions are painted **opaquely** in deterministic outer→inner order
 - **Dimension stretch** — manually scale X/Y/Z/W; 1 is normal and 0 collapses that coordinate.
 - **Projection** — Perspective, Orthographic, or true Isometric.
 - **Color** — Classic (default), Form, or Axis.
-- **Reset** — restore the complete default state, including Square / Complex / Compact / 2D / Perspective / Classic / Solid.
-- **Persistence** — explorer settings are stored in browser `localStorage` and restored after reload/reopening: selected form, complexity, spacing, dimension, projection, rendering, color mode, rotations, autorotation, dimension stretches, zoom, and Geometric Forms panel collapse state.
+- **Reset** — restore the complete default state, including Square / Complex / Compact / Hierarchy Z lift / 2D / Perspective / Classic / Solid.
+- **Persistence** — explorer settings are stored in browser `localStorage` and restored after reload/reopening: selected form, complexity, spacing, Z lift, dimension, projection, rendering, color mode, rotations, autorotation, dimension stretches, zoom, and Geometric Forms panel collapse state.
 
 Keyboard: `2`, `3`, `4` switch dimensions; `R` resets.
 
@@ -372,6 +377,8 @@ For **non-architectural geometric forms**, the lift should express the internal 
 
 The default yantra lift is therefore a **single centered hierarchy**. The bhupura starts at negative Z, successive enclosures rise through Z=0, and the bindu culminates at positive Z. Using both signs of Z does not require two reflected temples: zero is simply the midpoint of one continuous geometric journey.
 
+Hypermandala also keeps an explicit **Mirror** Z-lift mode as an experiment. In that mode the outer level is shared at Z=0 and the inward hierarchy is reflected into ±Z. This deliberately restores a stronger reflection symmetry — useful aesthetically and mathematically — without claiming that it is the uniquely faithful traditional continuation.
+
 In 4D, W is used for relationships that Z cannot express cleanly. Complementary Sri/Matangi triangle polarities separate in opposite W directions through the intermediate hierarchy and converge again toward W=0 at the outer boundary and bindu. Kali's five downward triangles share one polarity rather than being assigned an artificial alternating sign. Square and Hex use hierarchy-dependent W extent without an invented polarity.
 
 ### Complexity preservation
@@ -397,3 +404,14 @@ Spacing is a real geometric control:
 - Architectural forms also use zero inter-level air in Compact unless a void is intrinsic to the reference form.
 
 The 2D geometric plan itself never changes when spacing changes.
+
+
+## Web discovery
+
+The production site uses the canonical URL `https://hypermandala.mariomarcolongo.com/`, Open Graph / Twitter social cards, Schema.org `WebApplication` structured data, a crawlable About section, `robots.txt`, `sitemap.xml`, a favicon, and a dedicated 1200×630 social-preview image.
+
+### Novelty wording
+
+Hypermandala does **not** claim to be the first 3D Sri Yantra visualization: earlier interactive and downloadable 3D Sri Yantra work exists.
+
+The project instead describes itself factually as an **interactive 4D mandala and yantra explorer** with genuine six-plane 4D rotation, dimensional collapse, multiple specific yantras/mandalas, semantic higher-dimensional lifts, and architecture-derived forms. Older fourth-dimensional sacred-geometry and “HyperMandala” concepts also exist, so any absolute “first 4D mandala ever” claim would require a much more exhaustive historical prior-art search.
