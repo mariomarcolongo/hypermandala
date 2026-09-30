@@ -106,10 +106,9 @@ Its core uses nine interlocking triangles — four upward and five downward — 
 
 - **Simple**: nine-triangle core + 8-petal lotus + 16-petal lotus + four-gated bhupura + bindu.
 - **Complex**: the same identity-preserving core plus the fuller triple bhupura and concentric enclosure detail.
-- 3D: the default is now a **Meru-inspired faceted relief**, not a stack of nine flat triangular prisms. The bhupura and lotus rings remain low terraces; the complete nine-triangle network is lifted onto one continuous inward-rising surface; repeated height bands create real terraces; and the bindu becomes the final apex.
-- The 3D surface does **not** claim one uniquely canonical historical height system. Traditional Meru precedent motivates the topology, while the exact elevations are a transparent geometric choice made by Hypermandala.
-- Every original triangle edge and every computed intersection remains an actual lifted structural line on the 3D surface, so the dense 2D network is visible in the shape rather than merely printed on a slab.
-- 4D: W still expresses polarity independently of Z. Shiva/upward and Shakti/downward triangle families separate in opposite W directions through the middle hierarchy and converge again toward the outer boundary and bindu.
+- 3D: the full plan becomes **one centered outer→inner ascent through Z**. Bhupura begins at the low end, lotus/enclosure levels pass through the middle, and the bindu culminates at the high end. There is no second reflected Meru glued underneath.
+- The triangle intersection network is carried onto the lifted surfaces. Interlocking triangles therefore retain their smaller cells and crossing structure instead of becoming visually blank giant triangular slabs.
+- 4D: W expresses polarity independently of Z. Shiva/upward and Shakti/downward triangle families separate in opposite W directions through the middle hierarchy and converge again toward the outer boundary and bindu.
 
 Geometry references:
 - https://sriyantrageometry.com/
@@ -128,9 +127,7 @@ Reference:
 
 Matangi is no longer represented by a generic yantra. Its specific plan uses the documented **six-pointed star (shatkona)** inside an **eight-petalled lotus**, enclosed by a bhupura and centered on the bindu.
 
-Complex adds the additional triangle and lotus enclosures described in fuller Matangi-puja constructions while preserving the shatkona as the central identity.
-
-The default 3D realization is now an **experimental shatkona relief**, not a pseudo-Meru stack. The primary interlocking triangles define a continuous star-shaped faceted rise, their exact crossings are lifted as structural lines, the lotus/bhupura stay lower, and the bindu is the culmination. This is explicitly a geometric extension of the documented 2D plan rather than a claim that one canonical traditional Matangi 3D form exists. In 4D, the two triangle polarities still separate through W.
+Complex adds the additional triangle and lotus enclosures described in fuller Matangi-puja constructions while preserving the shatkona as the central identity. The shatkona crossings remain explicit structural edges on the lifted surfaces and continue into the 4D structure.
 
 References:
 - https://dlbs.liberal.ntu.edu.tw/DLMBS/search/search_detail.jsp?seq=351551
@@ -253,9 +250,9 @@ Square uses the Tibetan-inspired five-direction vocabulary already used by Hyper
 
 ### Specific yantra families
 
-- **Sri Yantra** — gold bhupura, rose/ivory lotus rings, blue upward triangles, red downward triangles, red bindu. In the Meru-inspired 3D view the continuous supporting surface uses a restrained warm-gold material, while the source triangle families retain their semantic identities in the lifted network and 4D polarity.
+- **Sri Yantra** — gold bhupura, rose/ivory lotus rings, blue upward triangles, red downward triangles, red bindu.
 - **Kali Yantra** — dark bhupura, crimson lotus, black/crimson triangle hierarchy, gold bindu.
-- **Matangi Yantra** — olive bhupura, pink lotus, ochre/green shatkona, gold bindu. Its experimental 3D supporting surface uses a muted ochre material while the original shatkona remains the structural network.
+- **Matangi Yantra** — olive bhupura, pink lotus, ochre/green shatkona, gold bindu.
 
 The palettes are visual interpretations of documented traditional color vocabularies, not a claim that every lineage uses one universal color scheme.
 
@@ -370,7 +367,6 @@ For **reference architecture**, real buildings anchor recognizable topology, pro
 For **non-architectural geometric forms**, the lift should express the internal logic of the plan rather than behave like arbitrary stacked slabs:
 
 - hierarchy determines elevation and layer thickness;
-- when a dense 2D intersection network is the identity of the form, that network should become real 3D structure rather than decoration on top of unrelated slabs;
 - center and periphery remain meaningful;
 - source symmetries are preserved, but new reflection symmetries are not invented merely because another coordinate exists;
 - repeated elements at one hierarchy level share elevation and dimensional extent;
@@ -389,11 +385,9 @@ In 4D, W is used for relationships that Z cannot express cleanly. Complementary 
 
 Complexity is part of the source geometry, not decoration that can disappear after 2D.
 
-For Sri and Matangi, Hypermandala now computes the exact triangle-intersection network and lifts those source lines onto a coherent faceted height field. The hidden tessellation needed to render the supporting surface is deliberately **not** exposed as structural wire: the visible 3D edges are the source yantra network itself. Those same lifted edges become W-bridge structure in 4D.
+For the specific yantras, Hypermandala computes the intersection network of the triangle boundaries and carries those clipped segments onto the corresponding 3D surfaces. These become real structural edges in 3D and W-bridge structure in 4D. A large source triangle can therefore remain one semantic region while still exposing the smaller cells and crossings produced by the complete diagram.
 
-Kali retains the simpler nested-tier construction because its five concentric downward triangles already describe a direct enclosure hierarchy. The experimental **Mirror** mode also intentionally keeps the older reflection-symmetric layered interpretation rather than pretending to be the default traditional continuation.
-
-The flat renderer does not draw bookkeeping subsegments a second time because the same lines are already visible as the original 2D triangle boundaries.
+The flat renderer does not draw these bookkeeping subsegments a second time because the same lines are already visible as the original 2D triangle boundaries.
 
 For **reference architecture**, recognizable 3D structure remains anchored to the real object. The 4D lift is freer: modules stay centered on W=0 to preserve reflection symmetry, while higher/central architectural elements receive greater W extent. In other words, 3D respects the building; 4D is allowed to express the building's hierarchy without gravity, material cost or engineering limits.
 
