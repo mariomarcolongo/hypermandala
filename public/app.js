@@ -4927,31 +4927,41 @@
 
     const zReveal = zConstructionReveal();
     const wReveal = wConstructionReveal();
-
-    // The 2D source behaves like a construction drawing: its filled regions
-    // fade first, while its lines remain long enough to show exactly where the
-    // new edges and surfaces originate.
-    const planFaceAlpha =
-      1 - smoother(clamp((state.zMix - 0.14) / 0.48, 0, 1));
-    const planEdgeAlpha =
-      1 - smoother(clamp((state.zMix - 0.58) / 0.42, 0, 1));
-
-    drawPlanFaces(planFaceAlpha);
-    drawPlanEdges(planEdgeAlpha);
-
-    // Surfaces first appear translucent, then become fully opaque solids.
-    // This gives the morph a readable edge → face → solid progression.
-    const surfaceAlpha = zReveal.faces * (0.18 + zReveal.solid * 0.82);
-    const solidHandled = drawSolidLayer(surfaceAlpha);
-    if (!solidHandled) drawFaces(surfaceAlpha);
-
-    // Respect the selected rendering mode throughout the morph.
-    // Solid remains Solid, Solid + wireframe keeps its structural overlay,
-    // and Wire remains Wire. Construction is communicated by geometry growth
-    // and face opacity rather than by temporarily switching render styles.
     const transitionEdgeAlpha = Math.max(zReveal.edges, wReveal.edges);
-    drawEdges(transitionEdgeAlpha);
-    drawVertices(transitionEdgeAlpha);
+
+    if (state.renderMode === 'wire') {
+      // Wire is line-only for the complete journey. The source plan hands off
+      // directly to the dimensional edge network without any filled phase.
+      clearSolidLayer();
+      const planEdgeAlpha =
+        1 - smoother(clamp((state.zMix - 0.48) / 0.42, 0, 1));
+      drawPlanEdges(planEdgeAlpha);
+      drawEdges(transitionEdgeAlpha);
+      drawVertices(transitionEdgeAlpha);
+      return;
+    }
+
+    // Filled modes never become transparent/wire-like during a transition.
+    // At 2D, draw the authored plan. As soon as a tiny amount of Z exists,
+    // hand off to the same opaque filled renderer used at rest; collapsed
+    // faces then open geometrically into the third dimension.
+    const usePlanRenderer = state.zMix < 0.025;
+    if (usePlanRenderer) {
+      clearSolidLayer();
+      drawPlanFaces(1);
+      drawPlanEdges(1);
+      return;
+    }
+
+    const solidHandled = drawSolidLayer(1);
+    if (!solidHandled) drawFaces(1);
+
+    // Only the explicit Solid + wireframe mode receives the structural edge
+    // overlay. Solid itself never acquires a temporary scaffold.
+    if (state.renderMode === 'solid-edges') {
+      drawEdges(transitionEdgeAlpha);
+      drawVertices(transitionEdgeAlpha);
+    }
   }
 
   function drawPreviewToCanvas(previewCanvas) {
