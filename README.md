@@ -320,6 +320,9 @@ Then open `http://localhost:8080`.
 - Framework preset: none
 - Build command: leave blank (or use `exit 0`)
 - Build output directory: `public`
+- Browser Cache TTL: **Respect Existing Headers**
+- Do not apply a long-lived `Cache Everything` / Browser TTL rule to `/`, `index.html`, `app.js`, or `styles.css`.
+- `public/_headers` marks the HTML as `no-store` and mutable JS/CSS as revalidated assets. The page bootstrap also explicitly revalidates `app.js` and `styles.css` on load, with a unique-URL fallback, so a stale browser cache cannot combine assets from different releases.
 
 ### GitHub Pages
 
