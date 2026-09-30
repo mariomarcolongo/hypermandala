@@ -3217,10 +3217,13 @@
 
   function yantraConvexHull(points) {
     const unique = [...new Map(
-      points.map((point) => [
-        point.map((value) => value.toFixed(7)).join(','),
-        [point[0], point[1]],
-      ]),
+      points.map((point) => {
+        const normalized = point.map(symmetryCoord);
+        return [
+          normalized.map((value) => value.toFixed(7)).join(','),
+          normalized,
+        ];
+      }),
     ).values()].sort((a, b) => (
       a[0] === b[0] ? a[1] - b[1] : a[0] - b[0]
     ));
@@ -3264,9 +3267,10 @@
     const unique = new Map();
 
     for (const point of points) {
+      const normalized = point.map(symmetryCoord);
       unique.set(
-        point.map((value) => value.toFixed(7)).join(','),
-        [point[0], point[1]],
+        normalized.map((value) => value.toFixed(7)).join(','),
+        normalized,
       );
     }
 
@@ -3436,13 +3440,14 @@
       const edges3 = [];
 
       const vertexIndex = (point) => {
-        const key = point.map((value) => value.toFixed(7)).join(',');
+        const normalized = point.map(symmetryCoord);
+        const key = normalized.map((value) => value.toFixed(7)).join(',');
         if (vertexByKey.has(key)) return vertexByKey.get(key);
 
         const index = vertices3.length;
         vertices3.push([
-          point[0],
-          point[1],
+          normalized[0],
+          normalized[1],
           profile.heightAt(point) + 0.004,
         ]);
         vertexByKey.set(key, index);
