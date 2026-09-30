@@ -5310,6 +5310,9 @@
       x: state.width * (mobile ? 0.5 : 0.47) + p3[0] * factor * scale,
       y: stageTop + stageHeight * 0.5 + p3[1] * factor * scale,
       depth: p3[2],
+      viewX: p3[0],
+      viewY: p3[1],
+      viewZ: p3[2],
       w: p4[3],
     };
   }
@@ -5442,27 +5445,22 @@
     return rgbCss(classicFaceRgb(face, module));
   }
 
-  function faceViewShade(face, module) {
-    if (!face?.indices || face.indices.length < 3) return 1;
-
-    const points = face.indices.map((index) => {
-      const p4 = transform4D(module.vertices[index], true);
-      return cameraTransform(project4Dto3D(p4));
-    });
+  function faceViewShade(points) {
+    if (!points || points.length < 3) return 1;
 
     const origin = points[0];
     let normal = null;
 
     for (let i = 1; i < points.length - 1; i += 1) {
       const a = [
-        points[i][0] - origin[0],
-        points[i][1] - origin[1],
-        points[i][2] - origin[2],
+        points[i].viewX - origin.viewX,
+        points[i].viewY - origin.viewY,
+        points[i].viewZ - origin.viewZ,
       ];
       const b = [
-        points[i + 1][0] - origin[0],
-        points[i + 1][1] - origin[1],
-        points[i + 1][2] - origin[2],
+        points[i + 1].viewX - origin.viewX,
+        points[i + 1].viewY - origin.viewY,
+        points[i + 1].viewZ - origin.viewZ,
       ];
 
       const cross = [
@@ -5495,7 +5493,7 @@
     return 0.88 + diffuse * 0.12 + facing * 0.08;
   }
 
-  function faceFillRgb(face, module) {
+  function faceFillRgb(face, module, projectedPoints = null) {
     const styleMix = faceStyleMix();
 
     if (state.colorMode === 'axis') {
@@ -5504,7 +5502,7 @@
         hexToRgb(axisColor(face.axis)),
         styleMix,
       );
-      return shadeRgb(base, faceViewShade(face, module));
+      return shadeRgb(base, faceViewShade(projectedPoints));
     }
 
     if (state.colorMode === 'classic') {
@@ -5526,8 +5524,8 @@
     );
   }
 
-  function faceFillColor(face, module) {
-    return rgbCss(faceFillRgb(face, module));
+  function faceFillColor(face, module, projectedPoints = null) {
+    return rgbCss(faceFillRgb(face, module, projectedPoints));
   }
 
   function classicPlanColor(face) {
@@ -5695,7 +5693,7 @@
         || Math.abs(polygonArea2D(points)) < 0.45
       ) continue;
 
-      const rgb = faceFillRgb(entry.face, entry.module);
+      const rgb = faceFillRgb(entry.face, entry.module, points);
 
       for (let i = 1; i < points.length - 1; i += 1) {
         const tri = [points[0], points[i], points[i + 1]];
@@ -5905,7 +5903,11 @@
       });
       ctx.closePath();
 
-      ctx.fillStyle = faceFillColor(item.face, item.module);
+      ctx.fillStyle = faceFillColor(
+        item.face,
+        item.module,
+        item.points,
+      );
       ctx.globalAlpha = clamp(alpha * item.visibility, 0, 1);
       ctx.fill();
 
