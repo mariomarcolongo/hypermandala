@@ -55,6 +55,7 @@ The fourth coordinate follows a stricter default rule:
 - Square, Sri Yantra, Kali Yantra, Matangi Yantra and Hex use one common centered W interval for the entire finished 3D object;
 - W therefore adds a genuine fourth-dimensional extrusion without changing 3D adjacency, inserting new holes, or using color/polarity to move touching regions apart;
 - XW/YW/ZW rotations act on that connected 4D hyperprism and can reveal the fourth coordinate without changing the object's intrinsic connectivity;
+- symmetric 4D surfaces are rendered from a shared **3D union cell complex**: all footprint boundaries and all Z boundaries subdivide the original prisms before W extrusion. Internal or partially overlapping module interfaces therefore become exact paired faces and cancel instead of appearing as extra planes. The original modules still supply meaningful structural/wire edges, so the cleanup does not introduce artificial partition lines.
 - explicitly documented reference/physical/natural forms may encode another quantity in W when that quantity belongs to the model;
 - architectural families remain centered on W=0 and may vary W extent with architectural hierarchy while preserving adjacency through overlapping centered intervals.
 

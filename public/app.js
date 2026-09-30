@@ -604,6 +604,7 @@
   }
 
   const modules = [];
+  const surfaceModules = [];
   const planEdges = [];
   const planFaces = [];
   const planEdgeKeys = new Set();
@@ -1127,6 +1128,7 @@
     planExtra = [],
     regionId = 'unclassified',
     liftMeta = null,
+    targetModules = modules,
   ) {
     const wProfile = fourthDimensionProfile(
       vertices3,
@@ -1182,12 +1184,18 @@
       });
     }
 
-    modules.push({
+    targetModules.push({
       vertices,
       edges,
       faces,
       regionId,
       wProfile,
+      source3: {
+        vertices: vertices3.map((point) => [...point]),
+        footprint: footprint.map((point) => [...point]),
+        baseHalf: wHalf,
+        liftMeta: liftMeta ? { ...liftMeta } : null,
+      },
     });
   }
 
@@ -1505,6 +1513,7 @@
 
   function resetGeometry() {
     modules.length = 0;
+    surfaceModules.length = 0;
     planEdges.length = 0;
     planFaces.length = 0;
     planEdgeKeys.clear();
@@ -5507,9 +5516,407 @@
     else buildSquareMandala();
   }
 
+  function signedSurfaceArea(points) {
+    let sum = 0;
+    for (let index = 0; index < points.length; index += 1) {
+      const a = points[index];
+      const b = points[(index + 1) % points.length];
+      sum += a[0] * b[1] - b[0] * a[1];
+    }
+    return sum * 0.5;
+  }
+
+  function cleanSurfacePolygon(points, epsilon = 1e-7) {
+    const result = [];
+
+    for (const point of points) {
+      const normalized = point.map(symmetryCoord);
+      const previous = result[result.length - 1];
+
+      if (
+        previous
+        && Math.hypot(
+          previous[0] - normalized[0],
+          previous[1] - normalized[1],
+        ) <= epsilon
+      ) continue;
+
+      result.push(normalized);
+    }
+
+    if (
+      result.length > 2
+      && Math.hypot(
+        result[0][0] - result[result.length - 1][0],
+        result[0][1] - result[result.length - 1][1],
+      ) <= epsilon
+    ) {
+      result.pop();
+    }
+
+    if (result.length < 3) return [];
+
+    const simplified = [];
+    for (let index = 0; index < result.length; index += 1) {
+      const previous = result[
+        (index - 1 + result.length) % result.length
+      ];
+      const current = result[index];
+      const next = result[(index + 1) % result.length];
+      const cross =
+        (current[0] - previous[0]) * (next[1] - current[1])
+        - (current[1] - previous[1]) * (next[0] - current[0]);
+
+      if (Math.abs(cross) > epsilon) simplified.push(current);
+    }
+
+    if (simplified.length < 3) return [];
+    if (signedSurfaceArea(simplified) < 0) simplified.reverse();
+    return simplified;
+  }
+
+  function surfacePolygonIsConvex(points, epsilon = 1e-7) {
+    const polygon = cleanSurfacePolygon(points, epsilon);
+    if (polygon.length < 3) return false;
+
+    let sign = 0;
+    for (let index = 0; index < polygon.length; index += 1) {
+      const a = polygon[index];
+      const b = polygon[(index + 1) % polygon.length];
+      const c = polygon[(index + 2) % polygon.length];
+      const cross =
+        (b[0] - a[0]) * (c[1] - b[1])
+        - (b[1] - a[1]) * (c[0] - b[0]);
+
+      if (Math.abs(cross) <= epsilon) continue;
+      const currentSign = Math.sign(cross);
+      if (!sign) sign = currentSign;
+      else if (currentSign !== sign) return false;
+    }
+
+    return true;
+  }
+
+  function clipSurfaceHalfPlane(
+    polygon,
+    a,
+    b,
+    keepInside,
+    epsilon = 1e-8,
+  ) {
+    if (polygon.length < 3) return [];
+
+    const side = (point) => (
+      (b[0] - a[0]) * (point[1] - a[1])
+      - (b[1] - a[1]) * (point[0] - a[0])
+    );
+    const accepts = (value) => (
+      keepInside ? value >= -epsilon : value <= epsilon
+    );
+
+    const output = [];
+
+    for (let index = 0; index < polygon.length; index += 1) {
+      const current = polygon[index];
+      const next = polygon[(index + 1) % polygon.length];
+      const d0 = side(current);
+      const d1 = side(next);
+      const in0 = accepts(d0);
+      const in1 = accepts(d1);
+
+      if (in0) output.push(current);
+
+      if (in0 !== in1) {
+        const denominator = d0 - d1;
+        if (Math.abs(denominator) > 1e-12) {
+          const t = d0 / denominator;
+          output.push([
+            current[0] + (next[0] - current[0]) * t,
+            current[1] + (next[1] - current[1]) * t,
+          ]);
+        }
+      }
+    }
+
+    return cleanSurfacePolygon(output);
+  }
+
+  function intersectConvexSurfacePolygons(subject, clip) {
+    let result = cleanSurfacePolygon(subject);
+    const boundary = cleanSurfacePolygon(clip);
+
+    if (result.length < 3 || boundary.length < 3) return [];
+
+    for (let index = 0; index < boundary.length; index += 1) {
+      result = clipSurfaceHalfPlane(
+        result,
+        boundary[index],
+        boundary[(index + 1) % boundary.length],
+        true,
+      );
+      if (result.length < 3) return [];
+    }
+
+    return result;
+  }
+
+  function subtractConvexSurfacePolygon(subject, clip) {
+    let remaining = [cleanSurfacePolygon(subject)];
+    const boundary = cleanSurfacePolygon(clip);
+    const outside = [];
+
+    if (
+      remaining[0].length < 3
+      || boundary.length < 3
+    ) {
+      return remaining.filter((polygon) => polygon.length >= 3);
+    }
+
+    for (let edge = 0; edge < boundary.length; edge += 1) {
+      const a = boundary[edge];
+      const b = boundary[(edge + 1) % boundary.length];
+      const nextRemaining = [];
+
+      for (const polygon of remaining) {
+        const inside = clipSurfaceHalfPlane(
+          polygon,
+          a,
+          b,
+          true,
+        );
+        const outsidePiece = clipSurfaceHalfPlane(
+          polygon,
+          a,
+          b,
+          false,
+        );
+
+        if (
+          outsidePiece.length >= 3
+          && Math.abs(signedSurfaceArea(outsidePiece)) > 1e-8
+        ) {
+          outside.push(outsidePiece);
+        }
+
+        if (
+          inside.length >= 3
+          && Math.abs(signedSurfaceArea(inside)) > 1e-8
+        ) {
+          nextRemaining.push(inside);
+        }
+      }
+
+      remaining = nextRemaining;
+      if (!remaining.length) break;
+    }
+
+    return outside;
+  }
+
+  function partitionSymmetricFootprints(polygons) {
+    let cells = [];
+
+    for (const rawPolygon of polygons) {
+      const polygon = cleanSurfacePolygon(rawPolygon);
+      if (polygon.length < 3) continue;
+
+      const previous = cells;
+      const splitExisting = [];
+
+      for (const cell of previous) {
+        const intersection = intersectConvexSurfacePolygons(
+          cell,
+          polygon,
+        );
+
+        if (
+          intersection.length < 3
+          || Math.abs(signedSurfaceArea(intersection)) <= 1e-8
+        ) {
+          splitExisting.push(cell);
+          continue;
+        }
+
+        splitExisting.push(
+          ...subtractConvexSurfacePolygon(cell, polygon),
+          intersection,
+        );
+      }
+
+      let uncovered = [polygon];
+      for (const cell of previous) {
+        const next = [];
+        for (const fragment of uncovered) {
+          next.push(
+            ...subtractConvexSurfacePolygon(fragment, cell),
+          );
+        }
+        uncovered = next;
+        if (!uncovered.length) break;
+      }
+
+      cells = [
+        ...splitExisting,
+        ...uncovered,
+      ].filter((cell) => (
+        cell.length >= 3
+        && Math.abs(signedSurfaceArea(cell)) > 1e-8
+      ));
+    }
+
+    return cells;
+  }
+
+  function extractSymmetricPrismSource(module, index) {
+    const source = module.source3;
+    if (!source?.footprint?.length || !source?.vertices?.length) {
+      return null;
+    }
+
+    const rawFootprint = source.footprint;
+    const footprint = cleanSurfacePolygon(rawFootprint);
+    const n = rawFootprint.length;
+    const vertices = source.vertices;
+
+    // Detail/subdivision lines may append extra vertices after the 2n shell
+    // vertices, so require at least the shell rather than exactly 2n.
+    if (
+      footprint.length < 3
+      || vertices.length < n * 2
+      || !surfacePolygonIsConvex(footprint)
+    ) return null;
+
+    const firstBottom = vertices[0][2];
+    const firstTop = vertices[n][2];
+    const bottom = Math.min(firstBottom, firstTop);
+    const top = Math.max(firstBottom, firstTop);
+
+    if (top - bottom < 1e-8) return null;
+
+    for (let vertex = 0; vertex < n; vertex += 1) {
+      const low = vertices[vertex];
+      const high = vertices[vertex + n];
+      const point = rawFootprint[vertex];
+
+      if (
+        Math.hypot(
+          low[0] - point[0],
+          low[1] - point[1],
+        ) > 1e-6
+        || Math.hypot(
+          high[0] - point[0],
+          high[1] - point[1],
+        ) > 1e-6
+        || Math.abs(low[2] - firstBottom) > 1e-6
+        || Math.abs(high[2] - firstTop) > 1e-6
+      ) {
+        return null;
+      }
+    }
+
+    return {
+      index,
+      footprint,
+      bottom,
+      top,
+      regionId: module.regionId,
+      hierarchyT: module.wProfile?.hierarchy ?? 0.5,
+    };
+  }
+
+  function normalizeSymmetricSurfaceComplex() {
+    surfaceModules.length = 0;
+
+    if (
+      PRESET_META[state.preset]?.kind !== 'symmetric'
+      || !modules.length
+    ) return;
+
+    const sources = modules.map(extractSymmetricPrismSource);
+    if (sources.some((source) => !source)) {
+      // Fall back to the original mesh rather than approximating a family
+      // that stops being representable as vertical prism cells.
+      return;
+    }
+
+    const cells = partitionSymmetricFootprints(
+      sources.map((source) => source.footprint),
+    );
+    const zLevels = [...new Set(
+      sources.flatMap((source) => [
+        symmetryCoord(source.bottom),
+        symmetryCoord(source.top),
+      ]),
+    )].sort((a, b) => a - b);
+
+    // Guard future presets against accidental combinatorial explosions.
+    if (
+      !cells.length
+      || cells.length > 2400
+      || zLevels.length > 80
+    ) return;
+
+    for (const cell of cells) {
+      const centroid = cell.reduce(
+        (sum, point) => [
+          sum[0] + point[0],
+          sum[1] + point[1],
+        ],
+        [0, 0],
+      ).map((value) => value / cell.length);
+
+      for (let level = 0; level < zLevels.length - 1; level += 1) {
+        const bottom = zLevels[level];
+        const top = zLevels[level + 1];
+        if (top - bottom < 1e-7) continue;
+
+        const middle = (bottom + top) * 0.5;
+        const covering = sources.filter((source) => (
+          middle > source.bottom + 1e-7
+          && middle < source.top - 1e-7
+          && pointInConvexPolygon(
+            centroid,
+            source.footprint,
+          )
+        ));
+
+        if (!covering.length) continue;
+
+        // Geometry is the union. This only chooses the visible semantic color
+        // when two original source volumes occupied the same cell.
+        const winner = covering.reduce((best, source) => (
+          source.index > best.index ? source : best
+        ));
+
+        const data = footprintPrismData(
+          cell,
+          bottom,
+          top - bottom,
+          [],
+        );
+
+        extrudeTo4D(
+          data.vertices3,
+          data.edges3,
+          data.faces3,
+          0.24,
+          data.footprint,
+          [],
+          winner.regionId,
+          {
+            hierarchyT: winner.hierarchyT,
+            polarity: 0,
+          },
+          surfaceModules,
+        );
+      }
+    }
+  }
+
   function buildActiveMandala() {
     buildPlanForPreset();
     buildGeometryForCurrentChoice();
+    normalizeSymmetricSurfaceComplex();
     updateGeometryStats();
     drawAllPreviews();
     updateGeometryStats();
@@ -6058,8 +6465,12 @@
 
     const entries = [];
     const counts = new Map();
+    const filledModules = (
+      state.wMix > 0.001
+      && surfaceModules.length
+    ) ? surfaceModules : modules;
 
-    for (const module of modules) {
+    for (const module of filledModules) {
       const moduleAmount = moduleEmergence(module);
       if (moduleAmount <= 0.002) continue;
 
@@ -6263,8 +6674,12 @@
     if (state.renderMode === 'wire' || alpha <= 0.001) return;
 
     const rendered = [];
+    const filledModules = (
+      state.wMix > 0.001
+      && surfaceModules.length
+    ) ? surfaceModules : modules;
 
-    for (const module of modules) {
+    for (const module of filledModules) {
       const moduleAmount = moduleEmergence(module);
       if (moduleAmount <= 0.002) continue;
 
