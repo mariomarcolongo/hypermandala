@@ -73,7 +73,32 @@
   }
   </script>
 
-  <link rel="stylesheet" href="./styles.css" />
+  <script>
+    (() => {
+      const loadFreshStyles = async () => {
+        const response = await fetch('./styles.css', { cache: 'no-cache' });
+        if (!response.ok) {
+          throw new Error('Failed to load styles: ' + response.status);
+        }
+
+        const style = document.createElement('style');
+        style.id = 'hypermandalaRuntimeStyles';
+        style.textContent = await response.text();
+        document.head.appendChild(style);
+      };
+
+      window.__hypermandalaStylesReady = loadFreshStyles().catch(() => (
+        new Promise((resolve) => {
+          const link = document.createElement('link');
+          link.rel = 'stylesheet';
+          link.href = './styles.css?reload=' + Date.now();
+          link.onload = resolve;
+          link.onerror = resolve;
+          document.head.appendChild(link);
+        })
+      ));
+    })();
+  </script>
 </head>
 <body>
   <canvas id="solidLayer" aria-hidden="true"></canvas>
@@ -391,6 +416,26 @@
   <a class="source" href="https://github.com/mariomarcolongo/hypermandala" target="_blank" rel="noreferrer">source</a>
 
   <noscript><div class="noscript">Hypermandala needs JavaScript to render the interactive geometry.</div></noscript>
-  <script src="./app.js" defer></script>
+  <script>
+    (async () => {
+      try {
+        await window.__hypermandalaStylesReady;
+        const response = await fetch('./app.js', { cache: 'no-cache' });
+        if (!response.ok) {
+          throw new Error('Failed to load app: ' + response.status);
+        }
+
+        const source = await response.text();
+        const script = document.createElement('script');
+        script.textContent = source + '\n//# sourceURL=/app.js';
+        document.body.appendChild(script);
+      } catch (error) {
+        console.warn('Fresh asset load failed; retrying with cache-busting URL.', error);
+        const script = document.createElement('script');
+        script.src = './app.js?reload=' + Date.now();
+        document.body.appendChild(script);
+      }
+    })();
+  </script>
 </body>
 </html>
