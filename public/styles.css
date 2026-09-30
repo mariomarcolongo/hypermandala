@@ -1308,3 +1308,65 @@ a:focus-visible {
     max-height: none;
   }
 }
+
+
+/* Palette controls: communicate color behavior visually, not only with labels. */
+.palette-control .palette-option {
+  display: grid;
+  grid-template-rows: 10px auto;
+  place-items: center;
+  align-content: center;
+  gap: 4px;
+  min-height: 39px;
+  padding: 4px 5px;
+  line-height: 1;
+}
+
+.palette-swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  height: 8px;
+}
+
+.palette-swatch i {
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.16);
+}
+
+.palette-swatch--classic i:nth-child(1) { background: #d4a843; }
+.palette-swatch--classic i:nth-child(2) { background: #c94b40; }
+.palette-swatch--classic i:nth-child(3) { background: #4669ad; }
+.palette-swatch--classic i:nth-child(4) { background: #3e7655; }
+
+.palette-swatch--form i {
+  width: 18px;
+  border-radius: 999px;
+  background: #c9b995;
+}
+
+.palette-swatch--axis i:nth-child(1) { background: var(--x); }
+.palette-swatch--axis i:nth-child(2) { background: var(--y); }
+.palette-swatch--axis i:nth-child(3) { background: var(--z); }
+.palette-swatch--axis i:nth-child(4) { background: var(--w); }
+
+@media (max-width: 760px) {
+  .palette-control .palette-option {
+    min-height: 44px;
+    grid-template-rows: 11px auto;
+    gap: 5px;
+  }
+
+  .palette-swatch i {
+    width: 7px;
+    height: 7px;
+  }
+
+  .palette-swatch--form i {
+    width: 21px;
+  }
+}
