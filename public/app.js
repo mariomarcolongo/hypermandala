@@ -4548,6 +4548,93 @@
     if (ui) ui.auto.setAttribute('aria-pressed', 'false');
   }
 
+  function installTouchRangeGuard(input, applyValue) {
+    let gesture = null;
+    const threshold = 8;
+    const directionBias = 1.12;
+
+    function restoreStartValue() {
+      if (!gesture) return;
+      input.value = gesture.startValue;
+      applyValue(Number(gesture.startValue), false);
+    }
+
+    input.addEventListener('pointerdown', (event) => {
+      if (event.pointerType === 'mouse' && !coarsePointerQuery.matches) return;
+
+      gesture = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        startValue: input.value,
+        mode: 'pending',
+      };
+      input.classList.add('is-touch-pending');
+    });
+
+    input.addEventListener('pointermove', (event) => {
+      if (!gesture || event.pointerId !== gesture.pointerId) return;
+
+      const dx = event.clientX - gesture.startX;
+      const dy = event.clientY - gesture.startY;
+      const ax = Math.abs(dx);
+      const ay = Math.abs(dy);
+
+      if (gesture.mode === 'pending') {
+        if (Math.max(ax, ay) < threshold) return;
+
+        if (ay > ax * directionBias) {
+          gesture.mode = 'scroll';
+          input.classList.remove('is-touch-pending');
+          input.classList.add('is-touch-scrolling');
+          restoreStartValue();
+          return;
+        }
+
+        if (ax > ay * directionBias) {
+          gesture.mode = 'adjust';
+          input.classList.remove('is-touch-pending');
+          input.classList.add('is-touch-adjusting');
+        }
+      }
+
+      if (gesture.mode === 'scroll') {
+        restoreStartValue();
+      }
+    });
+
+    input.addEventListener('input', () => {
+      if (gesture && gesture.mode !== 'adjust') {
+        restoreStartValue();
+        return;
+      }
+
+      applyValue(Number(input.value), true);
+    });
+
+    function finishGesture(event) {
+      if (!gesture || event.pointerId !== gesture.pointerId) return;
+
+      if (gesture.mode !== 'adjust') {
+        restoreStartValue();
+      }
+
+      gesture = null;
+      input.classList.remove(
+        'is-touch-pending',
+        'is-touch-scrolling',
+        'is-touch-adjusting',
+      );
+    }
+
+    input.addEventListener('pointerup', finishGesture);
+    input.addEventListener('pointercancel', finishGesture);
+    input.addEventListener('lostpointercapture', (event) => {
+      if (!gesture || event.pointerId !== gesture.pointerId) return;
+      finishGesture(event);
+    });
+  }
+
   function createRotationControls() {
     for (const config of ROTATION_CONFIG) {
       const row = document.createElement('div');
@@ -4578,11 +4665,13 @@
       auto.setAttribute('aria-label', 'Autorotate ' + config.label);
       auto.setAttribute('aria-pressed', 'false');
 
-      input.addEventListener('input', () => {
-        state.rotations[config.key] = Number(input.value);
+      installTouchRangeGuard(input, (nextValue, interactive) => {
+        state.rotations[config.key] = nextValue;
         value.textContent = Math.round(state.rotations[config.key]) + '°';
-        markSettingsDirty();
-        hideHint();
+        if (interactive) {
+          markSettingsDirty();
+          hideHint();
+        }
       });
 
       auto.addEventListener('click', () => {
@@ -4636,11 +4725,13 @@
       value.className = 'control-row__value';
       value.textContent = '×1.00';
 
-      input.addEventListener('input', () => {
-        state.scales[config.key] = Number(input.value);
+      installTouchRangeGuard(input, (nextValue, interactive) => {
+        state.scales[config.key] = nextValue;
         value.textContent = '×' + state.scales[config.key].toFixed(2);
-        markSettingsDirty();
-        hideHint();
+        if (interactive) {
+          markSettingsDirty();
+          hideHint();
+        }
       });
 
       row.append(label, input, value);
