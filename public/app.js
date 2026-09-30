@@ -160,7 +160,6 @@
     shiva: '#4669ad',
     shakti: '#c94b40',
     bindu: '#b92f2f',
-    surface: '#c9b979',
   };
 
   const KALI_COLORS = {
@@ -177,7 +176,6 @@
     shiva: '#b99948',
     shakti: '#3e7655',
     bindu: '#d7aa3b',
-    surface: '#a79561',
   };
 
   const CLASSIC_SHADE = {
@@ -213,7 +211,7 @@
     sriyantra: {
       kind: 'symmetric',
       plan: 'Sri Yantra plan',
-      spatial: 'Meru-inspired Sri Yantra',
+      spatial: 'Sri Yantra hierarchy',
     },
     kaliyantra: {
       kind: 'symmetric',
@@ -223,7 +221,7 @@
     matangiyantra: {
       kind: 'symmetric',
       plan: 'Matangi Yantra plan',
-      spatial: 'shatkona relief',
+      spatial: 'Matangi Yantra hierarchy',
     },
     hex: {
       kind: 'symmetric',
@@ -512,11 +510,7 @@
   const planFaceKeys = new Set();
   const rotationUI = {};
   const scaleUI = {};
-  const geometryStats = {
-    maxPlanRadius: 1,
-    centerZ: 0,
-    centerW: 0,
-  };
+  const geometryStats = { maxPlanRadius: 1 };
 
   function compileGlShader(type, source) {
     if (!gl) return null;
@@ -649,7 +643,6 @@
     if (regionId?.startsWith('sri-shiva-')) return hexToRgb(SRI_COLORS.shiva);
     if (regionId?.startsWith('sri-shakti-')) return hexToRgb(SRI_COLORS.shakti);
     if (regionId === 'sri-bindu') return hexToRgb(SRI_COLORS.bindu);
-    if (regionId === 'sri-meru-surface') return hexToRgb(SRI_COLORS.surface);
 
     if (regionId === 'kali-bhupura') return hexToRgb(KALI_COLORS.bhupura);
     if (regionId === 'kali-lotus') return hexToRgb(KALI_COLORS.lotus);
@@ -664,7 +657,6 @@
     if (regionId === 'matangi-shiva') return hexToRgb(MATANGI_COLORS.shiva);
     if (regionId === 'matangi-shakti') return hexToRgb(MATANGI_COLORS.shakti);
     if (regionId === 'matangi-bindu') return hexToRgb(MATANGI_COLORS.bindu);
-    if (regionId === 'matangi-relief-surface') return hexToRgb(MATANGI_COLORS.surface);
 
     if (regionId === 'hex-center') return hexToRgb(HEX_CENTER);
     if (regionId === 'hex-satellite') return hexToRgb(HEX_SATELLITE);
@@ -752,28 +744,12 @@
 
   function updateGeometryStats() {
     let maxRadius = 0.001;
-    let minZ = Infinity;
-    let maxZ = -Infinity;
-    let minW = Infinity;
-    let maxW = -Infinity;
-
     for (const module of modules) {
       for (const point of module.vertices) {
         maxRadius = Math.max(maxRadius, Math.hypot(point[0], point[1]));
-        minZ = Math.min(minZ, point[2]);
-        maxZ = Math.max(maxZ, point[2]);
-        minW = Math.min(minW, point[3]);
-        maxW = Math.max(maxW, point[3]);
       }
     }
-
     geometryStats.maxPlanRadius = maxRadius;
-    geometryStats.centerZ = Number.isFinite(minZ) && Number.isFinite(maxZ)
-      ? (minZ + maxZ) * 0.5
-      : 0;
-    geometryStats.centerW = Number.isFinite(minW) && Number.isFinite(maxW)
-      ? (minW + maxW) * 0.5
-      : 0;
   }
 
   function rotateXYPoint(x, y, angle) {
@@ -3208,6 +3184,7 @@
           return 0.075 + t * 0.012;
         }
 
+        // Triangle / enclosure hierarchy grows subtly toward the center.
         return 0.082 + t * 0.052;
       },
       0.13,
@@ -3215,378 +3192,8 @@
     );
   }
 
-  function yantraConvexHull(points) {
-    const unique = [...new Map(
-      points.map((point) => {
-        const normalized = point.map(symmetryCoord);
-        return [
-          normalized.map((value) => value.toFixed(7)).join(','),
-          normalized,
-        ];
-      }),
-    ).values()].sort((a, b) => (
-      a[0] === b[0] ? a[1] - b[1] : a[0] - b[0]
-    ));
-
-    if (unique.length <= 2) return unique;
-
-    const cross = (o, a, b) => (
-      (a[0] - o[0]) * (b[1] - o[1])
-      - (a[1] - o[1]) * (b[0] - o[0])
-    );
-
-    const lower = [];
-    for (const point of unique) {
-      while (
-        lower.length >= 2
-        && cross(lower[lower.length - 2], lower[lower.length - 1], point) <= 0
-      ) {
-        lower.pop();
-      }
-      lower.push(point);
-    }
-
-    const upper = [];
-    for (let index = unique.length - 1; index >= 0; index -= 1) {
-      const point = unique[index];
-      while (
-        upper.length >= 2
-        && cross(upper[upper.length - 2], upper[upper.length - 1], point) <= 0
-      ) {
-        upper.pop();
-      }
-      upper.push(point);
-    }
-
-    lower.pop();
-    upper.pop();
-    return [...lower, ...upper];
-  }
-
-  function yantraRadialBoundary(points) {
-    const unique = new Map();
-
-    for (const point of points) {
-      const normalized = point.map(symmetryCoord);
-      unique.set(
-        normalized.map((value) => value.toFixed(7)).join(','),
-        normalized,
-      );
-    }
-
-    return [...unique.values()].sort((a, b) => (
-      Math.atan2(a[1], a[0]) - Math.atan2(b[1], b[0])
-    ));
-  }
-
-  function yantraRayBoundaryRadius(boundary, angle) {
-    const dx = Math.cos(angle);
-    const dy = Math.sin(angle);
-    let best = Infinity;
-
-    for (let index = 0; index < boundary.length; index += 1) {
-      const a = boundary[index];
-      const b = boundary[(index + 1) % boundary.length];
-      const sx = b[0] - a[0];
-      const sy = b[1] - a[1];
-      const denom = dx * sy - dy * sx;
-      if (Math.abs(denom) < 1e-9) continue;
-
-      const t = (a[0] * sy - a[1] * sx) / denom;
-      const u = (a[0] * dy - a[1] * dx) / denom;
-
-      if (t >= -1e-8 && u >= -1e-8 && u <= 1 + 1e-8) {
-        best = Math.min(best, Math.max(0, t));
-      }
-    }
-
-    return Number.isFinite(best) ? best : 0;
-  }
-
-  function yantraBoundaryGauge(boundary, point) {
-    const radius = Math.hypot(point[0], point[1]);
-    if (radius < 1e-9) return 0;
-
-    const boundaryRadius = yantraRayBoundaryRadius(
-      boundary,
-      Math.atan2(point[1], point[0]),
-    );
-    if (boundaryRadius < 1e-9) return 1;
-
-    return radius / boundaryRadius;
-  }
-
-  function yantraSurfaceProfile(
-    boundary,
-    baseZ,
-    peakZ,
-    scales,
-    rises,
-  ) {
-    const zs = rises.map((rise) => (
-      baseZ + (peakZ - baseZ) * rise
-    ));
-
-    const heightAt = (point) => {
-      const gauge = clamp(
-        yantraBoundaryGauge(boundary, point),
-        0,
-        1,
-      );
-
-      for (let index = 0; index < scales.length - 1; index += 1) {
-        const outer = scales[index];
-        const inner = scales[index + 1];
-        if (gauge > outer + 1e-8 || gauge < inner - 1e-8) continue;
-
-        const span = Math.max(1e-8, outer - inner);
-        const t = clamp((outer - gauge) / span, 0, 1);
-        return zs[index] + (zs[index + 1] - zs[index]) * t;
-      }
-
-      return gauge >= scales[0] ? zs[0] : zs[zs.length - 1];
-    };
-
-    return {
-      boundary,
-      scales,
-      zs,
-      baseZ,
-      peakZ,
-      heightAt,
-    };
-  }
-
-  function addYantraFacetedSurface(
-    profile,
-    regionId,
-    wHalf = 0.06,
-  ) {
-    const boundary = profile.boundary;
-    const count = boundary.length;
-    if (count < 3) return;
-
-    const positiveScales = profile.scales.filter((scale) => scale > 1e-8);
-    const vertices3 = [];
-
-    positiveScales.forEach((scale, ring) => {
-      const z = profile.zs[ring];
-      for (const point of boundary) {
-        vertices3.push([
-          point[0] * scale,
-          point[1] * scale,
-          z,
-        ]);
-      }
-    });
-
-    const centerIndex = vertices3.length;
-    vertices3.push([0, 0, profile.peakZ]);
-
-    const faces3 = [];
-    for (let ring = 0; ring < positiveScales.length - 1; ring += 1) {
-      const outerOffset = ring * count;
-      const innerOffset = (ring + 1) * count;
-
-      for (let index = 0; index < count; index += 1) {
-        const next = (index + 1) % count;
-        faces3.push({
-          indices: [
-            outerOffset + index,
-            outerOffset + next,
-            innerOffset + next,
-            innerOffset + index,
-          ],
-          axis: 'z',
-        });
-      }
-    }
-
-    const lastOffset = (positiveScales.length - 1) * count;
-    for (let index = 0; index < count; index += 1) {
-      const next = (index + 1) % count;
-      faces3.push({
-        indices: [lastOffset + index, lastOffset + next, centerIndex],
-        axis: 'z',
-      });
-    }
-
-    // The tessellation is intentionally face-only: the visible structural
-    // edges come from the original 2D yantra network below, not from an
-    // invented radial mesh.
-    extrudeTo4D(
-      vertices3,
-      [],
-      faces3,
-      wHalf,
-      boundary,
-      [],
-      regionId,
-      { hierarchyT: 0.68, polarity: 0 },
-    );
-  }
-
-  function addYantraLiftedNetwork(trianglePieces, profile) {
-    const network = yantraSubdivisionNetwork(trianglePieces);
-
-    for (const piece of trianglePieces) {
-      const segments = network.filter((segment) => (
-        segmentOnPolygonBoundary(segment, piece.points)
-      ));
-      if (!segments.length) continue;
-
-      const vertices3 = [];
-      const vertexByKey = new Map();
-      const edges3 = [];
-
-      const vertexIndex = (point) => {
-        const normalized = point.map(symmetryCoord);
-        const key = normalized.map((value) => value.toFixed(7)).join(',');
-        if (vertexByKey.has(key)) return vertexByKey.get(key);
-
-        const index = vertices3.length;
-        vertices3.push([
-          normalized[0],
-          normalized[1],
-          profile.heightAt(point) + 0.004,
-        ]);
-        vertexByKey.set(key, index);
-        return index;
-      };
-
-      for (const segment of segments) {
-        const a = vertexIndex(segment[0]);
-        const b = vertexIndex(segment[1]);
-        if (a === b) continue;
-        edges3.push({ a, b, axis: 'n' });
-      }
-
-      if (!edges3.length) continue;
-
-      extrudeTo4D(
-        vertices3,
-        edges3,
-        [],
-        0.026,
-        piece.points,
-        [],
-        piece.regionId,
-        {
-          hierarchyT: 0.70,
-          polarity: regionPolarity(piece.regionId),
-        },
-      );
-    }
-  }
-
-  function addYantraOuterRelief(
-    pieces,
-    isTriangle,
-    centerZForLevel,
-  ) {
-    const outerPieces = pieces.filter((piece) => (
-      !isTriangle(piece)
-      && !piece.regionId?.includes('bindu')
-    ));
-    const maxLevel = Math.max(
-      1,
-      ...outerPieces.map((piece) => piece.level),
-    );
-
-    for (const piece of outerPieces) {
-      const t = piece.level / maxLevel;
-      let thickness = 0.055;
-
-      if (piece.regionId?.includes('bhupura')) thickness = 0.060;
-      else if (piece.regionId?.includes('lotus')) thickness = 0.050;
-
-      addFootprintPrismCentered(
-        piece.points,
-        centerZForLevel(piece.level),
-        thickness,
-        piece.regionId,
-        [],
-        { hierarchyT: t * 0.28, polarity: 0 },
-      );
-    }
-  }
-
-  function matangiPrimaryBoundary(trianglePieces) {
-    const main = [...trianglePieces]
-      .sort((a, b) => (
-        Math.max(...a.points.map((point) => Math.hypot(point[0], point[1])))
-        - Math.max(...b.points.map((point) => Math.hypot(point[0], point[1])))
-      ))
-      .slice(0, 2);
-
-    const network = yantraSubdivisionNetwork(main);
-    const points = [];
-    for (const segment of network) {
-      points.push(segment[0], segment[1]);
-    }
-    return yantraRadialBoundary(points);
-  }
-
   function buildSriYantraForm() {
-    const pieces = sriYantraPieces();
-
-    // Mirror remains an explicitly experimental alternative. The default
-    // hierarchy uses the Meru-inspired continuous relief below.
-    if (state.zLiftStyle === 'mirror') {
-      buildYantraForm(pieces);
-      return;
-    }
-
-    resetGeometry();
-
-    const triangles = pieces.filter((piece) => (
-      piece.regionId?.startsWith('sri-shiva-')
-      || piece.regionId?.startsWith('sri-shakti-')
-    ));
-    const hull = yantraConvexHull(
-      triangles.flatMap((piece) => piece.points),
-    );
-
-    const separated = state.spacingStyle === 'separated';
-    const extra = separated ? 0.035 : 0;
-
-    addYantraOuterRelief(
-      pieces,
-      (piece) => triangles.includes(piece),
-      (level) => (
-        -0.48
-        + level * (0.075 + extra)
-      ),
-    );
-
-    // Repeated rise values create real terraces between the sloped bands.
-    // The proportions are deliberately geometric rather than claimed as one
-    // uniquely canonical historical Meru height system.
-    const profile = yantraSurfaceProfile(
-      hull,
-      -0.215 + extra * 1.2,
-      0.50 + extra * 2.2,
-      [1.00,0.88,0.82,0.70,0.64,0.52,0.46,0.35,0.30,0.20,0.16,0.08,0],
-      [0.00,0.06,0.06,0.20,0.20,0.38,0.38,0.58,0.58,0.76,0.76,0.90,1],
-    );
-
-    addYantraFacetedSurface(
-      profile,
-      'sri-meru-surface',
-      0.058,
-    );
-    addYantraLiftedNetwork(triangles, profile);
-
-    addPolygonPyramid(
-      0,
-      0,
-      profile.peakZ - 0.005,
-      0.035,
-      16,
-      0.12,
-      0,
-      'sri-bindu',
-    );
+    buildYantraForm(sriYantraPieces());
   }
 
   function buildKaliYantraForm() {
@@ -3594,61 +3201,7 @@
   }
 
   function buildMatangiYantraForm() {
-    const pieces = matangiYantraPieces();
-
-    if (state.zLiftStyle === 'mirror') {
-      buildYantraForm(pieces);
-      return;
-    }
-
-    resetGeometry();
-
-    const triangles = pieces.filter((piece) => (
-      piece.regionId === 'matangi-shiva'
-      || piece.regionId === 'matangi-shakti'
-    ));
-    const boundary = matangiPrimaryBoundary(triangles);
-
-    const separated = state.spacingStyle === 'separated';
-    const extra = separated ? 0.035 : 0;
-
-    addYantraOuterRelief(
-      pieces,
-      (piece) => triangles.includes(piece),
-      (level) => (
-        -0.42
-        + level * (0.078 + extra)
-      ),
-    );
-
-    // Matangi has no equally well-established canonical 3D counterpart here:
-    // lift the documented shatkona itself as a coherent faceted relief instead
-    // of pretending it is another Sri Meru.
-    const profile = yantraSurfaceProfile(
-      boundary,
-      -0.105 + extra,
-      0.36 + extra * 1.8,
-      [1.00,0.80,0.65,0.48,0.34,0.20,0],
-      [0.00,0.08,0.24,0.46,0.66,0.84,1],
-    );
-
-    addYantraFacetedSurface(
-      profile,
-      'matangi-relief-surface',
-      0.052,
-    );
-    addYantraLiftedNetwork(triangles, profile);
-
-    addPolygonPyramid(
-      0,
-      0,
-      profile.peakZ - 0.004,
-      0.040,
-      16,
-      0.105,
-      0,
-      'matangi-bindu',
-    );
+    buildYantraForm(matangiYantraPieces());
   }
 
   
@@ -4061,58 +3614,10 @@
     point[b] = s * pa + c * pb;
   }
 
-  function transitionProgress() {
-    return state.transition?.progress ?? 0;
-  }
-
-  function transitionTouchesDimension(dimension) {
-    if (!state.transition) return false;
-    return (
-      state.transition.fromDimension === dimension
-      || state.transition.toDimension === dimension
-    );
-  }
-
-  function dimensionOrientationMix(dimension) {
-    const structural = dimension === 3 ? state.zMix : state.wMix;
-    if (!state.transition || !transitionTouchesDimension(dimension)) {
-      return structural;
-    }
-
-    const t = transitionProgress();
-    const forward = state.transition.toDimension > state.transition.fromDimension;
-
-    if (
-      dimension === 3
-      && (
-        state.transition.fromDimension === 2
-        || state.transition.toDimension === 2
-      )
-    ) {
-      return forward
-        ? smoother(clamp((t - 0.78) / 0.22, 0, 1))
-        : 1 - smoother(clamp(t / 0.24, 0, 1));
-    }
-
-    if (
-      dimension === 4
-      && (
-        state.transition.fromDimension === 3
-        || state.transition.toDimension === 3
-      )
-    ) {
-      return forward
-        ? smoother(clamp((t - 0.74) / 0.26, 0, 1))
-        : 1 - smoother(clamp(t / 0.26, 0, 1));
-    }
-
-    return structural;
-  }
-
   function activeAngle(config) {
     let factor = 1;
-    if (config.key.includes('z')) factor *= dimensionOrientationMix(3);
-    if (config.key.includes('w')) factor *= dimensionOrientationMix(4);
+    if (config.key.includes('z')) factor *= state.zMix;
+    if (config.key.includes('w')) factor *= state.wMix;
     return state.rotations[config.key] * RAD * factor;
   }
 
@@ -4126,16 +3631,8 @@
 
     p[0] *= sx;
     p[1] *= sy;
-
-    // Center the added dimensions for presentation. This is a uniform
-    // rendering offset only: it does not change the intrinsic geometry.
-    // It prevents asymmetric +Z architectures or W polarity from making the
-    // whole object visibly jump up/down or sideways while a dimension grows.
-    // Basis vectors use applyUserScale=false and must remain pure directions.
-    const centerZ = applyUserScale ? geometryStats.centerZ : 0;
-    const centerW = applyUserScale ? geometryStats.centerW : 0;
-    p[2] = (p[2] - centerZ) * sz * state.zMix;
-    p[3] = (p[3] - centerW) * sw * state.wMix;
+    p[2] *= sz * state.zMix;
+    p[3] *= sw * state.wMix;
 
     for (const config of ROTATION_CONFIG) {
       rotatePlane(p, config.a, config.b, activeAngle(config));
@@ -4165,31 +3662,13 @@
     ];
   }
 
-  function cameraViewMix() {
-    if (!state.transition) return state.dimension >= 3 ? 1 : 0;
-
-    const from = state.transition.fromDimension;
-    const to = state.transition.toDimension;
-    const t = transitionProgress();
-
-    if ((from === 2 && to === 3) || (from === 3 && to === 2)) {
-      const forward = to > from;
-
-      // Geometry separates first. Only once the new surfaces are legible does
-      // the camera move into the ordinary 3D viewpoint. On collapse the order
-      // reverses: return toward the plan view before flattening the geometry.
-      return forward
-        ? smoother(clamp((t - 0.34) / 0.66, 0, 1))
-        : 1 - smoother(clamp(t / 0.46, 0, 1));
-    }
-
-    return 1;
-  }
-
   function cameraTransform(p) {
     let [x, y, z] = p;
 
-    const viewMix = cameraViewMix();
+    // Let the new dimension visibly separate before the viewpoint tilts.
+    // This preserves the feeling that the volume grows out of the 2D mandala.
+    const visibleZ = state.zMix;
+    const viewMix = smoother(clamp((visibleZ - 0.62) / 0.38, 0, 1));
 
     const isometric = state.projection === 'isometric';
     const yaw = (
@@ -4302,35 +3781,16 @@
     return Math.abs(sum * 0.5);
   }
 
-  function zConstructionReveal() {
-    return {
-      edges: smoother(clamp((state.zMix - 0.02) / 0.48, 0, 1)),
-      faces: smoother(clamp((state.zMix - 0.18) / 0.58, 0, 1)),
-      solid: smoother(clamp((state.zMix - 0.42) / 0.58, 0, 1)),
-    };
-  }
-
-  function wConstructionReveal() {
-    return {
-      edges: smoother(clamp((state.wMix - 0.04) / 0.42, 0, 1)),
-      faces: smoother(clamp((state.wMix - 0.24) / 0.50, 0, 1)),
-      shell: smoother(clamp((state.wMix - 0.48) / 0.52, 0, 1)),
-    };
-  }
-
-  function faceVisibility() {
-    // Filled rendering morphs through geometry, not transparency. Side and
-    // bridge faces naturally grow from zero projected area as Z/W separates.
+  function faceVisibility(face) {
+    if (face.bridge) return state.wMix;
+    if (face.wLayer === 1) return state.wMix;
     return 1;
   }
 
   function edgeVisibility(edge) {
-    const zReveal = zConstructionReveal();
-    const wReveal = wConstructionReveal();
-
-    if (edge.axis === 'w') return wReveal.edges;
-    if (edge.axis === 'z') return zReveal.edges;
-    if (edge.wLayer === 1) return wReveal.shell;
+    if (edge.axis === 'w') return state.wMix;
+    if (edge.axis === 'z') return state.zMix;
+    if (edge.wLayer === 1) return state.wMix;
     return 1;
   }
 
@@ -4347,14 +3807,6 @@
     return centroid.map((value) => value / n);
   }
 
-  function faceStyleMix() {
-    if (!state.transition) return 1;
-    const from = state.transition.fromDimension;
-    const to = state.transition.toDimension;
-    if (!((from === 2 && to === 3) || (from === 3 && to === 2))) return 1;
-    return dimensionOrientationMix(3);
-  }
-
   function classicFaceRgb(face, module) {
     const centroid = faceCentroid(face, module);
     const base = classicRegionRgb(
@@ -4363,11 +3815,10 @@
       centroid[1],
     );
 
-    // Keep the family/region hue continuous with the 2D source plan. Normal
-    // orientation shading arrives only as the 3D view itself settles.
+    // Region hue is invariant across 2D/3D/4D. Orientation changes only
+    // brightness so the geometry remains readable.
     const orientationShade = CLASSIC_SHADE[face.axis] || 1;
-    const shaded = shadeRgb(base, orientationShade);
-    return mixRgb(base, shaded, faceStyleMix());
+    return shadeRgb(base, orientationShade);
   }
 
   function classicFaceColor(face, module) {
@@ -4375,14 +3826,8 @@
   }
 
   function faceFillRgb(face, module) {
-    const styleMix = faceStyleMix();
-
     if (state.colorMode === 'axis') {
-      return mixRgb(
-        hexToRgb('#d9dde4'),
-        hexToRgb(axisColor(face.axis)),
-        styleMix,
-      );
+      return hexToRgb(axisColor(face.axis));
     }
 
     if (state.colorMode === 'classic') {
@@ -4397,11 +3842,7 @@
       n: '#c0b49d',
     };
 
-    return mixRgb(
-      hexToRgb('#c9b995'),
-      hexToRgb(formColors[face.axis] || formColors.n),
-      styleMix,
-    );
+    return hexToRgb(formColors[face.axis] || formColors.n);
   }
 
   function faceFillColor(face, module) {
@@ -4466,9 +3907,11 @@
           ? classicPlanColor(face)
           : '#c9b995';
 
-      // Rendering, not palette, determines whether faces are filled.
-      // Solid and Solid + wireframe stay solid in 2D for every palette.
-      ctx.globalAlpha = alpha;
+      // Classic regions are opaque at rest. This prevents overlapping
+      // translucent polygons from inventing colors that don't exist in 3D.
+      ctx.globalAlpha = state.colorMode === 'classic'
+        ? alpha
+        : alpha * 0.16;
       ctx.fill();
 
       if (state.colorMode === 'classic') {
@@ -4588,7 +4031,7 @@
             rgb.r / 255,
             rgb.g / 255,
             rgb.b / 255,
-            clamp(alpha * entry.visibility, 0, 1),
+            1,
           );
         }
       }
@@ -4634,15 +4077,9 @@
     gl.depthFunc(gl.LEQUAL);
     gl.depthMask(true);
 
-    if (alpha < 0.999) {
-      gl.enable(gl.BLEND);
-      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-    } else {
-      gl.disable(gl.BLEND);
-    }
+    gl.disable(gl.BLEND);
     gl.disable(gl.CULL_FACE);
     gl.drawArrays(gl.TRIANGLES, 0, faceData.length / 7);
-    gl.disable(gl.BLEND);
 
     // Default Solid follows the 2D visual grammar: colored faces plus only
     // the edges that survive the same depth buffer. Hidden/back edges fail
@@ -4784,7 +4221,9 @@
       ctx.closePath();
 
       ctx.fillStyle = faceFillColor(item.face, item.module);
-      ctx.globalAlpha = clamp(alpha * item.visibility, 0, 1);
+      ctx.globalAlpha = item.visibility >= 0.995
+        ? 1
+        : clamp(item.visibility, 0, 1);
       ctx.fill();
 
       ctx.strokeStyle = '#1d1714';
@@ -4923,39 +4362,25 @@
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    const zReveal = zConstructionReveal();
-    const wReveal = wConstructionReveal();
-    const transitionEdgeAlpha = Math.max(zReveal.edges, wReveal.edges);
+    // Keep the originating mandala visible while the new dimension separates.
+    // It only fades late in the transition, so the viewer can follow where
+    // every emerging volume came from.
+    const visibleZ = state.zMix;
+    const planFade = smoother(clamp((visibleZ - 0.72) / 0.28, 0, 1));
+    const planAlpha = 1 - planFade;
 
-    if (state.renderMode === 'wire') {
-      // Wire remains line-only for the complete journey.
-      clearSolidLayer();
-      const planEdgeAlpha =
-        1 - smoother(clamp((state.zMix - 0.48) / 0.42, 0, 1));
-      drawPlanEdges(planEdgeAlpha);
-      drawEdges(transitionEdgeAlpha);
-      drawVertices(transitionEdgeAlpha);
-      return;
-    }
+    // Faces arrive after the first geometric separation; edges lead the motion.
+    const volumeAlpha = smoother(clamp((visibleZ - 0.08) / 0.92, 0, 1));
+    const edgeAlpha = smoother(clamp(visibleZ / 0.82, 0, 1));
 
-    // Filled modes remain opaque. The geometry itself performs the morph:
-    // collapsed faces open into surfaces/solids as Z or W separates.
-    const usePlanRenderer = state.zMix < 0.025;
-    if (usePlanRenderer) {
-      clearSolidLayer();
-      drawPlanFaces(1);
-      drawPlanEdges(1);
-      return;
-    }
+    drawPlanFaces(planAlpha);
+    drawPlanEdges(planAlpha);
 
-    const solidHandled = drawSolidLayer(1);
-    if (!solidHandled) drawFaces(1);
+    const solidHandled = drawSolidLayer(volumeAlpha);
+    if (!solidHandled) drawFaces(volumeAlpha);
 
-    // Only the explicit Solid + wireframe mode receives the structural overlay.
-    if (state.renderMode === 'solid-edges') {
-      drawEdges(transitionEdgeAlpha);
-      drawVertices(transitionEdgeAlpha);
-    }
+    drawEdges(edgeAlpha);
+    drawVertices(edgeAlpha);
   }
 
   function drawPreviewToCanvas(previewCanvas) {
@@ -5422,7 +4847,6 @@
       toZ,
       toW,
       start: performance.now(),
-      progress: 0,
       duration: reducedMotion ? 80 : 2150,
     };
   }
@@ -5467,31 +4891,10 @@
       0,
       1,
     );
-    state.transition.progress = t;
+    const e = smoother(t);
 
-    const from = state.transition.fromDimension;
-    const to = state.transition.toDimension;
-
-    if (from === 2 && to === 3) {
-      // Build depth first; reserve the end of the transition for the final
-      // viewpoint/orientation settling.
-      state.zMix = smoother(clamp(t / 0.80, 0, 1));
-      state.wMix = 0;
-    } else if (from === 3 && to === 2) {
-      // Reverse the visual grammar: settle toward plan view, then collapse.
-      state.zMix = 1 - smoother(clamp((t - 0.14) / 0.86, 0, 1));
-      state.wMix = 0;
-    } else if (from === 3 && to === 4) {
-      state.zMix = 1;
-      state.wMix = smoother(clamp(t / 0.82, 0, 1));
-    } else if (from === 4 && to === 3) {
-      state.zMix = 1;
-      state.wMix = 1 - smoother(clamp((t - 0.12) / 0.88, 0, 1));
-    } else {
-      const e = smoother(t);
-      state.zMix = mix(state.transition.fromZ, state.transition.toZ, e);
-      state.wMix = mix(state.transition.fromW, state.transition.toW, e);
-    }
+    state.zMix = mix(state.transition.fromZ, state.transition.toZ, e);
+    state.wMix = mix(state.transition.fromW, state.transition.toW, e);
 
     if (t >= 1) completeStage();
   }
@@ -5541,35 +4944,12 @@
     const meta = PRESET_META[state.preset] || PRESET_META.square;
 
     if (state.transition) {
-      const from = state.transition.fromDimension;
-      const to = state.transition.toDimension;
-      const t = transitionProgress();
-
-      dimensionValue.textContent = from + 'D → ' + to + 'D';
-
-      if (from === 2 && to === 3) {
-        dimensionStatus.textContent =
-          t < 0.34 ? 'lifting edges'
-          : t < 0.72 ? 'forming surfaces'
-          : 'forming solid';
-      } else if (from === 3 && to === 2) {
-        dimensionStatus.textContent =
-          t < 0.30 ? 'settling view'
-          : t < 0.74 ? 'collapsing surfaces'
-          : 'returning to plan';
-      } else if (from === 3 && to === 4) {
-        dimensionStatus.textContent =
-          t < 0.34 ? 'extending W edges'
-          : t < 0.72 ? 'forming hyperfaces'
-          : 'forming hyperform';
-      } else if (from === 4 && to === 3) {
-        dimensionStatus.textContent =
-          t < 0.30 ? 'settling projection'
-          : t < 0.74 ? 'collapsing hyperfaces'
-          : 'returning to form';
-      } else {
-        dimensionStatus.textContent = 'transforming';
-      }
+      dimensionValue.textContent =
+        state.transition.fromDimension
+        + 'D → '
+        + state.transition.toDimension
+        + 'D';
+      dimensionStatus.textContent = 'unfolding';
     } else {
       dimensionValue.textContent = state.dimension + 'D';
 
@@ -5634,11 +5014,6 @@
   }
 
   function updateAutorotation(dt) {
-    // A dimensional morph must describe the geometry itself. Autorotation
-    // would turn it back into a moving-camera/object animation, so pause it
-    // temporarily without changing the user's autorotation toggles.
-    if (state.transition) return;
-
     let changed = false;
 
     for (const config of ROTATION_CONFIG) {
