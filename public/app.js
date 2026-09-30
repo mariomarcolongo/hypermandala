@@ -260,57 +260,57 @@
     chartres: {
       kind: 'reference',
       plan: 'Chartres labyrinth plan',
-      spatial: 'ascending labyrinth circuits',
+      spatial: 'embossed labyrinth path · W path progress',
     },
     rosewindow: {
       kind: 'reference',
       plan: 'Gothic rose-window tracery',
-      spatial: 'radial tracery relief',
+      spatial: 'stone tracery and recessed glass',
     },
     sunstone: {
       kind: 'reference',
       plan: 'Aztec Sun Stone geometry',
-      spatial: 'concentric carved relief',
+      spatial: 'shallow carved stone relief',
     },
     lotfollah: {
       kind: 'architecture',
       plan: 'Sheikh Lotfollah dome pattern',
-      spatial: 'dome-curved radial geometry',
+      spatial: 'continuous dome-curved geometry',
     },
     chladni: {
       kind: 'physical',
       plan: 'Chladni mode field',
-      spatial: 'standing-wave displacement',
+      spatial: 'standing-wave surface · W quadrature mode',
     },
     diatom: {
       kind: 'natural',
       plan: 'centric diatom frustule',
-      spatial: 'shallow silica shell',
+      spatial: 'paired curved frustule shells',
     },
     radiolaria: {
       kind: 'natural',
       plan: 'radiolarian radial skeleton',
-      spatial: 'bilateral shell projection',
+      spatial: 'paired spherical lattice shells',
     },
     snowflake: {
       kind: 'natural',
       plan: 'hexagonal snow crystal',
-      spatial: 'thin crystalline plate',
+      spatial: 'thin crystal plate · W growth order',
     },
     kolam: {
       kind: 'reference',
       plan: 'kolam-inspired loop field',
-      spatial: 'interlaced ribbon lift',
+      spatial: 'alternating over-under weave',
     },
     vastu: {
       kind: 'reference',
       plan: 'Vastu Purusha Mandala grid',
-      spatial: 'center-seeking grid hierarchy',
+      spatial: 'low-relief center-zone hierarchy',
     },
     phyllotaxis: {
       kind: 'natural',
       plan: 'phyllotactic seed disk',
-      spatial: 'domed phyllotactic field',
+      spatial: 'domed seed field · W growth order',
     },
     castel: {
       kind: 'architecture',
@@ -846,6 +846,7 @@
     if (regionId?.startsWith('rose-ring-')) return hexToRgb('#a28a67');
     if (regionId === 'rose-center') return hexToRgb('#e2c667');
 
+    if (regionId === 'sunstone-base') return hexToRgb('#6f563f');
     if (regionId?.startsWith('sunstone-ring-')) {
       const index = Number(regionId.split('-')[2]) || 0;
       return hexToRgb(['#8b6745','#a87b4e','#c09058','#d4a86b'][index % 4]);
@@ -1024,6 +1025,24 @@
 
     const z = centroid[2];
     const central = isCentralRegion(regionId);
+
+    if (
+      Number.isFinite(liftMeta?.wCenter)
+      || Number.isFinite(liftMeta?.wHalf)
+    ) {
+      return {
+        center: Number.isFinite(liftMeta?.wCenter) ? liftMeta.wCenter : 0,
+        half: Math.max(
+          0.012,
+          Number.isFinite(liftMeta?.wHalf)
+            ? liftMeta.wHalf
+            : baseHalf * 0.45,
+        ),
+        hierarchy: clamp(liftMeta?.hierarchyT ?? 0.5, 0, 1),
+        polarity: liftMeta?.polarity ?? 0,
+        kind: liftMeta?.wKind || 'explicit-form-semantics',
+      };
+    }
 
     if (meta.kind === 'architecture') {
       const upward = clamp(Math.max(0, z) / 1.55, 0, 1);
@@ -1896,6 +1915,74 @@
     );
   }
 
+  function warpedFootprintPrismData(
+    points,
+    surfaceZ,
+    thickness,
+  ) {
+    const footprint = points.map((p) => [p[0], p[1]]);
+    const n = footprint.length;
+    const half = Math.max(0.006, thickness * 0.5);
+    const topZ = footprint.map(([x, y]) => surfaceZ(x, y) + half);
+    const bottomZ = footprint.map(([x, y]) => surfaceZ(x, y) - half);
+
+    const vertices3 = [
+      ...footprint.map(([x, y], index) => [x, y, bottomZ[index]]),
+      ...footprint.map(([x, y], index) => [x, y, topZ[index]]),
+    ];
+    const edges3 = [];
+    const faces3 = [];
+
+    for (let i = 0; i < n; i += 1) {
+      const next = (i + 1) % n;
+      edges3.push({ a: i, b: next, axis: 'n' });
+      edges3.push({ a: i + n, b: next + n, axis: 'n' });
+      edges3.push({ a: i, b: i + n, axis: 'z' });
+      faces3.push({
+        indices: [i, next, next + n, i + n],
+        axis: 'n',
+      });
+    }
+
+    faces3.push({
+      indices: Array.from({ length: n }, (_, i) => n - 1 - i),
+      axis: 'z',
+    });
+    faces3.push({
+      indices: Array.from({ length: n }, (_, i) => i + n),
+      axis: 'z',
+    });
+
+    return { vertices3, edges3, faces3, footprint };
+  }
+
+  function addWarpedFootprintPrism(
+    points,
+    surfaceZ,
+    thickness,
+    regionId = 'unclassified',
+    liftMeta = null,
+  ) {
+    const data = warpedFootprintPrismData(points, surfaceZ, thickness);
+    const cx = points.reduce((sum, p) => sum + p[0], 0) / points.length;
+    const cy = points.reduce((sum, p) => sum + p[1], 0) / points.length;
+    const localRadius = Math.max(
+      0.08,
+      ...points.map((p) => Math.hypot(p[0] - cx, p[1] - cy)),
+    );
+
+    extrudeTo4D(
+      data.vertices3,
+      data.edges3,
+      data.faces3,
+      localRadius * 0.34,
+      data.footprint,
+      [],
+      regionId,
+      liftMeta,
+    );
+  }
+
   function addRectPrismBase(
     cx,
     cy,
@@ -2455,6 +2542,38 @@
         if (detailSeen.has(key)) continue;
         detailSeen.add(key);
         addPlanDetailEdge(segment[0], segment[1]);
+      }
+    }
+  }
+
+  function planAxisForSegment(a, b) {
+    const dx = Math.abs(b[0] - a[0]);
+    const dy = Math.abs(b[1] - a[1]);
+    if (dx < 1e-6 && dy < 1e-6) return 'n';
+    if (dx > dy * 1.65) return 'x';
+    if (dy > dx * 1.65) return 'y';
+    return 'n';
+  }
+
+  function buildReferencePlanFromPieces(pieces) {
+    clearPlan();
+
+    for (const piece of pieces) {
+      addPlanFace(
+        piece.points,
+        piece.regionId,
+        piece.paintOrder,
+      );
+
+      for (let i = 0; i < piece.points.length; i += 1) {
+        const a = piece.points[i];
+        const b = piece.points[(i + 1) % piece.points.length];
+        addPlanEdge(
+          a,
+          b,
+          planAxisForSegment(a, b),
+          piece.regionId,
+        );
       }
     }
   }
@@ -3262,6 +3381,9 @@
         {
           hierarchyT,
           polarity: piece.polarity ?? regionPolarity(piece.regionId),
+          wCenter: piece.wCenter,
+          wHalf: piece.wHalf,
+          wKind: piece.wKind,
         },
       );
     };
@@ -3427,7 +3549,13 @@
 
   function sunStonePieces() {
     const complex = state.complexity === 'complex';
-    const pieces = [];
+    const pieces = [{
+      points: polygonFootprint(0, 0, 1.50, complex ? 64 : 40, 0),
+      regionId: 'sunstone-base',
+      level: 0,
+      hierarchyT: 0,
+      paintOrder: -100,
+    }];
     const rings = complex
       ? [
           [0.22,0.48,8],
@@ -3524,6 +3652,14 @@
     return pieces;
   }
 
+  function chladniModeValue(x, y, phase = 0) {
+    const radius = 1.45;
+    const radialT = clamp(Math.hypot(x, y) / radius, 0, 1);
+    const theta = Math.atan2(y, x);
+    const radial = Math.sin(3 * Math.PI * radialT);
+    return Math.cos(4 * theta + phase) * radial;
+  }
+
   function chladniPieces() {
     const complex = state.complexity === 'complex';
     const ringCount = complex ? 6 : 4;
@@ -3541,9 +3677,8 @@
         const start = -Math.PI / 2 + (sector / sectorCount) * TAU;
         const end = -Math.PI / 2 + ((sector + 1) / sectorCount) * TAU;
         const theta = (start + end) * 0.5;
-        const amplitude =
-          Math.cos(4 * theta)
-          * Math.sin(Math.PI * (0.35 + radialT * 2.65));
+        const sample = polarPoint(midRadius, theta);
+        const amplitude = chladniModeValue(sample[0], sample[1]);
         const absAmplitude = Math.abs(amplitude);
         const regionId = absAmplitude < 0.14
           ? 'chladni-node'
@@ -3966,86 +4101,325 @@
     return pieces;
   }
 
-  function buildChartresPlan() { buildPlanFromPieces(chartresLabyrinthPieces()); }
-  function buildRoseWindowPlan() { buildPlanFromPieces(roseWindowPieces()); }
-  function buildSunStonePlan() { buildPlanFromPieces(sunStonePieces()); }
-  function buildLotfollahPlan() { buildPlanFromPieces(lotfollahDomePieces()); }
-  function buildChladniPlan() { buildPlanFromPieces(chladniPieces()); }
-  function buildDiatomPlan() { buildPlanFromPieces(diatomPieces()); }
-  function buildRadiolariaPlan() { buildPlanFromPieces(radiolariaPieces()); }
-  function buildSnowflakePlan() { buildPlanFromPieces(snowflakePieces()); }
-  function buildKolamPlan() { buildPlanFromPieces(kolamPieces()); }
-  function buildVastuPlan() { buildPlanFromPieces(vastuPieces()); }
-  function buildPhyllotaxisPlan() { buildPlanFromPieces(phyllotaxisPieces()); }
+  function buildChartresPlan() { buildReferencePlanFromPieces(chartresLabyrinthPieces()); }
+  function buildRoseWindowPlan() { buildReferencePlanFromPieces(roseWindowPieces()); }
+  function buildSunStonePlan() { buildReferencePlanFromPieces(sunStonePieces()); }
+  function buildLotfollahPlan() { buildReferencePlanFromPieces(lotfollahDomePieces()); }
+  function buildChladniPlan() { buildReferencePlanFromPieces(chladniPieces()); }
+  function buildDiatomPlan() { buildReferencePlanFromPieces(diatomPieces()); }
+  function buildRadiolariaPlan() { buildReferencePlanFromPieces(radiolariaPieces()); }
+  function buildSnowflakePlan() { buildReferencePlanFromPieces(snowflakePieces()); }
+  function buildKolamPlan() { buildReferencePlanFromPieces(kolamPieces()); }
+  function buildVastuPlan() { buildReferencePlanFromPieces(vastuPieces()); }
+  function buildPhyllotaxisPlan() { buildReferencePlanFromPieces(phyllotaxisPieces()); }
+
+  function pieceCentroid2D(piece) {
+    return piece.points.reduce(
+      (sum, point) => [sum[0] + point[0], sum[1] + point[1]],
+      [0,0],
+    ).map((value) => value / piece.points.length);
+  }
 
   function buildChartresForm() {
-    buildPieceRelief(chartresLabyrinthPieces(), {
-      zSpan: 0.72,
-      defaultThickness: 0.040,
+    const pieces = chartresLabyrinthPieces().map((piece) => {
+      const h = clamp(piece.hierarchyT ?? 0.5, 0, 1);
+      return {
+        ...piece,
+        // The Chartres labyrinth is a floor design, not a staircase.
+        zCenter: 0,
+        thickness: piece.regionId === 'chartres-center' ? 0.040 : 0.030,
+        // In 4D, W records progress from entrance/outer circuits to center.
+        wCenter: -0.42 + h * 0.84,
+        wHalf: 0.022,
+        wKind: 'labyrinth-path-progress',
+      };
     });
+    buildPieceRelief(pieces, { defaultThickness: 0.030 });
   }
 
   function buildRoseWindowForm() {
-    buildPieceRelief(roseWindowPieces(), {
-      zSpan: 0.46,
-      defaultThickness: 0.045,
+    const pieces = roseWindowPieces().map((piece) => {
+      const isStone = piece.regionId.startsWith('rose-ring-');
+      const isCenter = piece.regionId === 'rose-center';
+      const h = clamp(piece.hierarchyT ?? 0.5, 0, 1);
+      return {
+        ...piece,
+        // Stone tracery projects in front; stained-glass petals stay thin.
+        zCenter: isStone ? 0.035 : isCenter ? 0.020 : 0,
+        thickness: isStone ? 0.085 : isCenter ? 0.060 : 0.024,
+        wCenter: 0,
+        wHalf: isStone ? 0.050 : 0.030 + h * 0.020,
+        wKind: 'tracery-depth',
+      };
     });
+    buildPieceRelief(pieces, { defaultThickness: 0.035 });
   }
 
   function buildSunStoneForm() {
-    buildPieceRelief(sunStonePieces(), {
-      zSpan: 0.38,
-      defaultThickness: 0.042,
+    const pieces = sunStonePieces().map((piece) => {
+      if (piece.regionId === 'sunstone-base') {
+        return {
+          ...piece,
+          zCenter: -0.060,
+          thickness: 0.110,
+          wCenter: -0.26,
+          wHalf: 0.045,
+          wKind: 'stone-register',
+        };
+      }
+
+      const h = clamp(piece.hierarchyT ?? 0.5, 0, 1);
+      const ringMatch = piece.regionId.match(/^sunstone-ring-(\d+)/);
+      const ringIndex = ringMatch ? Number(ringMatch[1]) : 0;
+      const relief =
+        piece.regionId === 'sunstone-center' ? 0.060
+        : piece.regionId === 'sunstone-ray' ? 0.018
+        : 0.018 + ringIndex * 0.010;
+
+      return {
+        ...piece,
+        // Shallow carved relief on one stone disc, not separated terraces.
+        zCenter: relief,
+        thickness: piece.regionId === 'sunstone-center' ? 0.040 : 0.026,
+        wCenter: -0.18 + h * 0.48,
+        wHalf: 0.028,
+        wKind: 'concentric-register',
+      };
     });
+    buildPieceRelief(pieces, { defaultThickness: 0.026 });
   }
 
   function buildLotfollahForm() {
-    buildPieceRelief(lotfollahDomePieces(), {
-      defaultThickness: 0.036,
-    });
+    resetGeometry();
+    const pieces = lotfollahDomePieces();
+    const outerRadius = 1.44;
+    const domeZ = (x, y) => {
+      const r = clamp(Math.hypot(x, y) / outerRadius, 0, 1);
+      return 0.68 * (1 - r * r);
+    };
+
+    for (const piece of pieces) {
+      const h = clamp(piece.hierarchyT ?? 0.5, 0, 1);
+      addWarpedFootprintPrism(
+        piece.points,
+        domeZ,
+        piece.regionId === 'lotfollah-center' ? 0.045 : 0.028,
+        piece.regionId,
+        {
+          hierarchyT: h,
+          wCenter: 0,
+          wHalf: 0.030 + h * 0.095,
+          wKind: 'dome-radial-depth',
+        },
+      );
+    }
   }
 
   function buildChladniForm() {
-    buildPieceRelief(chladniPieces(), {
-      defaultThickness: 0.032,
-    });
+    resetGeometry();
+
+    for (const piece of chladniPieces()) {
+      const centroid = pieceCentroid2D(piece);
+      const h = clamp(piece.hierarchyT ?? 0.5, 0, 1);
+      const wMode = chladniModeValue(
+        centroid[0],
+        centroid[1],
+        Math.PI / 2,
+      );
+
+      const isCenterNode =
+        piece.regionId === 'chladni-node'
+        && h > 0.98;
+
+      addWarpedFootprintPrism(
+        piece.points,
+        isCenterNode
+          ? () => 0
+          : (x, y) => 0.40 * chladniModeValue(x, y),
+        0.022,
+        piece.regionId,
+        {
+          hierarchyT: h,
+          // Z and W are a quadrature pair of the same standing-wave family.
+          wCenter: isCenterNode ? 0 : 0.40 * wMode,
+          wHalf: 0.018,
+          wKind: 'standing-wave-quadrature',
+        },
+      );
+    }
   }
 
   function buildDiatomForm() {
-    buildPieceRelief(diatomPieces(), {
-      defaultThickness: 0.028,
-    });
+    resetGeometry();
+    const outerRadius = 1.46;
+    const shell = (x, y) => {
+      const r = clamp(Math.hypot(x, y) / outerRadius, 0, 1);
+      return 0.20 * (1 - r * r);
+    };
+
+    for (const piece of diatomPieces()) {
+      const h = clamp(piece.hierarchyT ?? 0.5, 0, 1);
+      const thickness =
+        piece.regionId === 'diatom-center' ? 0.034
+        : piece.regionId === 'diatom-pore' ? 0.020
+        : 0.024;
+
+      const relief =
+        piece.regionId === 'diatom-pore' ? -0.020
+        : piece.regionId === 'diatom-rib' ? 0.012
+        : piece.regionId === 'diatom-rim' ? 0.008
+        : 0.014;
+
+      for (const sign of [-1, 1]) {
+        addWarpedFootprintPrism(
+          piece.points,
+          (x, y) => sign * (shell(x, y) + relief),
+          thickness,
+          piece.regionId,
+          {
+            hierarchyT: h,
+            wCenter: 0,
+            wHalf: 0.026 + h * 0.034,
+            wKind: 'frustule-shell',
+          },
+        );
+      }
+    }
   }
 
   function buildRadiolariaForm() {
-    buildPieceRelief(radiolariaPieces(), {
-      defaultThickness: 0.025,
-      forceSymmetricZ: true,
-    });
+    resetGeometry();
+    const outerRadius = 1.64;
+    const shell = (x, y) => {
+      const r = clamp(Math.hypot(x, y) / outerRadius, 0, 1);
+      return 0.50 * Math.sqrt(Math.max(0, 1 - r * r));
+    };
+
+    for (const piece of radiolariaPieces()) {
+      const h = clamp(piece.hierarchyT ?? 0.5, 0, 1);
+      const thickness =
+        piece.regionId === 'radiolaria-center' ? 0.032 : 0.022;
+
+      for (const sign of [-1, 1]) {
+        addWarpedFootprintPrism(
+          piece.points,
+          (x, y) => sign * shell(x, y),
+          thickness,
+          piece.regionId,
+          {
+            hierarchyT: h,
+            wCenter: 0,
+            wHalf: 0.024 + h * 0.045,
+            wKind: 'radial-shell',
+          },
+        );
+      }
+    }
   }
 
   function buildSnowflakeForm() {
-    buildPieceRelief(snowflakePieces(), {
-      defaultThickness: 0.050,
+    const maxRadius = 1.48;
+    const pieces = snowflakePieces().map((piece) => {
+      const [cx, cy] = pieceCentroid2D(piece);
+      const growth = clamp(Math.hypot(cx, cy) / maxRadius, 0, 1);
+      return {
+        ...piece,
+        // Snow crystals are plates: keep Z extremely thin.
+        zCenter: 0,
+        thickness: piece.regionId === 'snowflake-center' ? 0.036 : 0.022,
+        // W becomes a growth-order coordinate from nucleus to branch tips.
+        wCenter: -0.38 + growth * 0.76,
+        wHalf: 0.018,
+        wKind: 'crystal-growth-order',
+      };
     });
+    buildPieceRelief(pieces, { defaultThickness: 0.022 });
   }
 
   function buildKolamForm() {
-    buildPieceRelief(kolamPieces(), {
-      defaultThickness: 0.032,
+    const extent = 1.36;
+    const lineCount = state.complexity === 'complex' ? 5 : 3;
+    const spacing = (extent * 2) / (lineCount - 1);
+
+    const pieces = kolamPieces().map((piece) => {
+      if (piece.regionId === 'kolam-dot') {
+        return {
+          ...piece,
+          zCenter: 0,
+          thickness: 0.018,
+          wCenter: 0,
+          wHalf: 0.016,
+          wKind: 'weave-crossing',
+        };
+      }
+
+      const [cx, cy] = pieceCentroid2D(piece);
+      const coordinate = piece.regionId === 'kolam-weave-a' ? cx : cy;
+      const familySign = piece.regionId === 'kolam-weave-a' ? 1 : -1;
+      const wave = Math.sin(
+        ((coordinate + extent) / Math.max(0.2, spacing)) * Math.PI,
+      );
+      const z = familySign * 0.050 * wave;
+      const polarity = z >= 0 ? 1 : -1;
+
+      return {
+        ...piece,
+        // Alternating over/under weave rather than one whole family above.
+        zCenter: z,
+        thickness: 0.024,
+        polarity,
+        wCenter: -z * 5.2,
+        wHalf: 0.018,
+        wKind: 'weave-crossing',
+      };
     });
+
+    buildPieceRelief(pieces, { defaultThickness: 0.024 });
   }
 
   function buildVastuForm() {
-    buildPieceRelief(vastuPieces(), {
-      defaultThickness: 0.050,
+    const pieces = vastuPieces().map((piece) => {
+      const h = clamp(piece.hierarchyT ?? 0.5, 0, 1);
+      return {
+        ...piece,
+        // Low relief preserves the grid/cosmogram instead of making towers.
+        zCenter: (h - 0.5) * 0.20,
+        thickness: 0.024 + h * 0.014,
+        wCenter: (h - 0.5) * 0.46,
+        wHalf: 0.022,
+        wKind: 'center-zone-hierarchy',
+      };
     });
+    buildPieceRelief(pieces, { defaultThickness: 0.028 });
   }
 
   function buildPhyllotaxisForm() {
-    buildPieceRelief(phyllotaxisPieces(), {
-      defaultThickness: 0.036,
-    });
+    resetGeometry();
+    const maxRadius = 1.48;
+    const dome = (x, y) => {
+      const r = clamp(Math.hypot(x, y) / maxRadius, 0, 1);
+      return 0.34 * (1 - r * r);
+    };
+
+    for (const piece of phyllotaxisPieces()) {
+      const [cx, cy] = pieceCentroid2D(piece);
+      const growth = clamp(Math.hypot(cx, cy) / maxRadius, 0, 1);
+      const h = 1 - growth;
+
+      addWarpedFootprintPrism(
+        piece.points,
+        dome,
+        0.024 + h * 0.010,
+        piece.regionId,
+        {
+          hierarchyT: h,
+          // The fourth coordinate records emergence order along the spiral.
+          wCenter: -0.40 + growth * 0.80,
+          wHalf: 0.018,
+          wKind: 'phyllotactic-growth-order',
+        },
+      );
+    }
   }
 
   function buildPlanForPreset() {
