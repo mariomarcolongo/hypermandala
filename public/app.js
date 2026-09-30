@@ -160,6 +160,7 @@
     shiva: '#4669ad',
     shakti: '#c94b40',
     bindu: '#b92f2f',
+    surface: '#c9b979',
   };
 
   const KALI_COLORS = {
@@ -176,6 +177,7 @@
     shiva: '#b99948',
     shakti: '#3e7655',
     bindu: '#d7aa3b',
+    surface: '#a79561',
   };
 
   const CLASSIC_SHADE = {
@@ -211,7 +213,7 @@
     sriyantra: {
       kind: 'symmetric',
       plan: 'Sri Yantra plan',
-      spatial: 'Sri Yantra hierarchy',
+      spatial: 'Meru-inspired Sri Yantra',
     },
     kaliyantra: {
       kind: 'symmetric',
@@ -221,7 +223,7 @@
     matangiyantra: {
       kind: 'symmetric',
       plan: 'Matangi Yantra plan',
-      spatial: 'Matangi Yantra hierarchy',
+      spatial: 'shatkona relief',
     },
     hex: {
       kind: 'symmetric',
@@ -647,6 +649,7 @@
     if (regionId?.startsWith('sri-shiva-')) return hexToRgb(SRI_COLORS.shiva);
     if (regionId?.startsWith('sri-shakti-')) return hexToRgb(SRI_COLORS.shakti);
     if (regionId === 'sri-bindu') return hexToRgb(SRI_COLORS.bindu);
+    if (regionId === 'sri-meru-surface') return hexToRgb(SRI_COLORS.surface);
 
     if (regionId === 'kali-bhupura') return hexToRgb(KALI_COLORS.bhupura);
     if (regionId === 'kali-lotus') return hexToRgb(KALI_COLORS.lotus);
@@ -661,6 +664,7 @@
     if (regionId === 'matangi-shiva') return hexToRgb(MATANGI_COLORS.shiva);
     if (regionId === 'matangi-shakti') return hexToRgb(MATANGI_COLORS.shakti);
     if (regionId === 'matangi-bindu') return hexToRgb(MATANGI_COLORS.bindu);
+    if (regionId === 'matangi-relief-surface') return hexToRgb(MATANGI_COLORS.surface);
 
     if (regionId === 'hex-center') return hexToRgb(HEX_CENTER);
     if (regionId === 'hex-satellite') return hexToRgb(HEX_SATELLITE);
@@ -3204,7 +3208,6 @@
           return 0.075 + t * 0.012;
         }
 
-        // Triangle / enclosure hierarchy grows subtly toward the center.
         return 0.082 + t * 0.052;
       },
       0.13,
@@ -3212,8 +3215,373 @@
     );
   }
 
+  function yantraConvexHull(points) {
+    const unique = [...new Map(
+      points.map((point) => [
+        point.map((value) => value.toFixed(7)).join(','),
+        [point[0], point[1]],
+      ]),
+    ).values()].sort((a, b) => (
+      a[0] === b[0] ? a[1] - b[1] : a[0] - b[0]
+    ));
+
+    if (unique.length <= 2) return unique;
+
+    const cross = (o, a, b) => (
+      (a[0] - o[0]) * (b[1] - o[1])
+      - (a[1] - o[1]) * (b[0] - o[0])
+    );
+
+    const lower = [];
+    for (const point of unique) {
+      while (
+        lower.length >= 2
+        && cross(lower[lower.length - 2], lower[lower.length - 1], point) <= 0
+      ) {
+        lower.pop();
+      }
+      lower.push(point);
+    }
+
+    const upper = [];
+    for (let index = unique.length - 1; index >= 0; index -= 1) {
+      const point = unique[index];
+      while (
+        upper.length >= 2
+        && cross(upper[upper.length - 2], upper[upper.length - 1], point) <= 0
+      ) {
+        upper.pop();
+      }
+      upper.push(point);
+    }
+
+    lower.pop();
+    upper.pop();
+    return [...lower, ...upper];
+  }
+
+  function yantraRadialBoundary(points) {
+    const unique = new Map();
+
+    for (const point of points) {
+      unique.set(
+        point.map((value) => value.toFixed(7)).join(','),
+        [point[0], point[1]],
+      );
+    }
+
+    return [...unique.values()].sort((a, b) => (
+      Math.atan2(a[1], a[0]) - Math.atan2(b[1], b[0])
+    ));
+  }
+
+  function yantraRayBoundaryRadius(boundary, angle) {
+    const dx = Math.cos(angle);
+    const dy = Math.sin(angle);
+    let best = Infinity;
+
+    for (let index = 0; index < boundary.length; index += 1) {
+      const a = boundary[index];
+      const b = boundary[(index + 1) % boundary.length];
+      const sx = b[0] - a[0];
+      const sy = b[1] - a[1];
+      const denom = dx * sy - dy * sx;
+      if (Math.abs(denom) < 1e-9) continue;
+
+      const t = (a[0] * sy - a[1] * sx) / denom;
+      const u = (a[0] * dy - a[1] * dx) / denom;
+
+      if (t >= -1e-8 && u >= -1e-8 && u <= 1 + 1e-8) {
+        best = Math.min(best, Math.max(0, t));
+      }
+    }
+
+    return Number.isFinite(best) ? best : 0;
+  }
+
+  function yantraBoundaryGauge(boundary, point) {
+    const radius = Math.hypot(point[0], point[1]);
+    if (radius < 1e-9) return 0;
+
+    const boundaryRadius = yantraRayBoundaryRadius(
+      boundary,
+      Math.atan2(point[1], point[0]),
+    );
+    if (boundaryRadius < 1e-9) return 1;
+
+    return radius / boundaryRadius;
+  }
+
+  function yantraSurfaceProfile(
+    boundary,
+    baseZ,
+    peakZ,
+    scales,
+    rises,
+  ) {
+    const zs = rises.map((rise) => (
+      baseZ + (peakZ - baseZ) * rise
+    ));
+
+    const heightAt = (point) => {
+      const gauge = clamp(
+        yantraBoundaryGauge(boundary, point),
+        0,
+        1,
+      );
+
+      for (let index = 0; index < scales.length - 1; index += 1) {
+        const outer = scales[index];
+        const inner = scales[index + 1];
+        if (gauge > outer + 1e-8 || gauge < inner - 1e-8) continue;
+
+        const span = Math.max(1e-8, outer - inner);
+        const t = clamp((outer - gauge) / span, 0, 1);
+        return zs[index] + (zs[index + 1] - zs[index]) * t;
+      }
+
+      return gauge >= scales[0] ? zs[0] : zs[zs.length - 1];
+    };
+
+    return {
+      boundary,
+      scales,
+      zs,
+      baseZ,
+      peakZ,
+      heightAt,
+    };
+  }
+
+  function addYantraFacetedSurface(
+    profile,
+    regionId,
+    wHalf = 0.06,
+  ) {
+    const boundary = profile.boundary;
+    const count = boundary.length;
+    if (count < 3) return;
+
+    const positiveScales = profile.scales.filter((scale) => scale > 1e-8);
+    const vertices3 = [];
+
+    positiveScales.forEach((scale, ring) => {
+      const z = profile.zs[ring];
+      for (const point of boundary) {
+        vertices3.push([
+          point[0] * scale,
+          point[1] * scale,
+          z,
+        ]);
+      }
+    });
+
+    const centerIndex = vertices3.length;
+    vertices3.push([0, 0, profile.peakZ]);
+
+    const faces3 = [];
+    for (let ring = 0; ring < positiveScales.length - 1; ring += 1) {
+      const outerOffset = ring * count;
+      const innerOffset = (ring + 1) * count;
+
+      for (let index = 0; index < count; index += 1) {
+        const next = (index + 1) % count;
+        faces3.push({
+          indices: [
+            outerOffset + index,
+            outerOffset + next,
+            innerOffset + next,
+            innerOffset + index,
+          ],
+          axis: 'z',
+        });
+      }
+    }
+
+    const lastOffset = (positiveScales.length - 1) * count;
+    for (let index = 0; index < count; index += 1) {
+      const next = (index + 1) % count;
+      faces3.push({
+        indices: [lastOffset + index, lastOffset + next, centerIndex],
+        axis: 'z',
+      });
+    }
+
+    // The tessellation is intentionally face-only: the visible structural
+    // edges come from the original 2D yantra network below, not from an
+    // invented radial mesh.
+    extrudeTo4D(
+      vertices3,
+      [],
+      faces3,
+      wHalf,
+      boundary,
+      [],
+      regionId,
+      { hierarchyT: 0.68, polarity: 0 },
+    );
+  }
+
+  function addYantraLiftedNetwork(trianglePieces, profile) {
+    const network = yantraSubdivisionNetwork(trianglePieces);
+
+    for (const piece of trianglePieces) {
+      const segments = network.filter((segment) => (
+        segmentOnPolygonBoundary(segment, piece.points)
+      ));
+      if (!segments.length) continue;
+
+      const vertices3 = [];
+      const vertexByKey = new Map();
+      const edges3 = [];
+
+      const vertexIndex = (point) => {
+        const key = point.map((value) => value.toFixed(7)).join(',');
+        if (vertexByKey.has(key)) return vertexByKey.get(key);
+
+        const index = vertices3.length;
+        vertices3.push([
+          point[0],
+          point[1],
+          profile.heightAt(point) + 0.004,
+        ]);
+        vertexByKey.set(key, index);
+        return index;
+      };
+
+      for (const segment of segments) {
+        const a = vertexIndex(segment[0]);
+        const b = vertexIndex(segment[1]);
+        if (a === b) continue;
+        edges3.push({ a, b, axis: 'n' });
+      }
+
+      if (!edges3.length) continue;
+
+      extrudeTo4D(
+        vertices3,
+        edges3,
+        [],
+        0.026,
+        piece.points,
+        [],
+        piece.regionId,
+        {
+          hierarchyT: 0.70,
+          polarity: regionPolarity(piece.regionId),
+        },
+      );
+    }
+  }
+
+  function addYantraOuterRelief(
+    pieces,
+    isTriangle,
+    centerZForLevel,
+  ) {
+    const outerPieces = pieces.filter((piece) => (
+      !isTriangle(piece)
+      && !piece.regionId?.includes('bindu')
+    ));
+    const maxLevel = Math.max(
+      1,
+      ...outerPieces.map((piece) => piece.level),
+    );
+
+    for (const piece of outerPieces) {
+      const t = piece.level / maxLevel;
+      let thickness = 0.055;
+
+      if (piece.regionId?.includes('bhupura')) thickness = 0.060;
+      else if (piece.regionId?.includes('lotus')) thickness = 0.050;
+
+      addFootprintPrismCentered(
+        piece.points,
+        centerZForLevel(piece.level),
+        thickness,
+        piece.regionId,
+        [],
+        { hierarchyT: t * 0.28, polarity: 0 },
+      );
+    }
+  }
+
+  function matangiPrimaryBoundary(trianglePieces) {
+    const main = [...trianglePieces]
+      .sort((a, b) => (
+        Math.max(...a.points.map((point) => Math.hypot(point[0], point[1])))
+        - Math.max(...b.points.map((point) => Math.hypot(point[0], point[1])))
+      ))
+      .slice(0, 2);
+
+    const network = yantraSubdivisionNetwork(main);
+    const points = [];
+    for (const segment of network) {
+      points.push(segment[0], segment[1]);
+    }
+    return yantraRadialBoundary(points);
+  }
+
   function buildSriYantraForm() {
-    buildYantraForm(sriYantraPieces());
+    const pieces = sriYantraPieces();
+
+    // Mirror remains an explicitly experimental alternative. The default
+    // hierarchy uses the Meru-inspired continuous relief below.
+    if (state.zLiftStyle === 'mirror') {
+      buildYantraForm(pieces);
+      return;
+    }
+
+    resetGeometry();
+
+    const triangles = pieces.filter((piece) => (
+      piece.regionId?.startsWith('sri-shiva-')
+      || piece.regionId?.startsWith('sri-shakti-')
+    ));
+    const hull = yantraConvexHull(
+      triangles.flatMap((piece) => piece.points),
+    );
+
+    const separated = state.spacingStyle === 'separated';
+    const extra = separated ? 0.035 : 0;
+
+    addYantraOuterRelief(
+      pieces,
+      (piece) => triangles.includes(piece),
+      (level) => (
+        -0.48
+        + level * (0.075 + extra)
+      ),
+    );
+
+    // Repeated rise values create real terraces between the sloped bands.
+    // The proportions are deliberately geometric rather than claimed as one
+    // uniquely canonical historical Meru height system.
+    const profile = yantraSurfaceProfile(
+      hull,
+      -0.215 + extra * 1.2,
+      0.50 + extra * 2.2,
+      [1.00,0.88,0.82,0.70,0.64,0.52,0.46,0.35,0.30,0.20,0.16,0.08,0],
+      [0.00,0.06,0.06,0.20,0.20,0.38,0.38,0.58,0.58,0.76,0.76,0.90,1],
+    );
+
+    addYantraFacetedSurface(
+      profile,
+      'sri-meru-surface',
+      0.058,
+    );
+    addYantraLiftedNetwork(triangles, profile);
+
+    addPolygonPyramid(
+      0,
+      0,
+      profile.peakZ - 0.005,
+      0.035,
+      16,
+      0.12,
+      0,
+      'sri-bindu',
+    );
   }
 
   function buildKaliYantraForm() {
@@ -3221,7 +3589,61 @@
   }
 
   function buildMatangiYantraForm() {
-    buildYantraForm(matangiYantraPieces());
+    const pieces = matangiYantraPieces();
+
+    if (state.zLiftStyle === 'mirror') {
+      buildYantraForm(pieces);
+      return;
+    }
+
+    resetGeometry();
+
+    const triangles = pieces.filter((piece) => (
+      piece.regionId === 'matangi-shiva'
+      || piece.regionId === 'matangi-shakti'
+    ));
+    const boundary = matangiPrimaryBoundary(triangles);
+
+    const separated = state.spacingStyle === 'separated';
+    const extra = separated ? 0.035 : 0;
+
+    addYantraOuterRelief(
+      pieces,
+      (piece) => triangles.includes(piece),
+      (level) => (
+        -0.42
+        + level * (0.078 + extra)
+      ),
+    );
+
+    // Matangi has no equally well-established canonical 3D counterpart here:
+    // lift the documented shatkona itself as a coherent faceted relief instead
+    // of pretending it is another Sri Meru.
+    const profile = yantraSurfaceProfile(
+      boundary,
+      -0.105 + extra,
+      0.36 + extra * 1.8,
+      [1.00,0.80,0.65,0.48,0.34,0.20,0],
+      [0.00,0.08,0.24,0.46,0.66,0.84,1],
+    );
+
+    addYantraFacetedSurface(
+      profile,
+      'matangi-relief-surface',
+      0.052,
+    );
+    addYantraLiftedNetwork(triangles, profile);
+
+    addPolygonPyramid(
+      0,
+      0,
+      profile.peakZ - 0.004,
+      0.040,
+      16,
+      0.105,
+      0,
+      'matangi-bindu',
+    );
   }
 
   
