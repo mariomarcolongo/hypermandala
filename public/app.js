@@ -4560,7 +4560,7 @@
     }
 
     input.addEventListener('pointerdown', (event) => {
-      if (event.pointerType === 'mouse' && !coarsePointerQuery.matches) return;
+      if (event.pointerType !== 'touch') return;
 
       gesture = {
         pointerId: event.pointerId,
