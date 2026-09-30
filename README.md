@@ -1,6 +1,6 @@
 # Hypermandala
 
-**Interactive 4D mandala, yantra and sacred-geometry explorer.**
+**Interactive 4D mandala, yantra and geometry explorer.**
 
 Live: https://hypermandala.mariomarcolongo.com/
 
@@ -414,4 +414,4 @@ The production site uses the canonical URL `https://hypermandala.mariomarcolongo
 
 Hypermandala does **not** claim to be the first 3D Sri Yantra visualization: earlier interactive and downloadable 3D Sri Yantra work exists.
 
-The project instead describes itself factually as an **interactive 4D mandala and yantra explorer** with genuine six-plane 4D rotation, dimensional collapse, multiple specific yantras/mandalas, semantic higher-dimensional lifts, and architecture-derived forms. Older fourth-dimensional sacred-geometry and “HyperMandala” concepts also exist, so any absolute “first 4D mandala ever” claim would require a much more exhaustive historical prior-art search.
+The project instead describes itself factually as an **interactive 4D mandala, yantra and geometry explorer** with genuine six-plane 4D rotation, dimensional collapse, multiple specific yantras/mandalas, semantic higher-dimensional lifts, and architecture-derived forms. Older fourth-dimensional sacred-geometry and “HyperMandala” concepts also exist, so any absolute “first 4D mandala ever” claim would require a much more exhaustive historical prior-art search.
