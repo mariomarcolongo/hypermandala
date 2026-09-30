@@ -4466,11 +4466,10 @@
           ? classicPlanColor(face)
           : '#c9b995';
 
-      // Classic regions are opaque at rest. This prevents overlapping
-      // translucent polygons from inventing colors that don't exist in 3D.
-      ctx.globalAlpha = state.colorMode === 'classic'
-        ? alpha
-        : alpha * 0.16;
+      // Rendering, not palette, determines whether faces are filled.
+      // Solid and Solid + wireframe therefore remain genuinely solid in 2D
+      // for Classic, Form and Axes alike.
+      ctx.globalAlpha = alpha;
       ctx.fill();
 
       if (state.colorMode === 'classic') {
