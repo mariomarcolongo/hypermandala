@@ -158,6 +158,32 @@
       </div>
     </section>
 
+    <section class="control-section insight-section">
+      <div class="control-section__head">
+        <span class="control-section__label">4D insight</span>
+        <span class="control-section__note">exact diagnostic views</span>
+      </div>
+      <div class="segmented insight-modes" id="insightControl">
+        <button type="button" data-insight="standard" class="is-active">Standard</button>
+        <button type="button" data-insight="w-color" title="Color filled geometry by transformed W coordinate">W color</button>
+        <button type="button" data-insight="w-slice" title="Show one exact intrinsic-W 3D layer of the hypersolid">W slice</button>
+        <button type="button" data-insight="w-layers" title="Show several intrinsic-W 3D layers simultaneously">W layers</button>
+        <button type="button" data-insight="compare" title="Show the intrinsic 3D reference beside the 4D projection">3D ref</button>
+      </div>
+      <div class="insight-range" id="wSliceControl">
+        <span>W layer</span>
+        <input id="wSliceInput" type="range" min="0" max="1" step="0.01" value="0.5" aria-label="Intrinsic W layer position" />
+        <output id="wSliceValue">50%</output>
+      </div>
+      <div class="insight-actions">
+        <button id="replay4D" type="button" title="Replay the 3D to 4D dimensional construction">Replay 3D → 4D</button>
+      </div>
+      <p class="insight-note">
+        W slice/layers follow the intrinsic extrusion parameter. They are exact
+        3D subspaces of the product construction, not screen-space clipping.
+      </p>
+    </section>
+
     <section class="control-section">
       <div class="control-section__label">Rendering</div>
       <div class="segmented segmented--three" id="renderControl">
@@ -380,6 +406,11 @@
   <div class="basis-gizmo" id="basisGizmo" aria-label="Projected coordinate basis">
     <canvas id="basisCanvas" width="150" height="150"></canvas>
     <span>projected basis</span>
+  </div>
+
+  <div class="reference-view" id="referenceView" aria-hidden="true">
+    <canvas id="referenceCanvas" width="360" height="360" aria-label="Intrinsic 3D reference view"></canvas>
+    <span>intrinsic 3D reference</span>
   </div>
 
   <div class="hint" id="hint">drag: XY in 2D · spin + tilt in 3D/4D · shift-drag: pure XY · scroll: zoom</div>
