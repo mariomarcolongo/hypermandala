@@ -1249,6 +1249,13 @@ a:focus-visible {
   }
   .control-row input[type="range"] {
     height: 30px;
+    touch-action: pan-y;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .control-row input[type="range"].is-touch-scrolling {
+    cursor: default;
   }
 
   .hint {
