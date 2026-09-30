@@ -673,7 +673,7 @@ a:focus-visible {
 /* persistent mandala library */
 .mandala-dock {
   grid-template-columns: 1fr;
-  width: min(390px, calc(100vw - 36px));
+  width: min(500px, calc(100vw - 36px));
   gap: 8px;
 }
 .mandala-library {
@@ -687,6 +687,7 @@ a:focus-visible {
   align-items: center;
   justify-items: center;
   min-width: 0;
+  overflow: hidden;
   padding: 5px 5px 6px;
   border: 1px solid rgba(255,255,255,.065);
   border-radius: 11px;
@@ -706,8 +707,10 @@ a:focus-visible {
   border-color: rgba(255,255,255,.15);
 }
 .mandala-card canvas {
-  width: 72px;
-  height: 72px;
+  width: 100%;
+  max-width: 72px;
+  height: auto;
+  aspect-ratio: 1 / 1;
   display: block;
   justify-self: center;
   align-self: center;
@@ -741,8 +744,9 @@ a:focus-visible {
     padding: 4px;
   }
   .mandala-card canvas {
-    width: 50px;
-    height: 50px;
+    width: 100%;
+    max-width: 50px;
+    height: auto;
   }
 }
 
@@ -1057,8 +1061,9 @@ a:focus-visible {
     transform: none;
   }
   .mandala-card canvas {
-    width: 62px;
-    height: 62px;
+    width: 100%;
+    max-width: 62px;
+    height: auto;
   }
   .mandala-card span {
     width: 100%;
@@ -1206,8 +1211,9 @@ a:focus-visible {
     border-radius: 10px;
   }
   .mandala-card canvas {
-    width: 54px;
-    height: 54px;
+    width: 100%;
+    max-width: 54px;
+    height: auto;
   }
 
   .mandala-dock__options {
@@ -1276,8 +1282,9 @@ a:focus-visible {
     min-height: 74px;
   }
   .mandala-card canvas {
-    width: 48px;
-    height: 48px;
+    width: 100%;
+    max-width: 48px;
+    height: auto;
   }
 }
 

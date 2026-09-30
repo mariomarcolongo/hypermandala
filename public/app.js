@@ -70,6 +70,7 @@
   let pinchStartDistance = 0;
   let pinchStartZoom = 1;
   let mobilePanel = 'forms';
+  let previewResizeFrame = 0;
 
   const COLORS = {
     form: '#e7ddc6',
@@ -4383,9 +4384,28 @@
   }
 
   function drawPreviewToCanvas(previewCanvas) {
+    if (!previewCanvas) return;
+
     const previewCtx = previewCanvas.getContext('2d');
-    const width = previewCanvas.width;
-    const height = previewCanvas.height;
+    const rect = previewCanvas.getBoundingClientRect();
+    const computedStyle = getComputedStyle(previewCanvas);
+    const fallbackWidth = parseFloat(computedStyle.width) || 72;
+    const fallbackHeight = parseFloat(computedStyle.height) || fallbackWidth;
+    const width = Math.max(1, rect.width || fallbackWidth);
+    const height = Math.max(1, rect.height || fallbackHeight);
+    const previewDpr = Math.min(devicePixelRatio || 1, 2);
+    const pixelWidth = Math.max(1, Math.round(width * previewDpr));
+    const pixelHeight = Math.max(1, Math.round(height * previewDpr));
+
+    if (
+      previewCanvas.width !== pixelWidth
+      || previewCanvas.height !== pixelHeight
+    ) {
+      previewCanvas.width = pixelWidth;
+      previewCanvas.height = pixelHeight;
+    }
+
+    previewCtx.setTransform(previewDpr, 0, 0, previewDpr, 0, 0);
     previewCtx.clearRect(0, 0, width, height);
 
     if (!planEdges.length) return;
@@ -4399,19 +4419,24 @@
     const minY = Math.min(...points.map((p) => p[1]));
     const maxY = Math.max(...points.map((p) => p[1]));
 
-    const spanX = Math.max(0.01, maxX - minX);
-    const spanY = Math.max(0.01, maxY - minY);
-    const padding = 18;
-    const scale = Math.min(
-      (width - padding) / spanX,
-      (height - padding) / spanY,
+    // All current plans are authored around (0, 0). Keep that invariant
+    // exactly at the visual center instead of centering the raw bounding box.
+    // This prevents gates, stairs, intersections, or other asymmetric detail
+    // from pulling a preview sideways.
+    const halfSpanX = Math.max(0.005, Math.abs(minX), Math.abs(maxX));
+    const halfSpanY = Math.max(0.005, Math.abs(minY), Math.abs(maxY));
+    const padding = Math.max(
+      4,
+      Math.min(10, Math.min(width, height) * 0.11),
     );
-    const cx = (minX + maxX) * 0.5;
-    const cy = (minY + maxY) * 0.5;
+    const scale = Math.min(
+      Math.max(1, width - padding * 2) / (halfSpanX * 2),
+      Math.max(1, height - padding * 2) / (halfSpanY * 2),
+    );
 
     const map = (p) => ({
-      x: width * 0.5 + (p[0] - cx) * scale,
-      y: height * 0.5 + (p[1] - cy) * scale,
+      x: width * 0.5 + p[0] * scale,
+      y: height * 0.5 + p[1] * scale,
     });
 
     const sortedFaces = [...planFaces].sort((a, b) => {
@@ -4462,6 +4487,8 @@
       previewCtx.lineTo(b.x, b.y);
       previewCtx.stroke();
     }
+
+    previewCtx.setTransform(1, 0, 0, 1, 0, 0);
   }
 
   function drawAllPreviews() {
@@ -4486,6 +4513,14 @@
 
     state.preset = selectedPreset;
     buildPlanForPreset();
+  }
+
+  function schedulePreviewRedraw() {
+    if (previewResizeFrame) cancelAnimationFrame(previewResizeFrame);
+    previewResizeFrame = requestAnimationFrame(() => {
+      previewResizeFrame = 0;
+      drawAllPreviews();
+    });
   }
 
   function basisPoint(source) {
@@ -5020,6 +5055,7 @@
 
     ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
     requestAnimationFrame(updateMobileStageInset);
+    schedulePreviewRedraw();
   }
 
   function hideHint() {
