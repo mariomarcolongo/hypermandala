@@ -6981,6 +6981,18 @@
     if (collapsed) {
       geometricFormsDock.classList.remove('is-expanded');
       restoredDockExpanded = false;
+
+      if (experimentalPresets.has(state.preset)) {
+        state.preset = 'square';
+        presetButtons.forEach((button) => {
+          button.classList.toggle(
+            'is-active',
+            button.dataset.preset === state.preset,
+          );
+        });
+        buildActiveMandala();
+        updateUI();
+      }
     }
     toggleGeometricForms.setAttribute('aria-expanded', String(!collapsed));
     restoredDockCollapsed = collapsed;
