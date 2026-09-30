@@ -757,7 +757,7 @@
     return [x * c - y * s, x * s + y * c];
   }
 
-  function addPlanEdge(a, b, axis) {
+  function addPlanEdge(a, b, axis, regionId = 'unclassified') {
     const p1 = [Number(a[0].toFixed(4)), Number(a[1].toFixed(4))];
     const p2 = [Number(b[0].toFixed(4)), Number(b[1].toFixed(4))];
     const first = p1[0] < p2[0] || (p1[0] === p2[0] && p1[1] <= p2[1]) ? p1 : p2;
@@ -769,6 +769,7 @@
       a: [first[0], first[1], 0, 0],
       b: [second[0], second[1], 0, 0],
       axis,
+      regionId,
     });
   }
 
@@ -1304,7 +1305,7 @@
   ) {
     if (fill) addPlanFace(points, regionId, paintOrder);
     for (let i = 0; i < points.length; i += 1) {
-      addPlanEdge(points[i], points[(i + 1) % points.length], 'n');
+      addPlanEdge(points[i], points[(i + 1) % points.length], 'n', regionId);
     }
   }
 
@@ -3864,6 +3865,11 @@
     );
   }
 
+  function classicWireColor(regionId, x = 0, y = 0) {
+    const base = classicRegionRgb(regionId, x, y);
+    return rgbCss(mixRgb(base, { r: 244, g: 241, b: 232 }, 0.26));
+  }
+
   function edgeStrokeColor(axis) {
     if (state.renderMode === 'solid-edges') {
       if (state.colorMode === 'classic') return '#1d1714';
@@ -3931,10 +3937,15 @@
       let width = 1.15;
 
       if (state.colorMode === 'classic') {
-        color = state.renderMode === 'wire'
-          ? 'rgba(242,238,226,.90)'
-          : '#1d1714';
-        width = state.renderMode === 'wire' ? 1.2 : 1.55;
+        if (state.renderMode === 'wire') {
+          const mx = (edge.a[0] + edge.b[0]) * 0.5;
+          const my = (edge.a[1] + edge.b[1]) * 0.5;
+          color = classicWireColor(edge.regionId, mx, my);
+          width = 1.3;
+        } else {
+          color = '#1d1714';
+          width = 1.55;
+        }
       }
 
       drawLine(a, b, color, width, alpha * 0.96);
@@ -4244,6 +4255,7 @@
 
         rendered.push({
           edge,
+          module,
           a,
           b,
           depth: (a.depth + b.depth) * 0.5,
@@ -4274,10 +4286,21 @@
         * 0.82
         * (0.55 + depth * 0.42);
 
+      let color = axisColor(item.edge.axis);
+      if (state.colorMode === 'classic') {
+        const va = item.module.vertices[item.edge.a];
+        const vb = item.module.vertices[item.edge.b];
+        color = classicWireColor(
+          item.module.regionId,
+          (va[0] + vb[0]) * 0.5,
+          (va[1] + vb[1]) * 0.5,
+        );
+      }
+
       drawLine(
         item.a,
         item.b,
-        axisColor(item.edge.axis),
+        color,
         width,
         lineAlpha,
       );
@@ -4763,11 +4786,6 @@
     colorButtons.forEach((button) => {
       button.classList.toggle('is-active', button.dataset.color === mode);
     });
-
-    // Classic is a showcase palette: reveal the colored faces immediately.
-    if (mode === 'classic' && state.renderMode === 'wire') {
-      setRenderMode('solid');
-    }
   }
 
   function setRenderMode(mode) {
