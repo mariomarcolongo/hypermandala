@@ -1044,6 +1044,28 @@
       };
     }
 
+    if (meta.kind === 'symmetric') {
+      // Default mathematical 4D continuation for free symmetric forms:
+      // take the *entire* finished 3D object and form G3 × [-h, h].
+      // Every module therefore occupies the exact same centered W interval.
+      // Adjacency/touching in 3D is preserved in 4D; color, polarity,
+      // hierarchy, region size and local radius cannot create new gaps.
+      const hierarchy = clamp(
+        liftMeta?.hierarchyT
+          ?? ((z + 1.2) / 2.4),
+        0,
+        1,
+      );
+
+      return {
+        center: 0,
+        half: 0.24,
+        hierarchy,
+        polarity: 0,
+        kind: 'topology-preserving-hyperprism',
+      };
+    }
+
     if (meta.kind === 'architecture') {
       const upward = clamp(Math.max(0, z) / 1.55, 0, 1);
       const centerBoost = central ? 1.28 : 1;
@@ -1057,9 +1079,9 @@
       };
     }
 
-    // For free geometric forms, Z already carries the single outer→inner
-    // ascent. W gets a different semantic role: polarity/duality where
-    // present, and hierarchy-dependent extent otherwise.
+    // Non-symmetric reference/physical/natural forms may still use semantic
+    // W structure below. Symmetric free geometric forms have already returned
+    // above through the topology-preserving hyperprism rule.
     const hierarchy = clamp(
       liftMeta?.hierarchyT
         ?? ((z + 1.2) / 2.4),

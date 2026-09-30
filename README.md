@@ -24,7 +24,7 @@ Families then divide naturally:
 In every case:
 
 - **2D → 3D:** every non-zero XY edge in the 3D object must already exist in the 2D geometric plan, and every 2D plan edge must be represented by the collapsed 3D object.
-- **3D → 4D:** the intrinsic 3D object receives a family-aware W lift. Collapsing W to 0 still returns the same 3D object exactly, but W now encodes hierarchy, polarity and centrality instead of acting as generic uniform thickness.
+- **3D → 4D:** for the free symmetric families (Square, Sri Yantra, Kali Yantra, Matangi Yantra and Hex), the default extension is the topology-preserving Cartesian product **G₃ × [-w,w]**. Every point of the finished 3D object receives the same centered W interval. Collapsing W returns the same 3D object exactly, and any regions that touch in 3D remain touching in 4D. Other reference, physical, natural and architectural families may use explicitly documented W semantics.
 
 The project therefore preserves identity instead of manufacturing a second interpretation of every object.
 
@@ -50,14 +50,13 @@ Hypermandala supports rotations in all six coordinate planes:
 
 The XW/YW/ZW rotations are the ones that most directly reveal the fourth coordinate.
 
-The fourth coordinate now has semantic structure:
+The fourth coordinate follows a stricter default rule:
 
-- free geometric forms already use Z for one outer→inner ascent, so W is not a duplicate Z axis;
-- Sri/Matangi complementary triangle families separate by polarity in W;
-- Kali's downward/Shakti triangle hierarchy bends toward the same W polarity rather than inventing an alternating polarity;
-- polarity separation is strongest through the middle hierarchy and converges again at the outer boundary and final bindu/center;
-- non-polar geometric families use hierarchy-dependent W extent while remaining centered on W=0;
-- architectural families stay centered on W=0 but gain greater W extent toward higher/central hierarchy, preserving W-reflection symmetry.
+- Square, Sri Yantra, Kali Yantra, Matangi Yantra and Hex use one common centered W interval for the entire finished 3D object;
+- W therefore adds a genuine fourth-dimensional extrusion without changing 3D adjacency, inserting new holes, or using color/polarity to move touching regions apart;
+- XW/YW/ZW rotations act on that connected 4D hyperprism and can reveal the fourth coordinate without changing the object's intrinsic connectivity;
+- explicitly documented reference/physical/natural forms may encode another quantity in W when that quantity belongs to the model;
+- architectural families remain centered on W=0 and may vary W extent with architectural hierarchy while preserving adjacency through overlapping centered intervals.
 
 Each rotation plane also has an **A** button for autorotation.
 
@@ -108,7 +107,7 @@ Its core uses nine interlocking triangles — four upward and five downward — 
 - **Complex**: the same identity-preserving core plus the fuller triple bhupura and concentric enclosure detail.
 - 3D: the full plan becomes **one centered outer→inner ascent through Z**. Bhupura begins at the low end, lotus/enclosure levels pass through the middle, and the bindu culminates at the high end. There is no second reflected Meru glued underneath.
 - The triangle intersection network is carried onto the lifted surfaces. Interlocking triangles therefore retain their smaller cells and crossing structure instead of becoming visually blank giant triangular slabs.
-- 4D: W expresses polarity independently of Z. Shiva/upward and Shakti/downward triangle families separate in opposite W directions through the middle hierarchy and converge again toward the outer boundary and bindu.
+- 4D: the complete stepped 3D Sri Yantra is extruded through one common centered W interval. Shiva/Shakti color families do **not** change W position. Any cells that touch in 3D remain adjacent in 4D; XW/YW/ZW rotations reveal the fourth coordinate without inventing gaps.
 
 Geometry references:
 - https://sriyantrageometry.com/
@@ -127,7 +126,7 @@ Reference:
 
 Matangi is no longer represented by a generic yantra. Its specific plan uses the documented **six-pointed star (shatkona)** inside an **eight-petalled lotus**, enclosed by a bhupura and centered on the bindu.
 
-Complex adds the additional triangle and lotus enclosures described in fuller Matangi-puja constructions while preserving the shatkona as the central identity. The shatkona crossings remain explicit structural edges on the lifted surfaces and continue into the 4D structure.
+Complex adds the additional triangle and lotus enclosures described in fuller Matangi-puja constructions while preserving the shatkona as the central identity. The shatkona crossings remain explicit structural edges on the lifted surfaces. In 4D the entire finished Matangi 3D object uses one common centered W interval, so those adjacencies are preserved rather than separated by color/polarity.
 
 References:
 - https://dlbs.liberal.ntu.edu.tw/DLMBS/search/search_detail.jsp?seq=351551
@@ -142,7 +141,7 @@ A sixfold planar-symmetric family:
 - outer satellites occupy the low end of Z;
 - layer thickness increases inward rather than remaining uniform;
 - the center becomes the single culmination at the high end of Z;
-- 4D uses hierarchy-dependent W extent while remaining centered on W=0.
+- 4D uses one common centered W interval for the complete 3D hexagonal object, preserving all 3D adjacencies.
 
 The complex version adds a twelve-module outer ring while preserving exact dimensional identity.
 
