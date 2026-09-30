@@ -4354,8 +4354,8 @@
     }
   }
 
-  function drawEdges(alpha, force = false) {
-    if ((state.renderMode === 'solid' && !force) || alpha <= 0.001) return;
+  function drawEdges(alpha) {
+    if (state.renderMode === 'solid' || alpha <= 0.001) return;
 
     const rendered = [];
 
@@ -4501,28 +4501,13 @@
     const solidHandled = drawSolidLayer(surfaceAlpha);
     if (!solidHandled) drawFaces(surfaceAlpha);
 
-    // In Solid mode show a temporary construction scaffold during a
-    // dimensional transition. This makes 2D→3D read as line→surface→solid and
-    // 3D→4D as W-edge→bridge-face→hyper-shell instead of a camera trick.
-    let scaffoldAlpha = 0;
-    if (state.transition) {
-      const from = state.transition.fromDimension;
-      const to = state.transition.toDimension;
-
-      if ((from === 2 && to === 3) || (from === 3 && to === 2)) {
-        scaffoldAlpha = zReveal.edges * (1 - zReveal.solid * 0.72);
-      } else if ((from === 3 && to === 4) || (from === 4 && to === 3)) {
-        scaffoldAlpha = wReveal.edges * (1 - wReveal.shell * 0.58);
-      }
-    }
-
-    if (state.renderMode === 'solid' && scaffoldAlpha > 0.001) {
-      drawEdges(scaffoldAlpha, true);
-    } else {
-      drawEdges(Math.max(zReveal.edges, wReveal.edges));
-    }
-
-    drawVertices(Math.max(zReveal.edges, wReveal.edges));
+    // Respect the selected rendering mode throughout the morph.
+    // Solid remains Solid, Solid + wireframe keeps its structural overlay,
+    // and Wire remains Wire. Construction is communicated by geometry growth
+    // and face opacity rather than by temporarily switching render styles.
+    const transitionEdgeAlpha = Math.max(zReveal.edges, wReveal.edges);
+    drawEdges(transitionEdgeAlpha);
+    drawVertices(transitionEdgeAlpha);
   }
 
   function drawPreviewToCanvas(previewCanvas) {
