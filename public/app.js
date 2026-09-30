@@ -3866,16 +3866,37 @@
     return Math.abs(sum * 0.5);
   }
 
+  function zConstructionReveal() {
+    return {
+      edges: smoother(clamp((state.zMix - 0.02) / 0.48, 0, 1)),
+      faces: smoother(clamp((state.zMix - 0.18) / 0.58, 0, 1)),
+      solid: smoother(clamp((state.zMix - 0.42) / 0.58, 0, 1)),
+    };
+  }
+
+  function wConstructionReveal() {
+    return {
+      edges: smoother(clamp((state.wMix - 0.04) / 0.42, 0, 1)),
+      faces: smoother(clamp((state.wMix - 0.24) / 0.50, 0, 1)),
+      shell: smoother(clamp((state.wMix - 0.48) / 0.52, 0, 1)),
+    };
+  }
+
   function faceVisibility(face) {
-    if (face.bridge) return state.wMix;
-    if (face.wLayer === 1) return state.wMix;
+    const wReveal = wConstructionReveal();
+
+    if (face.bridge) return wReveal.faces;
+    if (face.wLayer === 1) return wReveal.shell;
     return 1;
   }
 
   function edgeVisibility(edge) {
-    if (edge.axis === 'w') return state.wMix;
-    if (edge.axis === 'z') return state.zMix;
-    if (edge.wLayer === 1) return state.wMix;
+    const zReveal = zConstructionReveal();
+    const wReveal = wConstructionReveal();
+
+    if (edge.axis === 'w') return wReveal.edges;
+    if (edge.axis === 'z') return zReveal.edges;
+    if (edge.wLayer === 1) return wReveal.shell;
     return 1;
   }
 
