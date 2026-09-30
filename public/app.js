@@ -69,7 +69,7 @@
   let primaryPointerId = null;
   let pinchStartDistance = 0;
   let pinchStartZoom = 1;
-  let mobilePanel = null;
+  let mobilePanel = 'forms';
 
   const COLORS = {
     form: '#e7ddc6',
@@ -285,6 +285,8 @@
 
     width: innerWidth,
     height: innerHeight,
+    viewBottomInset: 0,
+    viewTopInset: 0,
     dpr: 1,
     lastTime: performance.now(),
     transitionDirection: 0,
@@ -3702,11 +3704,20 @@
     const factor = state.projection === 'isometric'
       ? 1
       : cameraZ / Math.max(2.6, cameraZ - p3[2]);
-    const scale = Math.min(state.width, state.height) * 0.245 * state.zoom;
+
+    const mobile = isMobileLayout();
+    const stageTop = mobile ? state.viewTopInset : 0;
+    const stageBottom = mobile
+      ? Math.max(stageTop + 180, state.height - state.viewBottomInset)
+      : state.height;
+    const stageHeight = Math.max(180, stageBottom - stageTop);
+    const scale = Math.min(state.width, stageHeight)
+      * (mobile ? 0.27 : 0.245)
+      * state.zoom;
 
     return {
-      x: state.width * 0.47 + p3[0] * factor * scale,
-      y: state.height * 0.49 + p3[1] * factor * scale,
+      x: state.width * (mobile ? 0.5 : 0.47) + p3[0] * factor * scale,
+      y: stageTop + stageHeight * 0.5 + p3[1] * factor * scale,
       depth: p3[2],
       w: p4[3],
     };
@@ -4882,6 +4893,7 @@
     const mobileViewport = isMobileLayout() ? window.visualViewport : null;
     state.width = Math.max(1, Math.round(mobileViewport?.width || innerWidth));
     state.height = Math.max(1, Math.round(mobileViewport?.height || innerHeight));
+    state.viewTopInset = isMobileLayout() ? 48 : 0;
     const dprCap = coarsePointerQuery.matches ? 1.75 : 2;
     state.dpr = Math.min(devicePixelRatio || 1, dprCap);
 
@@ -4898,6 +4910,7 @@
     if (gl) gl.viewport(0, 0, solidCanvas.width, solidCanvas.height);
 
     ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+    requestAnimationFrame(updateMobileStageInset);
   }
 
   function hideHint() {
@@ -4908,8 +4921,33 @@
     return mobileLayoutQuery.matches;
   }
 
+  function updateMobileStageInset() {
+    if (!isMobileLayout()) {
+      state.viewBottomInset = 0;
+      return;
+    }
+
+    const tabsRect = document.querySelector('.mobile-panel-switcher')?.getBoundingClientRect();
+    const activePanel = mobilePanel === 'controls'
+      ? explorerControls
+      : geometricFormsDock;
+    const panelRect = activePanel?.getBoundingClientRect();
+
+    const stageBottom = Math.min(
+      tabsRect?.top ?? state.height,
+      panelRect?.top ?? state.height,
+    );
+
+    state.viewBottomInset = Math.max(
+      0,
+      Math.min(state.height - 120, state.height - stageBottom + 6),
+    );
+  }
+
   function syncMobilePanels() {
     const mobile = isMobileLayout();
+    if (mobile && !mobilePanel) mobilePanel = 'forms';
+
     const formsOpen = mobile && mobilePanel === 'forms';
     const controlsOpen = mobile && mobilePanel === 'controls';
 
@@ -4930,18 +4968,20 @@
       geometricFormsDock?.classList.remove('is-mobile-open');
       explorerControls?.classList.remove('is-mobile-open');
     }
+
+    requestAnimationFrame(updateMobileStageInset);
   }
 
   function setMobilePanel(panel) {
     if (!isMobileLayout()) return;
-    mobilePanel = mobilePanel === panel ? null : panel;
+    mobilePanel = panel;
     syncMobilePanels();
     hideHint();
   }
 
   function closeMobilePanels() {
-    if (!isMobileLayout() || mobilePanel === null) return;
-    mobilePanel = null;
+    if (!isMobileLayout()) return;
+    mobilePanel = 'forms';
     syncMobilePanels();
   }
 
@@ -5071,7 +5111,6 @@
   }
 
   canvas.addEventListener('pointerdown', (event) => {
-    closeMobilePanels();
     activePointers.set(event.pointerId, {
       x: event.clientX,
       y: event.clientY,
@@ -5208,7 +5247,7 @@
   }, { passive: true });
   window.visualViewport?.addEventListener('resize', resize, { passive: true });
   mobileLayoutQuery.addEventListener?.('change', () => {
-    if (!isMobileLayout()) mobilePanel = null;
+    mobilePanel = isMobileLayout() ? 'forms' : null;
     syncMobilePanels();
     syncInteractionHint();
     resize();
