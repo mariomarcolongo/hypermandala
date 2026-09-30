@@ -143,11 +143,39 @@
     </section>
 
     <section class="control-section">
-      <div class="control-section__label">Color</div>
-      <div class="segmented segmented--three" id="colorControl">
-        <button type="button" data-color="classic" class="is-active" title="Family-specific classic colors">Classic</button>
-        <button type="button" data-color="form">Form</button>
-        <button type="button" data-color="axis">Axis</button>
+      <div class="control-section__label">Palette</div>
+      <div class="segmented segmented--three palette-control" id="colorControl">
+        <button
+          type="button"
+          data-color="classic"
+          class="is-active palette-option"
+          title="Family-specific traditional and reference-inspired colors"
+        >
+          <span class="palette-swatch palette-swatch--classic" aria-hidden="true">
+            <i></i><i></i><i></i><i></i>
+          </span>
+          <span>Classic</span>
+        </button>
+        <button
+          type="button"
+          data-color="form"
+          class="palette-option"
+          title="One neutral material color across the form"
+        >
+          <span class="palette-swatch palette-swatch--form" aria-hidden="true"><i></i></span>
+          <span>Form</span>
+        </button>
+        <button
+          type="button"
+          data-color="axis"
+          class="palette-option"
+          title="Color geometry by X, Y, Z and W axes"
+        >
+          <span class="palette-swatch palette-swatch--axis" aria-hidden="true">
+            <i></i><i></i><i></i><i></i>
+          </span>
+          <span>Axes</span>
+        </button>
       </div>
     </section>
 
