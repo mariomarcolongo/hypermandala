@@ -4495,10 +4495,11 @@
     drawPlanFaces(planFaceAlpha);
     drawPlanEdges(planEdgeAlpha);
 
-    // Surface opacity arrives after structural edges. Unlike the old renderer,
-    // this alpha now genuinely controls both WebGL and Canvas face opacity.
-    const solidHandled = drawSolidLayer(zReveal.solid);
-    if (!solidHandled) drawFaces(zReveal.solid);
+    // Surfaces first appear translucent, then become fully opaque solids.
+    // This gives the morph a readable edge → face → solid progression.
+    const surfaceAlpha = zReveal.faces * (0.18 + zReveal.solid * 0.82);
+    const solidHandled = drawSolidLayer(surfaceAlpha);
+    if (!solidHandled) drawFaces(surfaceAlpha);
 
     // In Solid mode show a temporary construction scaffold during a
     // dimensional transition. This makes 2D→3D read as line→surface→solid and
@@ -5107,12 +5108,35 @@
     const meta = PRESET_META[state.preset] || PRESET_META.square;
 
     if (state.transition) {
-      dimensionValue.textContent =
-        state.transition.fromDimension
-        + 'D → '
-        + state.transition.toDimension
-        + 'D';
-      dimensionStatus.textContent = 'unfolding';
+      const from = state.transition.fromDimension;
+      const to = state.transition.toDimension;
+      const t = transitionProgress();
+
+      dimensionValue.textContent = from + 'D → ' + to + 'D';
+
+      if (from === 2 && to === 3) {
+        dimensionStatus.textContent =
+          t < 0.34 ? 'lifting edges'
+          : t < 0.72 ? 'forming surfaces'
+          : 'forming solid';
+      } else if (from === 3 && to === 2) {
+        dimensionStatus.textContent =
+          t < 0.30 ? 'settling view'
+          : t < 0.74 ? 'collapsing surfaces'
+          : 'returning to plan';
+      } else if (from === 3 && to === 4) {
+        dimensionStatus.textContent =
+          t < 0.34 ? 'extending W edges'
+          : t < 0.72 ? 'forming hyperfaces'
+          : 'forming hyperform';
+      } else if (from === 4 && to === 3) {
+        dimensionStatus.textContent =
+          t < 0.30 ? 'settling projection'
+          : t < 0.74 ? 'collapsing hyperfaces'
+          : 'returning to form';
+      } else {
+        dimensionStatus.textContent = 'transforming';
+      }
     } else {
       dimensionValue.textContent = state.dimension + 'D';
 
