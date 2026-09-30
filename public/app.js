@@ -3655,19 +3655,25 @@
     const t = transitionProgress();
     const forward = state.transition.toDimension > state.transition.fromDimension;
 
-    if (dimension === 3 && new Set([
-      state.transition.fromDimension,
-      state.transition.toDimension,
-    ]).has(2)) {
+    if (
+      dimension === 3
+      && (
+        state.transition.fromDimension === 2
+        || state.transition.toDimension === 2
+      )
+    ) {
       return forward
         ? smoother(clamp((t - 0.78) / 0.22, 0, 1))
         : 1 - smoother(clamp(t / 0.24, 0, 1));
     }
 
-    if (dimension === 4 && new Set([
-      state.transition.fromDimension,
-      state.transition.toDimension,
-    ]).has(3)) {
+    if (
+      dimension === 4
+      && (
+        state.transition.fromDimension === 3
+        || state.transition.toDimension === 3
+      )
+    ) {
       return forward
         ? smoother(clamp((t - 0.74) / 0.26, 0, 1))
         : 1 - smoother(clamp(t / 0.26, 0, 1));
@@ -3698,8 +3704,11 @@
     // rendering offset only: it does not change the intrinsic geometry.
     // It prevents asymmetric +Z architectures or W polarity from making the
     // whole object visibly jump up/down or sideways while a dimension grows.
-    p[2] = (p[2] - geometryStats.centerZ) * sz * state.zMix;
-    p[3] = (p[3] - geometryStats.centerW) * sw * state.wMix;
+    // Basis vectors use applyUserScale=false and must remain pure directions.
+    const centerZ = applyUserScale ? geometryStats.centerZ : 0;
+    const centerW = applyUserScale ? geometryStats.centerW : 0;
+    p[2] = (p[2] - centerZ) * sz * state.zMix;
+    p[3] = (p[3] - centerW) * sw * state.wMix;
 
     for (const config of ROTATION_CONFIG) {
       rotatePlane(p, config.a, config.b, activeAngle(config));
