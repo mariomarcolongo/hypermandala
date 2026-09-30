@@ -5442,15 +5442,69 @@
     return rgbCss(classicFaceRgb(face, module));
   }
 
+  function faceViewShade(face, module) {
+    if (!face?.indices || face.indices.length < 3) return 1;
+
+    const points = face.indices.map((index) => {
+      const p4 = transform4D(module.vertices[index], true);
+      return cameraTransform(project4Dto3D(p4));
+    });
+
+    const origin = points[0];
+    let normal = null;
+
+    for (let i = 1; i < points.length - 1; i += 1) {
+      const a = [
+        points[i][0] - origin[0],
+        points[i][1] - origin[1],
+        points[i][2] - origin[2],
+      ];
+      const b = [
+        points[i + 1][0] - origin[0],
+        points[i + 1][1] - origin[1],
+        points[i + 1][2] - origin[2],
+      ];
+
+      const cross = [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+      ];
+      const length = Math.hypot(cross[0], cross[1], cross[2]);
+      if (length > 1e-7) {
+        normal = cross.map((value) => value / length);
+        break;
+      }
+    }
+
+    if (!normal) return 1;
+
+    // Two-sided soft lighting. The hue still identifies the source axis;
+    // shading only makes the current projected orientation legible.
+    const light = [0.34, -0.42, 0.84];
+    const lightLength = Math.hypot(...light);
+    const diffuse = Math.abs(
+      (
+        normal[0] * light[0]
+        + normal[1] * light[1]
+        + normal[2] * light[2]
+      ) / lightLength,
+    );
+    const facing = Math.abs(normal[2]);
+
+    return 0.88 + diffuse * 0.12 + facing * 0.08;
+  }
+
   function faceFillRgb(face, module) {
     const styleMix = faceStyleMix();
 
     if (state.colorMode === 'axis') {
-      return mixRgb(
+      const base = mixRgb(
         hexToRgb('#d9dde4'),
         hexToRgb(axisColor(face.axis)),
         styleMix,
       );
+      return shadeRgb(base, faceViewShade(face, module));
     }
 
     if (state.colorMode === 'classic') {
