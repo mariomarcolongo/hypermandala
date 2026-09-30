@@ -3866,7 +3866,8 @@
   }
 
   function classicWireColor(regionId, x = 0, y = 0) {
-    return rgbCss(shadeRgb(classicRegionRgb(regionId, x, y), 1.08));
+    const base = classicRegionRgb(regionId, x, y);
+    return rgbCss(mixRgb(base, { r: 244, g: 241, b: 232 }, 0.26));
   }
 
   function edgeStrokeColor(axis) {
