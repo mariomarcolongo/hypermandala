@@ -211,7 +211,7 @@
     sriyantra: {
       kind: 'symmetric',
       plan: 'Sri Yantra plan',
-      spatial: 'Sri Yantra radial triangle hierarchy',
+      spatial: 'Sri Yantra stepped hierarchy',
     },
     kaliyantra: {
       kind: 'symmetric',
@@ -221,7 +221,7 @@
     matangiyantra: {
       kind: 'symmetric',
       plan: 'Matangi Yantra plan',
-      spatial: 'Matangi radial triangle hierarchy',
+      spatial: 'Matangi stepped hierarchy',
     },
     hex: {
       kind: 'symmetric',
@@ -3212,26 +3212,225 @@
     );
   }
 
-  function yantraTriangleDistance(piece) {
-    // Spatial order is derived only from geometry: the mean radial distance
-    // of the triangle's own 2D vertices from the bindu/origin.
-    // Color/family/paint order never affects Z.
-    return piece.points.reduce(
-      (sum, point) => sum + Math.hypot(point[0], point[1]),
-      0,
-    ) / Math.max(1, piece.points.length);
+  function yantraNetworkCells(segments) {
+    const vertices = new Map();
+    const adjacency = new Map();
+
+    const keyFor = (point) => {
+      const normalized = point.map(symmetryCoord);
+      const key = normalized
+        .map((value) => value.toFixed(6))
+        .join(',');
+
+      if (!vertices.has(key)) vertices.set(key, normalized);
+      if (!adjacency.has(key)) adjacency.set(key, new Set());
+      return key;
+    };
+
+    for (const segment of segments) {
+      const a = keyFor(segment[0]);
+      const b = keyFor(segment[1]);
+      if (a === b) continue;
+      adjacency.get(a).add(b);
+      adjacency.get(b).add(a);
+    }
+
+    const ordered = new Map();
+    for (const [key, neighbors] of adjacency) {
+      const point = vertices.get(key);
+      ordered.set(
+        key,
+        [...neighbors].sort((a, b) => {
+          const pa = vertices.get(a);
+          const pb = vertices.get(b);
+          return (
+            Math.atan2(pa[1] - point[1], pa[0] - point[0])
+            - Math.atan2(pb[1] - point[1], pb[0] - point[0])
+          );
+        }),
+      );
+    }
+
+    const visited = new Set();
+    const cells = [];
+
+    for (const [startA, neighbors] of ordered) {
+      for (const startB of neighbors) {
+        if (visited.has(startA + '>' + startB)) continue;
+
+        let a = startA;
+        let b = startB;
+        const polygon = [];
+        let closed = false;
+
+        for (let guard = 0; guard < 1000; guard += 1) {
+          const edgeKey = a + '>' + b;
+          if (visited.has(edgeKey)) break;
+
+          visited.add(edgeKey);
+          polygon.push(vertices.get(a));
+
+          const around = ordered.get(b);
+          const incoming = around.indexOf(a);
+          if (incoming < 0) break;
+
+          const c = around[
+            (incoming - 1 + around.length) % around.length
+          ];
+
+          a = b;
+          b = c;
+
+          if (a === startA && b === startB) {
+            closed = true;
+            break;
+          }
+        }
+
+        if (!closed || polygon.length < 3) continue;
+
+        let signedArea = 0;
+        for (let index = 0; index < polygon.length; index += 1) {
+          const p = polygon[index];
+          const q = polygon[(index + 1) % polygon.length];
+          signedArea += p[0] * q[1] - q[0] * p[1];
+        }
+        signedArea *= 0.5;
+
+        // The opposite orientation is the unbounded outside face.
+        if (signedArea > 1e-7) cells.push(polygon);
+      }
+    }
+
+    return cells;
   }
 
-  function buildDistanceLayeredYantra(
+  function yantraPolygonCentroid(points) {
+    let twiceArea = 0;
+    let x = 0;
+    let y = 0;
+
+    for (let index = 0; index < points.length; index += 1) {
+      const p = points[index];
+      const q = points[(index + 1) % points.length];
+      const cross = p[0] * q[1] - q[0] * p[1];
+      twiceArea += cross;
+      x += (p[0] + q[0]) * cross;
+      y += (p[1] + q[1]) * cross;
+    }
+
+    if (Math.abs(twiceArea) < 1e-9) {
+      return [
+        points.reduce((sum, point) => sum + point[0], 0) / points.length,
+        points.reduce((sum, point) => sum + point[1], 0) / points.length,
+      ];
+    }
+
+    return [
+      x / (3 * twiceArea),
+      y / (3 * twiceArea),
+    ];
+  }
+
+  function yantraContainingTriangles(point, triangles) {
+    return triangles.filter((piece) => (
+      pointInConvexPolygon(point, piece.points)
+    ));
+  }
+
+  function yantraVisibleTriangleAt(point, triangles) {
+    const covering = yantraContainingTriangles(point, triangles);
+    if (!covering.length) return null;
+
+    covering.sort((a, b) => {
+      const orderA = a.paintOrder ?? 0;
+      const orderB = b.paintOrder ?? 0;
+      if (orderA !== orderB) return orderA - orderB;
+      return rawPolygonArea(b.points) - rawPolygonArea(a.points);
+    });
+
+    return covering[covering.length - 1];
+  }
+
+  function buildYantraOuterTerraces(
+    outerPieces,
+    {
+      firstTop = 0.045,
+      levelStep = 0.042,
+      separatedGap = 0.055,
+    } = {},
+  ) {
+    const levels = [...new Set(
+      outerPieces.map((piece) => piece.level),
+    )].sort((a, b) => a - b);
+    const rankByLevel = new Map(
+      levels.map((level, rank) => [level, rank]),
+    );
+    const separated = state.spacingStyle === 'separated';
+
+    let highestTop = 0;
+
+    for (const piece of outerPieces) {
+      const rank = rankByLevel.get(piece.level) || 0;
+      const topZ = firstTop + rank * levelStep;
+      highestTop = Math.max(highestTop, topZ);
+
+      if (separated) {
+        const thickness = piece.regionId?.includes('bhupura')
+          ? 0.050
+          : 0.042;
+        const centerZ =
+          topZ
+          + rank * separatedGap;
+
+        addFootprintPrismCentered(
+          piece.points,
+          centerZ,
+          thickness,
+          piece.regionId,
+          [],
+          {
+            hierarchyT: levels.length <= 1
+              ? 0
+              : (rank / (levels.length - 1)) * 0.22,
+            polarity: 0,
+          },
+        );
+        highestTop = Math.max(
+          highestTop,
+          centerZ + thickness * 0.5,
+        );
+        continue;
+      }
+
+      // Compact mode is grounded: no floating petals or frame rails.
+      addFootprintPrism(
+        piece.points,
+        0,
+        topZ,
+        piece.regionId,
+        [],
+        {
+          hierarchyT: levels.length <= 1
+            ? 0
+            : (rank / (levels.length - 1)) * 0.22,
+          polarity: 0,
+        },
+      );
+    }
+
+    return highestTop;
+  }
+
+  function buildSteppedTriangleYantra(
     pieces,
     trianglePredicate,
     {
-      outerBottom = -0.34,
-      outerTop = -0.055,
-      triangleBase = 0.025,
-      triangleTop = 0.72,
-      triangleThickness = 0.052,
-      binduThickness = 0.090,
+      outerFirstTop = 0.045,
+      outerLevelStep = 0.042,
+      terraceStep = 0.078,
+      separatedGap = 0.060,
+      binduExtra = 0.085,
     } = {},
   ) {
     resetGeometry();
@@ -3245,128 +3444,144 @@
       piece.regionId?.includes('bindu')
     ));
 
-    const separated = state.spacingStyle === 'separated';
-    const separation = separated ? 0.055 : 0;
-
-    // Bhupura and lotus/enclosure pieces still rise outer -> inner, but they
-    // stay below the actual triangle hierarchy.
-    const outerLevels = [...new Set(
-      outerPieces.map((piece) => piece.level),
-    )].sort((a, b) => a - b);
-    const outerRank = new Map(
-      outerLevels.map((level, index) => [level, index]),
+    const outerTop = buildYantraOuterTerraces(
+      outerPieces,
+      {
+        firstTop: outerFirstTop,
+        levelStep: outerLevelStep,
+        separatedGap,
+      },
     );
 
-    for (const piece of outerPieces) {
-      const rank = outerRank.get(piece.level) || 0;
-      const t = outerLevels.length <= 1
-        ? 0
-        : rank / (outerLevels.length - 1);
+    if (!triangles.length) return;
 
-      const centerZ =
-        outerBottom
-        + (outerTop - outerBottom) * t
-        + rank * separation;
+    const network = yantraSubdivisionNetwork(triangles);
+    const cells = yantraNetworkCells(network);
+    const separated = state.spacingStyle === 'separated';
+    const triangleBase = outerTop + (separated ? separatedGap : 0.018);
 
-      let thickness = 0.050;
-      if (piece.regionId?.includes('bhupura')) thickness = 0.060;
-      else if (piece.regionId?.includes('lotus')) thickness = 0.048;
+    const cellData = [];
 
-      addFootprintPrismCentered(
-        piece.points,
-        centerZ,
-        thickness,
-        piece.regionId,
+    for (const cell of cells) {
+      const centroid = yantraPolygonCentroid(cell);
+      const covering = yantraContainingTriangles(
+        centroid,
+        triangles,
+      );
+      const depth = covering.length;
+      if (!depth) continue;
+
+      const visiblePiece = yantraVisibleTriangleAt(
+        centroid,
+        triangles,
+      );
+      if (!visiblePiece) continue;
+
+      cellData.push({
+        cell,
+        centroid,
+        depth,
+        visiblePiece,
+      });
+    }
+
+    const maxDepth = Math.max(
+      1,
+      ...cellData.map((item) => item.depth),
+    );
+
+    for (const item of cellData) {
+      const topZ =
+        triangleBase
+        + item.depth * terraceStep
+        + (separated ? (item.depth - 1) * separatedGap : 0);
+
+      if (separated) {
+        const thickness = Math.max(
+          0.035,
+          terraceStep * 0.44,
+        );
+
+        addFootprintPrismCentered(
+          item.cell,
+          topZ,
+          thickness,
+          item.visiblePiece.regionId,
+          [],
+          {
+            hierarchyT: 0.24 + 0.66 * (item.depth / maxDepth),
+            polarity: regionPolarity(item.visiblePiece.regionId),
+          },
+        );
+        continue;
+      }
+
+      // This is the key construction:
+      // each exact 2D network cell is a column from one common base.
+      // Crossing any source triangle line changes the number of triangles
+      // containing the cell by exactly one, therefore every black line is a
+      // real terrace/riser in 3D. Color never participates in the height.
+      addFootprintPrism(
+        item.cell,
+        triangleBase,
+        Math.max(0.012, topZ - triangleBase),
+        item.visiblePiece.regionId,
         [],
         {
-          hierarchyT: t * 0.24,
-          polarity: 0,
+          hierarchyT: 0.24 + 0.66 * (item.depth / maxDepth),
+          polarity: regionPolarity(item.visiblePiece.regionId),
         },
       );
     }
 
-    if (!triangles.length) return;
-
-    // Preserve every original triangle and its exact XY footprint. The only
-    // operation is a Z translation determined by geometric distance.
-    const network = yantraSubdivisionNetwork(triangles);
-    const distances = triangles.map(yantraTriangleDistance);
-    const maxDistance = Math.max(...distances);
-    const minDistance = Math.min(...distances);
-    const span = Math.max(1e-8, maxDistance - minDistance);
-
-    triangles.forEach((piece, index) => {
-      const distance = distances[index];
-
-      // Largest / most external triangle => t = 0 => base.
-      // Smallest / most internal triangle => t = 1 => highest layer.
-      const t = span <= 1e-7
-        ? 0
-        : clamp(
-            (maxDistance - distance) / span,
-            0,
-            1,
-          );
-
-      const centerZ =
-        triangleBase
-        + t * (triangleTop - triangleBase)
-        + t * separation * Math.max(1, triangles.length - 1);
-
-      const details = detailSegmentsForPiece(piece, network);
-
-      addFootprintPrismCentered(
-        piece.points,
-        centerZ,
-        triangleThickness,
-        piece.regionId,
-        details,
-        {
-          hierarchyT: 0.28 + t * 0.62,
-          polarity: regionPolarity(piece.regionId),
-        },
-      );
-    });
-
     if (bindu) {
-      const topZ =
-        triangleTop
-        + (separated ? separation * Math.max(1, triangles.length) : 0)
-        + binduThickness * 0.72;
+      const binduBase =
+        triangleBase
+        + maxDepth * terraceStep
+        + (separated ? (maxDepth - 1) * separatedGap : 0);
 
-      addFootprintPrismCentered(
-        bindu.points,
-        topZ,
-        binduThickness,
-        bindu.regionId,
-        [],
-        { hierarchyT: 1, polarity: 0 },
-      );
+      if (separated) {
+        addFootprintPrismCentered(
+          bindu.points,
+          binduBase + binduExtra,
+          Math.max(0.045, binduExtra * 0.70),
+          bindu.regionId,
+          [],
+          { hierarchyT: 1, polarity: 0 },
+        );
+      } else {
+        addFootprintPrism(
+          bindu.points,
+          triangleBase,
+          binduBase - triangleBase + binduExtra,
+          bindu.regionId,
+          [],
+          { hierarchyT: 1, polarity: 0 },
+        );
+      }
     }
   }
 
   function buildSriYantraForm() {
     const pieces = sriYantraPieces();
 
-    // Mirror remains the intentionally reflection-symmetric alternative.
     if (state.zLiftStyle === 'mirror') {
       buildYantraForm(pieces);
       return;
     }
 
-    buildDistanceLayeredYantra(
+    buildSteppedTriangleYantra(
       pieces,
       (piece) => (
         piece.regionId?.startsWith('sri-shiva-')
         || piece.regionId?.startsWith('sri-shakti-')
       ),
       {
-        outerBottom: -0.36,
-        outerTop: -0.055,
-        triangleBase: 0.025,
-        triangleTop: 0.82,
-        triangleThickness: 0.052,
-        binduThickness: 0.095,
+        outerFirstTop: 0.045,
+        outerLevelStep: 0.042,
+        terraceStep: 0.078,
+        separatedGap: 0.060,
+        binduExtra: 0.090,
       },
     );
   }
@@ -3383,19 +3598,18 @@
       return;
     }
 
-    buildDistanceLayeredYantra(
+    buildSteppedTriangleYantra(
       pieces,
       (piece) => (
         piece.regionId === 'matangi-shiva'
         || piece.regionId === 'matangi-shakti'
       ),
       {
-        outerBottom: -0.33,
-        outerTop: -0.055,
-        triangleBase: 0.020,
-        triangleTop: 0.60,
-        triangleThickness: 0.054,
-        binduThickness: 0.090,
+        outerFirstTop: 0.045,
+        outerLevelStep: 0.044,
+        terraceStep: 0.110,
+        separatedGap: 0.060,
+        binduExtra: 0.090,
       },
     );
   }
