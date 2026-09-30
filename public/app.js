@@ -31,6 +31,17 @@
     hex: document.getElementById('previewHex'),
     stupa: document.getElementById('previewStupa'),
     borobudur: document.getElementById('previewBorobudur'),
+    chartres: document.getElementById('previewChartres'),
+    rosewindow: document.getElementById('previewRoseWindow'),
+    sunstone: document.getElementById('previewSunStone'),
+    lotfollah: document.getElementById('previewLotfollah'),
+    chladni: document.getElementById('previewChladni'),
+    diatom: document.getElementById('previewDiatom'),
+    radiolaria: document.getElementById('previewRadiolaria'),
+    snowflake: document.getElementById('previewSnowflake'),
+    kolam: document.getElementById('previewKolam'),
+    vastu: document.getElementById('previewVastu'),
+    phyllotaxis: document.getElementById('previewPhyllotaxis'),
     castel: document.getElementById('previewCastel'),
     kukulkan: document.getElementById('previewKukulkan'),
     lalibela: document.getElementById('previewLalibela'),
@@ -237,6 +248,61 @@
       kind: 'architecture',
       plan: 'Borobudur geometric plan',
       spatial: 'Borobudur architecture',
+    },
+    chartres: {
+      kind: 'reference',
+      plan: 'Chartres labyrinth plan',
+      spatial: 'ascending labyrinth circuits',
+    },
+    rosewindow: {
+      kind: 'reference',
+      plan: 'Gothic rose-window tracery',
+      spatial: 'radial tracery relief',
+    },
+    sunstone: {
+      kind: 'reference',
+      plan: 'Aztec Sun Stone geometry',
+      spatial: 'concentric carved relief',
+    },
+    lotfollah: {
+      kind: 'architecture',
+      plan: 'Sheikh Lotfollah dome pattern',
+      spatial: 'dome-curved radial geometry',
+    },
+    chladni: {
+      kind: 'physical',
+      plan: 'Chladni mode field',
+      spatial: 'standing-wave displacement',
+    },
+    diatom: {
+      kind: 'natural',
+      plan: 'centric diatom frustule',
+      spatial: 'shallow silica shell',
+    },
+    radiolaria: {
+      kind: 'natural',
+      plan: 'radiolarian radial skeleton',
+      spatial: 'bilateral shell projection',
+    },
+    snowflake: {
+      kind: 'natural',
+      plan: 'hexagonal snow crystal',
+      spatial: 'thin crystalline plate',
+    },
+    kolam: {
+      kind: 'reference',
+      plan: 'kolam-inspired loop field',
+      spatial: 'interlaced ribbon lift',
+    },
+    vastu: {
+      kind: 'reference',
+      plan: 'Vastu Purusha Mandala grid',
+      spatial: 'center-seeking grid hierarchy',
+    },
+    phyllotaxis: {
+      kind: 'natural',
+      plan: 'phyllotactic seed disk',
+      spatial: 'domed phyllotactic field',
     },
     castel: {
       kind: 'architecture',
@@ -733,6 +799,66 @@
     if (regionId === 'lalibela-roof') return hexToRgb(LALIBELA_COLORS.roof);
     if (regionId === 'lalibela-center') return hexToRgb(LALIBELA_COLORS.center);
 
+    if (regionId?.startsWith('chartres-circuit-')) {
+      const index = Number(regionId.split('-')[2]) || 0;
+      return hexToRgb(['#d7c7a3','#cbb98f','#bda77d','#eadfca'][index % 4]);
+    }
+    if (regionId === 'chartres-center') return hexToRgb('#d7b96f');
+
+    if (regionId?.startsWith('rose-petal-')) {
+      const index = Number(regionId.split('-')[2]) || 0;
+      return hexToRgb(['#315ea8','#a83f4a','#d6ae42','#4b8b68'][index % 4]);
+    }
+    if (regionId?.startsWith('rose-ring-')) return hexToRgb('#a28a67');
+    if (regionId === 'rose-center') return hexToRgb('#e2c667');
+
+    if (regionId?.startsWith('sunstone-ring-')) {
+      const index = Number(regionId.split('-')[2]) || 0;
+      return hexToRgb(['#8b6745','#a87b4e','#c09058','#d4a86b'][index % 4]);
+    }
+    if (regionId === 'sunstone-ray') return hexToRgb('#9a6f48');
+    if (regionId === 'sunstone-center') return hexToRgb('#d4aa68');
+
+    if (regionId?.startsWith('lotfollah-ring-')) {
+      const index = Number(regionId.split('-')[2]) || 0;
+      return hexToRgb(['#2f6d8d','#d8b85c','#f0e7c6','#4c8a83'][index % 4]);
+    }
+    if (regionId === 'lotfollah-center') return hexToRgb('#f2df9a');
+
+    if (regionId === 'chladni-positive') return hexToRgb('#c96a55');
+    if (regionId === 'chladni-negative') return hexToRgb('#4d72a8');
+    if (regionId === 'chladni-node') return hexToRgb('#e9e3d4');
+
+    if (regionId === 'diatom-rim') return hexToRgb('#c9b577');
+    if (regionId === 'diatom-rib') return hexToRgb('#e1d39b');
+    if (regionId === 'diatom-pore') return hexToRgb('#8f8568');
+    if (regionId === 'diatom-center') return hexToRgb('#f0e6bd');
+
+    if (regionId === 'radiolaria-ring') return hexToRgb('#c7b995');
+    if (regionId === 'radiolaria-spoke') return hexToRgb('#dfd4b5');
+    if (regionId === 'radiolaria-spike') return hexToRgb('#a99a78');
+    if (regionId === 'radiolaria-center') return hexToRgb('#efe5c9');
+
+    if (regionId === 'snowflake-arm') return hexToRgb('#d9ebf2');
+    if (regionId === 'snowflake-branch') return hexToRgb('#b9d9e8');
+    if (regionId === 'snowflake-center') return hexToRgb('#f0f8fb');
+
+    if (regionId === 'kolam-weave-a') return hexToRgb('#f1e7d1');
+    if (regionId === 'kolam-weave-b') return hexToRgb('#d7c7a4');
+    if (regionId === 'kolam-dot') return hexToRgb('#aa8058');
+
+    if (regionId?.startsWith('vastu-ring-')) {
+      const index = Number(regionId.split('-')[2]) || 0;
+      return hexToRgb(['#8d5c45','#c08a4f','#d4b663','#d9d1a1','#eee2bd'][index % 5]);
+    }
+    if (regionId === 'vastu-center') return hexToRgb('#f3df92');
+
+    if (regionId?.startsWith('phyllotaxis-seed-')) {
+      const index = Number(regionId.split('-')[2]) || 0;
+      return hexToRgb(['#6e4e30','#8b6236','#a9793e','#c3964c','#d4b35c'][index % 5]);
+    }
+    if (regionId === 'phyllotaxis-center') return hexToRgb('#d7ba5e');
+
     if (regionId?.startsWith('square-ring-')) {
       const index = Number(regionId.split('-')[2]);
       return hexToRgb(['#d1af49','#4968aa','#c94b40','#f0e4c2'][index % 4]);
@@ -824,6 +950,11 @@
     if (regionId === 'matangi-shakti') return -1;
 
     if (regionId?.startsWith('kali-triangle-')) return -1;
+
+    if (regionId === 'chladni-positive') return 1;
+    if (regionId === 'chladni-negative') return -1;
+    if (regionId === 'kolam-weave-a') return 1;
+    if (regionId === 'kolam-weave-b') return -1;
 
     return 0;
   }
@@ -2998,6 +3129,891 @@
     }
   }
 
+  function annularSectorFootprint(
+    innerRadius,
+    outerRadius,
+    startAngle,
+    endAngle,
+    subdivisions = 2,
+  ) {
+    const outer = [];
+    const inner = [];
+    const count = Math.max(1, subdivisions);
+
+    for (let i = 0; i <= count; i += 1) {
+      const t = i / count;
+      const angle = startAngle + (endAngle - startAngle) * t;
+      outer.push([
+        Math.cos(angle) * outerRadius,
+        Math.sin(angle) * outerRadius,
+      ]);
+      inner.push([
+        Math.cos(angle) * innerRadius,
+        Math.sin(angle) * innerRadius,
+      ]);
+    }
+
+    return [...outer, ...inner.reverse()];
+  }
+
+  function polarPoint(radius, angle) {
+    return [Math.cos(angle) * radius, Math.sin(angle) * radius];
+  }
+
+  function ribbonSegmentFootprint(a, b, width) {
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    const length = Math.max(1e-5, Math.hypot(dx, dy));
+    return rectFootprint(
+      (a[0] + b[0]) * 0.5,
+      (a[1] + b[1]) * 0.5,
+      length,
+      width,
+      Math.atan2(dy, dx),
+    );
+  }
+
+  function petalFootprint(angle, innerRadius, outerRadius, halfAngle) {
+    const shoulderRadius = innerRadius + (outerRadius - innerRadius) * 0.67;
+    return [
+      polarPoint(innerRadius, angle - halfAngle * 0.58),
+      polarPoint(shoulderRadius, angle - halfAngle),
+      polarPoint(outerRadius, angle),
+      polarPoint(shoulderRadius, angle + halfAngle),
+      polarPoint(innerRadius, angle + halfAngle * 0.58),
+    ];
+  }
+
+  function pieceHierarchyT(piece, levels, rankByLevel) {
+    if (Number.isFinite(piece.hierarchyT)) {
+      return clamp(piece.hierarchyT, 0, 1);
+    }
+    const rank = rankByLevel.get(piece.level) || 0;
+    return levels.length <= 1 ? 0.5 : rank / (levels.length - 1);
+  }
+
+  function buildPieceRelief(
+    pieces,
+    {
+      zSpan = 0.64,
+      defaultThickness = 0.045,
+      allowMirror = false,
+      forceSymmetricZ = false,
+    } = {},
+  ) {
+    resetGeometry();
+
+    const levels = [...new Set(
+      pieces.map((piece) => piece.level ?? 0),
+    )].sort((a, b) => a - b);
+    const rankByLevel = new Map(
+      levels.map((level, index) => [level, index]),
+    );
+    const mirror =
+      allowMirror
+      && state.zLiftStyle === 'mirror'
+      && PRESET_META[state.preset]?.kind !== 'architecture';
+
+    const addPieceAt = (piece, centerZ, hierarchyT) => {
+      const height = Math.max(
+        0.018,
+        piece.thickness ?? defaultThickness,
+      );
+      addFootprintPrismCentered(
+        piece.points,
+        centerZ,
+        height,
+        piece.regionId,
+        [],
+        {
+          hierarchyT,
+          polarity: piece.polarity ?? regionPolarity(piece.regionId),
+        },
+      );
+    };
+
+    for (const piece of pieces) {
+      const hierarchyT = pieceHierarchyT(piece, levels, rankByLevel);
+      const centerZ = Number.isFinite(piece.zCenter)
+        ? piece.zCenter
+        : (hierarchyT - 0.5) * zSpan;
+
+      if (forceSymmetricZ && Math.abs(centerZ) > 1e-4) {
+        addPieceAt(piece, Math.abs(centerZ), hierarchyT);
+        addPieceAt(piece, -Math.abs(centerZ), hierarchyT);
+        continue;
+      }
+
+      if (mirror && Math.abs(centerZ) > 1e-4) {
+        addPieceAt(piece, Math.abs(centerZ), hierarchyT);
+        addPieceAt(piece, -Math.abs(centerZ), hierarchyT);
+        continue;
+      }
+
+      addPieceAt(piece, centerZ, hierarchyT);
+    }
+  }
+
+  function chartresLabyrinthPieces() {
+    const complex = state.complexity === 'complex';
+    const circuits = complex ? 11 : 7;
+    const outerRadius = 1.48;
+    const innerRadius = complex ? 0.38 : 0.42;
+    const spacing = (outerRadius - innerRadius) / Math.max(1, circuits - 1);
+    const bandWidth = complex ? 0.032 : 0.043;
+    const segmentCount = complex ? 30 : 22;
+    const gateAngles = [-Math.PI / 2, 0, Math.PI / 2, Math.PI];
+    const pieces = [];
+
+    for (let ring = 0; ring < circuits; ring += 1) {
+      const radius = outerRadius - ring * spacing;
+      const gateAngle = gateAngles[ring % gateAngles.length];
+      const step = TAU / segmentCount;
+
+      for (let segment = 0; segment < segmentCount; segment += 1) {
+        const a0 = -Math.PI / 2 + segment * step;
+        const a1 = a0 + step * 0.92;
+        const mid = (a0 + a1) * 0.5;
+        const angularDistance = Math.abs(
+          Math.atan2(
+            Math.sin(mid - gateAngle),
+            Math.cos(mid - gateAngle),
+          ),
+        );
+        if (angularDistance < step * 0.72) continue;
+
+        pieces.push({
+          points: annularSectorFootprint(
+            radius - bandWidth * 0.5,
+            radius + bandWidth * 0.5,
+            a0,
+            a1,
+            2,
+          ),
+          regionId: 'chartres-circuit-' + ring,
+          level: ring,
+          hierarchyT: ring / Math.max(1, circuits),
+          paintOrder: 10 + ring,
+        });
+      }
+
+      if (ring < circuits - 1) {
+        const nextRadius = outerRadius - (ring + 1) * spacing;
+        const connectorAngle = gateAngle;
+        pieces.push({
+          points: ribbonSegmentFootprint(
+            polarPoint(nextRadius - bandWidth * 0.45, connectorAngle),
+            polarPoint(radius + bandWidth * 0.45, connectorAngle),
+            bandWidth,
+          ),
+          regionId: 'chartres-circuit-' + ring,
+          level: ring,
+          hierarchyT: ring / Math.max(1, circuits),
+          paintOrder: 20 + ring,
+        });
+      }
+    }
+
+    for (let petal = 0; petal < 6; petal += 1) {
+      const angle = -Math.PI / 2 + (petal / 6) * TAU;
+      pieces.push({
+        points: petalFootprint(angle, 0.07, 0.32, Math.PI / 7),
+        regionId: 'chartres-center',
+        level: circuits,
+        hierarchyT: 1,
+        paintOrder: 100,
+      });
+    }
+
+    return pieces;
+  }
+
+  function roseWindowPieces() {
+    const complex = state.complexity === 'complex';
+    const sectors = complex ? 12 : 8;
+    const pieces = [];
+
+    const rings = complex
+      ? [[1.30,1.45],[0.91,0.99],[0.48,0.55]]
+      : [[1.26,1.43],[0.82,0.92]];
+
+    rings.forEach(([inner, outer], ringIndex) => {
+      for (let i = 0; i < sectors; i += 1) {
+        const start = (i / sectors) * TAU - Math.PI / 2 + 0.018;
+        const end = ((i + 1) / sectors) * TAU - Math.PI / 2 - 0.018;
+        pieces.push({
+          points: annularSectorFootprint(inner, outer, start, end, 2),
+          regionId: 'rose-ring-' + ringIndex,
+          level: ringIndex,
+          hierarchyT: 0.12 + ringIndex * 0.18,
+          paintOrder: 5 + ringIndex,
+        });
+      }
+    });
+
+    for (let i = 0; i < sectors; i += 1) {
+      const angle = -Math.PI / 2 + (i / sectors) * TAU;
+      pieces.push({
+        points: petalFootprint(
+          angle,
+          complex ? 0.20 : 0.24,
+          complex ? 1.25 : 1.20,
+          Math.PI / sectors * 0.62,
+        ),
+        regionId: 'rose-petal-' + i,
+        level: 4,
+        hierarchyT: 0.68,
+        paintOrder: 30,
+      });
+    }
+
+    if (complex) {
+      for (let i = 0; i < sectors; i += 1) {
+        const angle = -Math.PI / 2 + (i / sectors) * TAU + Math.PI / sectors;
+        pieces.push({
+          points: petalFootprint(angle, 0.16, 0.70, Math.PI / sectors * 0.43),
+          regionId: 'rose-petal-' + (i + 1),
+          level: 5,
+          hierarchyT: 0.82,
+          paintOrder: 40,
+        });
+      }
+    }
+
+    pieces.push({
+      points: polygonFootprint(0, 0, 0.18, sectors, Math.PI / sectors),
+      regionId: 'rose-center',
+      level: 6,
+      hierarchyT: 1,
+      paintOrder: 100,
+    });
+
+    return pieces;
+  }
+
+  function sunStonePieces() {
+    const complex = state.complexity === 'complex';
+    const pieces = [];
+    const rings = complex
+      ? [
+          [0.22,0.48,8],
+          [0.50,0.82,20],
+          [0.84,1.16,20],
+          [1.18,1.43,32],
+        ]
+      : [
+          [0.24,0.58,8],
+          [0.60,1.00,16],
+          [1.02,1.42,24],
+        ];
+
+    rings.forEach(([inner, outer, count], ringIndex) => {
+      for (let i = 0; i < count; i += 1) {
+        const gap = 0.012;
+        const start = -Math.PI / 2 + (i / count) * TAU + gap;
+        const end = -Math.PI / 2 + ((i + 1) / count) * TAU - gap;
+        pieces.push({
+          points: annularSectorFootprint(inner, outer, start, end, 2),
+          regionId: 'sunstone-ring-' + ringIndex,
+          level: ringIndex,
+          hierarchyT: clamp(1 - outer / 1.55, 0, 1),
+          paintOrder: ringIndex * 10,
+        });
+      }
+    });
+
+    const rayCount = complex ? 16 : 12;
+    for (let i = 0; i < rayCount; i += 1) {
+      const angle = -Math.PI / 2 + (i / rayCount) * TAU;
+      const half = Math.PI / rayCount * 0.31;
+      pieces.push({
+        points: [
+          polarPoint(1.40, angle - half),
+          polarPoint(1.62, angle),
+          polarPoint(1.40, angle + half),
+        ],
+        regionId: 'sunstone-ray',
+        level: 0,
+        hierarchyT: 0,
+        paintOrder: 1,
+      });
+    }
+
+    pieces.push({
+      points: polygonFootprint(0, 0, 0.25, complex ? 16 : 12, 0),
+      regionId: 'sunstone-center',
+      level: rings.length + 1,
+      hierarchyT: 1,
+      paintOrder: 100,
+    });
+
+    return pieces;
+  }
+
+  function lotfollahDomePieces() {
+    const complex = state.complexity === 'complex';
+    const sectors = complex ? 24 : 16;
+    const pieces = [];
+    const radialBands = complex
+      ? [[0.16,0.44],[0.44,0.75],[0.75,1.08],[1.08,1.42]]
+      : [[0.18,0.58],[0.58,0.98],[0.98,1.40]];
+
+    radialBands.forEach(([inner, outer], ringIndex) => {
+      const offset = ringIndex % 2 ? Math.PI / sectors : 0;
+      for (let i = 0; i < sectors; i += 1) {
+        const start = -Math.PI / 2 + offset + (i / sectors) * TAU + 0.008;
+        const end = -Math.PI / 2 + offset + ((i + 1) / sectors) * TAU - 0.008;
+        const midRadius = (inner + outer) * 0.5;
+        const radialT = clamp(midRadius / 1.42, 0, 1);
+        pieces.push({
+          points: annularSectorFootprint(inner, outer, start, end, 2),
+          regionId: 'lotfollah-ring-' + ringIndex,
+          level: ringIndex,
+          hierarchyT: 1 - radialT,
+          zCenter: 0.62 * (1 - radialT * radialT),
+          thickness: 0.036,
+          paintOrder: ringIndex * 10,
+        });
+      }
+    });
+
+    pieces.push({
+      points: polygonFootprint(0, 0, 0.18, sectors, Math.PI / sectors),
+      regionId: 'lotfollah-center',
+      level: radialBands.length + 1,
+      hierarchyT: 1,
+      zCenter: 0.64,
+      thickness: 0.05,
+      paintOrder: 100,
+    });
+
+    return pieces;
+  }
+
+  function chladniPieces() {
+    const complex = state.complexity === 'complex';
+    const ringCount = complex ? 6 : 4;
+    const sectorCount = complex ? 32 : 20;
+    const radius = 1.45;
+    const pieces = [];
+
+    for (let ring = 0; ring < ringCount; ring += 1) {
+      const inner = (ring / ringCount) * radius;
+      const outer = ((ring + 1) / ringCount) * radius;
+      const midRadius = (inner + outer) * 0.5;
+      const radialT = midRadius / radius;
+
+      for (let sector = 0; sector < sectorCount; sector += 1) {
+        const start = -Math.PI / 2 + (sector / sectorCount) * TAU;
+        const end = -Math.PI / 2 + ((sector + 1) / sectorCount) * TAU;
+        const theta = (start + end) * 0.5;
+        const amplitude =
+          Math.cos(4 * theta)
+          * Math.sin(Math.PI * (0.35 + radialT * 2.65));
+        const absAmplitude = Math.abs(amplitude);
+        const regionId = absAmplitude < 0.14
+          ? 'chladni-node'
+          : amplitude > 0
+            ? 'chladni-positive'
+            : 'chladni-negative';
+
+        pieces.push({
+          points: annularSectorFootprint(
+            Math.max(0.035, inner),
+            outer,
+            start + 0.007,
+            end - 0.007,
+            2,
+          ),
+          regionId,
+          level: ring,
+          hierarchyT: 1 - radialT,
+          zCenter: amplitude * 0.42,
+          thickness: 0.032,
+          polarity: Math.sign(amplitude),
+          paintOrder: ring * 10,
+        });
+      }
+    }
+
+    pieces.push({
+      points: polygonFootprint(0, 0, 0.075, 16, 0),
+      regionId: 'chladni-node',
+      level: ringCount,
+      hierarchyT: 1,
+      zCenter: 0,
+      thickness: 0.032,
+      paintOrder: 100,
+    });
+
+    return pieces;
+  }
+
+  function diatomPieces() {
+    const complex = state.complexity === 'complex';
+    const pieces = [];
+    const outerRadius = 1.46;
+    const spokeCount = complex ? 32 : 20;
+    const domeZ = (radius) => 0.22 * (1 - Math.pow(radius / outerRadius, 2));
+
+    for (let i = 0; i < spokeCount; i += 1) {
+      const angle = (i / spokeCount) * TAU;
+      const a = polarPoint(0.18, angle);
+      const b = polarPoint(1.34, angle);
+      pieces.push({
+        points: ribbonSegmentFootprint(a, b, complex ? 0.022 : 0.032),
+        regionId: 'diatom-rib',
+        level: 2,
+        hierarchyT: 0.48,
+        zCenter: domeZ(0.76),
+        thickness: 0.028,
+        paintOrder: 20,
+      });
+    }
+
+    const ringRadii = complex ? [0.38,0.72,1.06,1.36] : [0.48,0.90,1.34];
+    ringRadii.forEach((radius, ringIndex) => {
+      const segments = complex ? 32 : 20;
+      for (let i = 0; i < segments; i += 1) {
+        const start = (i / segments) * TAU + 0.006;
+        const end = ((i + 1) / segments) * TAU - 0.006;
+        pieces.push({
+          points: annularSectorFootprint(
+            radius - 0.025,
+            radius + 0.025,
+            start,
+            end,
+            2,
+          ),
+          regionId: ringIndex === ringRadii.length - 1 ? 'diatom-rim' : 'diatom-rib',
+          level: ringIndex,
+          hierarchyT: clamp(1 - radius / outerRadius, 0, 1),
+          zCenter: domeZ(radius),
+          thickness: 0.028,
+          paintOrder: 10 + ringIndex,
+        });
+      }
+    });
+
+    const poreRings = complex
+      ? [[0.56,16],[0.90,24],[1.18,32]]
+      : [[0.62,12],[1.02,18]];
+    poreRings.forEach(([radius, count], ringIndex) => {
+      for (let i = 0; i < count; i += 1) {
+        const angle = (i / count) * TAU + (ringIndex % 2 ? Math.PI / count : 0);
+        const center = polarPoint(radius, angle);
+        pieces.push({
+          points: polygonFootprint(
+            center[0],
+            center[1],
+            complex ? 0.032 : 0.042,
+            8,
+            Math.PI / 8,
+          ),
+          regionId: 'diatom-pore',
+          level: ringIndex,
+          hierarchyT: 1 - radius / outerRadius,
+          zCenter: domeZ(radius) + 0.012,
+          thickness: 0.024,
+          paintOrder: 40 + ringIndex,
+        });
+      }
+    });
+
+    pieces.push({
+      points: polygonFootprint(0, 0, 0.16, 24, 0),
+      regionId: 'diatom-center',
+      level: 5,
+      hierarchyT: 1,
+      zCenter: domeZ(0),
+      thickness: 0.038,
+      paintOrder: 100,
+    });
+
+    return pieces;
+  }
+
+  function radiolariaPieces() {
+    const complex = state.complexity === 'complex';
+    const pieces = [];
+    const count = complex ? 24 : 16;
+    const outerRadius = 1.62;
+    const shellZ = (radius) => (
+      0.52 * Math.sqrt(Math.max(0, 1 - Math.pow(radius / outerRadius, 2)))
+    );
+
+    const rings = complex ? [0.46,0.82,1.16] : [0.58,1.08];
+    rings.forEach((radius, ringIndex) => {
+      for (let i = 0; i < count; i += 1) {
+        const start = (i / count) * TAU + 0.008;
+        const end = ((i + 1) / count) * TAU - 0.008;
+        pieces.push({
+          points: annularSectorFootprint(
+            radius - 0.025,
+            radius + 0.025,
+            start,
+            end,
+            2,
+          ),
+          regionId: 'radiolaria-ring',
+          level: ringIndex,
+          hierarchyT: 1 - radius / outerRadius,
+          zCenter: shellZ(radius),
+          thickness: 0.025,
+          paintOrder: 10 + ringIndex,
+        });
+      }
+    });
+
+    for (let i = 0; i < count; i += 1) {
+      const angle = (i / count) * TAU;
+      pieces.push({
+        points: annularSectorFootprint(
+          0.18,
+          1.30,
+          angle - 0.018,
+          angle + 0.018,
+          2,
+        ),
+        regionId: 'radiolaria-spoke',
+        level: 3,
+        hierarchyT: 0.52,
+        zCenter: shellZ(0.74),
+        thickness: 0.026,
+        paintOrder: 30,
+      });
+
+      const half = Math.PI / count * 0.34;
+      pieces.push({
+        points: [
+          polarPoint(1.24, angle - half),
+          polarPoint(outerRadius, angle),
+          polarPoint(1.24, angle + half),
+        ],
+        regionId: 'radiolaria-spike',
+        level: 0,
+        hierarchyT: 0,
+        zCenter: shellZ(1.43),
+        thickness: 0.024,
+        paintOrder: 5,
+      });
+    }
+
+    pieces.push({
+      points: polygonFootprint(0, 0, 0.22, count, Math.PI / count),
+      regionId: 'radiolaria-center',
+      level: 5,
+      hierarchyT: 1,
+      zCenter: shellZ(0),
+      thickness: 0.034,
+      paintOrder: 100,
+    });
+
+    return pieces;
+  }
+
+  function snowflakePieces() {
+    const complex = state.complexity === 'complex';
+    const pieces = [];
+    const armSegments = complex ? 4 : 3;
+    const maxRadius = 1.48;
+
+    pieces.push({
+      points: polygonFootprint(0, 0, 0.18, 6, Math.PI / 6),
+      regionId: 'snowflake-center',
+      level: armSegments + 1,
+      hierarchyT: 1,
+      zCenter: 0,
+      thickness: 0.065,
+      paintOrder: 100,
+    });
+
+    for (let arm = 0; arm < 6; arm += 1) {
+      const angle = -Math.PI / 2 + (arm / 6) * TAU;
+
+      for (let segment = 0; segment < armSegments; segment += 1) {
+        const r0 = 0.16 + segment * (maxRadius - 0.16) / armSegments;
+        const r1 = 0.16 + (segment + 1) * (maxRadius - 0.16) / armSegments;
+        pieces.push({
+          points: ribbonSegmentFootprint(
+            polarPoint(r0, angle),
+            polarPoint(r1, angle),
+            0.075 - segment * 0.008,
+          ),
+          regionId: 'snowflake-arm',
+          level: armSegments - segment,
+          hierarchyT: 1 - r1 / maxRadius,
+          zCenter: 0,
+          thickness: 0.05,
+          paintOrder: 10 + segment,
+        });
+      }
+
+      const branchRadii = complex ? [0.58,0.88,1.17] : [0.68,1.05];
+      branchRadii.forEach((radius, index) => {
+        for (const sign of [-1, 1]) {
+          const base = polarPoint(radius, angle);
+          const branchAngle = angle + sign * Math.PI / 3;
+          const tip = [
+            base[0] + Math.cos(branchAngle) * (0.25 + index * 0.035),
+            base[1] + Math.sin(branchAngle) * (0.25 + index * 0.035),
+          ];
+          pieces.push({
+            points: ribbonSegmentFootprint(base, tip, 0.052),
+            regionId: 'snowflake-branch',
+            level: 2,
+            hierarchyT: 1 - radius / maxRadius,
+            zCenter: 0,
+            thickness: 0.044,
+            paintOrder: 20 + index,
+          });
+        }
+      });
+    }
+
+    return pieces;
+  }
+
+  function kolamPieces() {
+    const complex = state.complexity === 'complex';
+    const pieces = [];
+    const lineCount = complex ? 5 : 3;
+    const extent = 1.36;
+    const spacing = (extent * 2) / (lineCount - 1);
+    const amplitude = complex ? 0.12 : 0.16;
+    const samples = complex ? 26 : 18;
+    const width = complex ? 0.038 : 0.052;
+
+    for (let row = 0; row < lineCount; row += 1) {
+      const y0 = -extent + row * spacing;
+      let previous = null;
+
+      for (let sample = 0; sample <= samples; sample += 1) {
+        const x = -extent + (sample / samples) * extent * 2;
+        const phase = row % 2 ? Math.PI : 0;
+        const y = y0 + amplitude * Math.sin(
+          ((x + extent) / Math.max(0.2, spacing)) * Math.PI + phase,
+        );
+        const point = [x, y];
+
+        if (previous) {
+          pieces.push({
+            points: ribbonSegmentFootprint(previous, point, width),
+            regionId: 'kolam-weave-a',
+            level: row,
+            hierarchyT: 0.55,
+            zCenter: 0.045,
+            thickness: 0.032,
+            polarity: 1,
+            paintOrder: 20,
+          });
+        }
+        previous = point;
+      }
+    }
+
+    for (let column = 0; column < lineCount; column += 1) {
+      const x0 = -extent + column * spacing;
+      let previous = null;
+
+      for (let sample = 0; sample <= samples; sample += 1) {
+        const y = -extent + (sample / samples) * extent * 2;
+        const phase = column % 2 ? Math.PI : 0;
+        const x = x0 + amplitude * Math.sin(
+          ((y + extent) / Math.max(0.2, spacing)) * Math.PI + phase,
+        );
+        const point = [x, y];
+
+        if (previous) {
+          pieces.push({
+            points: ribbonSegmentFootprint(previous, point, width),
+            regionId: 'kolam-weave-b',
+            level: column,
+            hierarchyT: 0.55,
+            zCenter: -0.045,
+            thickness: 0.032,
+            polarity: -1,
+            paintOrder: 21,
+          });
+        }
+        previous = point;
+      }
+    }
+
+    for (let ix = 0; ix < lineCount; ix += 1) {
+      for (let iy = 0; iy < lineCount; iy += 1) {
+        const x = -extent + ix * spacing;
+        const y = -extent + iy * spacing;
+        pieces.push({
+          points: polygonFootprint(x, y, width * 0.72, 12, 0),
+          regionId: 'kolam-dot',
+          level: 0,
+          hierarchyT: 0.2,
+          zCenter: 0,
+          thickness: 0.028,
+          paintOrder: 10,
+        });
+      }
+    }
+
+    return pieces;
+  }
+
+  function vastuPieces() {
+    const complex = state.complexity === 'complex';
+    const grid = complex ? 9 : 5;
+    const size = 2.72;
+    const cell = size / grid;
+    const half = (grid - 1) * 0.5;
+    const pieces = [];
+
+    for (let ix = 0; ix < grid; ix += 1) {
+      for (let iy = 0; iy < grid; iy += 1) {
+        const dx = Math.abs(ix - half);
+        const dy = Math.abs(iy - half);
+        const distance = Math.max(dx, dy);
+        const hierarchyT = 1 - distance / Math.max(1, half);
+        const ring = Math.round(hierarchyT * 4);
+        const centerCell = dx <= (complex ? 1 : 0) && dy <= (complex ? 1 : 0);
+
+        pieces.push({
+          points: rectFootprint(
+            -size * 0.5 + cell * (ix + 0.5),
+            -size * 0.5 + cell * (iy + 0.5),
+            cell * 0.94,
+            cell * 0.94,
+            0,
+          ),
+          regionId: centerCell ? 'vastu-center' : 'vastu-ring-' + ring,
+          level: ring,
+          hierarchyT,
+          zCenter: (hierarchyT - 0.5) * 0.52,
+          thickness: 0.042 + hierarchyT * 0.018,
+          paintOrder: ring,
+        });
+      }
+    }
+
+    return pieces;
+  }
+
+  function phyllotaxisPieces() {
+    const complex = state.complexity === 'complex';
+    const count = complex ? 180 : 82;
+    const maxRadius = 1.48;
+    const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+    const pieces = [];
+
+    for (let i = 0; i < count; i += 1) {
+      const radialT = count <= 1 ? 0 : Math.sqrt(i / (count - 1));
+      const radius = radialT * maxRadius;
+      const angle = i * goldenAngle;
+      const cx = Math.cos(angle) * radius;
+      const cy = Math.sin(angle) * radius;
+      const seedRadius = (complex ? 0.052 : 0.072) * (1 - radialT * 0.30);
+
+      pieces.push({
+        points: polygonFootprint(
+          cx,
+          cy,
+          seedRadius,
+          complex ? 7 : 6,
+          angle,
+        ),
+        regionId: i < 3 ? 'phyllotaxis-center' : 'phyllotaxis-seed-' + (i % 5),
+        level: Math.round((1 - radialT) * 6),
+        hierarchyT: 1 - radialT,
+        zCenter: 0.34 * (1 - radialT * radialT),
+        thickness: 0.032 + (1 - radialT) * 0.012,
+        paintOrder: i,
+      });
+    }
+
+    return pieces;
+  }
+
+  function buildChartresPlan() { buildPlanFromPieces(chartresLabyrinthPieces()); }
+  function buildRoseWindowPlan() { buildPlanFromPieces(roseWindowPieces()); }
+  function buildSunStonePlan() { buildPlanFromPieces(sunStonePieces()); }
+  function buildLotfollahPlan() { buildPlanFromPieces(lotfollahDomePieces()); }
+  function buildChladniPlan() { buildPlanFromPieces(chladniPieces()); }
+  function buildDiatomPlan() { buildPlanFromPieces(diatomPieces()); }
+  function buildRadiolariaPlan() { buildPlanFromPieces(radiolariaPieces()); }
+  function buildSnowflakePlan() { buildPlanFromPieces(snowflakePieces()); }
+  function buildKolamPlan() { buildPlanFromPieces(kolamPieces()); }
+  function buildVastuPlan() { buildPlanFromPieces(vastuPieces()); }
+  function buildPhyllotaxisPlan() { buildPlanFromPieces(phyllotaxisPieces()); }
+
+  function buildChartresForm() {
+    buildPieceRelief(chartresLabyrinthPieces(), {
+      zSpan: 0.72,
+      defaultThickness: 0.040,
+    });
+  }
+
+  function buildRoseWindowForm() {
+    buildPieceRelief(roseWindowPieces(), {
+      zSpan: 0.46,
+      defaultThickness: 0.045,
+    });
+  }
+
+  function buildSunStoneForm() {
+    buildPieceRelief(sunStonePieces(), {
+      zSpan: 0.38,
+      defaultThickness: 0.042,
+    });
+  }
+
+  function buildLotfollahForm() {
+    buildPieceRelief(lotfollahDomePieces(), {
+      defaultThickness: 0.036,
+    });
+  }
+
+  function buildChladniForm() {
+    buildPieceRelief(chladniPieces(), {
+      defaultThickness: 0.032,
+    });
+  }
+
+  function buildDiatomForm() {
+    buildPieceRelief(diatomPieces(), {
+      defaultThickness: 0.028,
+    });
+  }
+
+  function buildRadiolariaForm() {
+    buildPieceRelief(radiolariaPieces(), {
+      defaultThickness: 0.025,
+      forceSymmetricZ: true,
+    });
+  }
+
+  function buildSnowflakeForm() {
+    buildPieceRelief(snowflakePieces(), {
+      defaultThickness: 0.050,
+    });
+  }
+
+  function buildKolamForm() {
+    buildPieceRelief(kolamPieces(), {
+      defaultThickness: 0.032,
+    });
+  }
+
+  function buildVastuForm() {
+    buildPieceRelief(vastuPieces(), {
+      defaultThickness: 0.050,
+    });
+  }
+
+  function buildPhyllotaxisForm() {
+    buildPieceRelief(phyllotaxisPieces(), {
+      defaultThickness: 0.036,
+    });
+  }
+
   function buildPlanForPreset() {
     if (state.preset === 'sriyantra') buildSriYantraPlan();
     else if (state.preset === 'kaliyantra') buildKaliYantraPlan();
@@ -3005,6 +4021,17 @@
     else if (state.preset === 'hex') buildHexPlan();
     else if (state.preset === 'stupa') buildStupaPlan();
     else if (state.preset === 'borobudur') buildBorobudurPlan();
+    else if (state.preset === 'chartres') buildChartresPlan();
+    else if (state.preset === 'rosewindow') buildRoseWindowPlan();
+    else if (state.preset === 'sunstone') buildSunStonePlan();
+    else if (state.preset === 'lotfollah') buildLotfollahPlan();
+    else if (state.preset === 'chladni') buildChladniPlan();
+    else if (state.preset === 'diatom') buildDiatomPlan();
+    else if (state.preset === 'radiolaria') buildRadiolariaPlan();
+    else if (state.preset === 'snowflake') buildSnowflakePlan();
+    else if (state.preset === 'kolam') buildKolamPlan();
+    else if (state.preset === 'vastu') buildVastuPlan();
+    else if (state.preset === 'phyllotaxis') buildPhyllotaxisPlan();
     else if (state.preset === 'castel') buildCastelPlan();
     else if (state.preset === 'kukulkan') buildKukulkanPlan();
     else if (state.preset === 'lalibela') buildLalibelaPlan();
@@ -4033,6 +5060,17 @@
     else if (state.preset === 'hex') buildHexMandala();
     else if (state.preset === 'stupa') buildStupaTemple();
     else if (state.preset === 'borobudur') buildBorobudurTemple();
+    else if (state.preset === 'chartres') buildChartresForm();
+    else if (state.preset === 'rosewindow') buildRoseWindowForm();
+    else if (state.preset === 'sunstone') buildSunStoneForm();
+    else if (state.preset === 'lotfollah') buildLotfollahForm();
+    else if (state.preset === 'chladni') buildChladniForm();
+    else if (state.preset === 'diatom') buildDiatomForm();
+    else if (state.preset === 'radiolaria') buildRadiolariaForm();
+    else if (state.preset === 'snowflake') buildSnowflakeForm();
+    else if (state.preset === 'kolam') buildKolamForm();
+    else if (state.preset === 'vastu') buildVastuForm();
+    else if (state.preset === 'phyllotaxis') buildPhyllotaxisForm();
     else if (state.preset === 'castel') buildCastelForm();
     else if (state.preset === 'kukulkan') buildKukulkanForm();
     else if (state.preset === 'lalibela') buildLalibelaForm();
@@ -5073,6 +6111,17 @@
       'hex',
       'stupa',
       'borobudur',
+      'chartres',
+      'rosewindow',
+      'sunstone',
+      'lotfollah',
+      'chladni',
+      'diatom',
+      'radiolaria',
+      'snowflake',
+      'kolam',
+      'vastu',
+      'phyllotaxis',
       'castel',
       'kukulkan',
       'lalibela',
