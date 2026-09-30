@@ -510,7 +510,11 @@
   const planFaceKeys = new Set();
   const rotationUI = {};
   const scaleUI = {};
-  const geometryStats = { maxPlanRadius: 1 };
+  const geometryStats = {
+    maxPlanRadius: 1,
+    centerZ: 0,
+    centerW: 0,
+  };
 
   function compileGlShader(type, source) {
     if (!gl) return null;
@@ -744,12 +748,28 @@
 
   function updateGeometryStats() {
     let maxRadius = 0.001;
+    let minZ = Infinity;
+    let maxZ = -Infinity;
+    let minW = Infinity;
+    let maxW = -Infinity;
+
     for (const module of modules) {
       for (const point of module.vertices) {
         maxRadius = Math.max(maxRadius, Math.hypot(point[0], point[1]));
+        minZ = Math.min(minZ, point[2]);
+        maxZ = Math.max(maxZ, point[2]);
+        minW = Math.min(minW, point[3]);
+        maxW = Math.max(maxW, point[3]);
       }
     }
+
     geometryStats.maxPlanRadius = maxRadius;
+    geometryStats.centerZ = Number.isFinite(minZ) && Number.isFinite(maxZ)
+      ? (minZ + maxZ) * 0.5
+      : 0;
+    geometryStats.centerW = Number.isFinite(minW) && Number.isFinite(maxW)
+      ? (minW + maxW) * 0.5
+      : 0;
   }
 
   function rotateXYPoint(x, y, angle) {
@@ -3614,10 +3634,58 @@
     point[b] = s * pa + c * pb;
   }
 
+  function transitionProgress() {
+    return state.transition?.progress ?? 0;
+  }
+
+  function transitionTouchesDimension(dimension) {
+    if (!state.transition) return false;
+    return (
+      state.transition.fromDimension === dimension
+      || state.transition.toDimension === dimension
+    );
+  }
+
+  function dimensionOrientationMix(dimension) {
+    const structural = dimension === 3 ? state.zMix : state.wMix;
+    if (!state.transition || !transitionTouchesDimension(dimension)) {
+      return structural;
+    }
+
+    const t = transitionProgress();
+    const forward = state.transition.toDimension > state.transition.fromDimension;
+
+    if (
+      dimension === 3
+      && (
+        state.transition.fromDimension === 2
+        || state.transition.toDimension === 2
+      )
+    ) {
+      return forward
+        ? smoother(clamp((t - 0.78) / 0.22, 0, 1))
+        : 1 - smoother(clamp(t / 0.24, 0, 1));
+    }
+
+    if (
+      dimension === 4
+      && (
+        state.transition.fromDimension === 3
+        || state.transition.toDimension === 3
+      )
+    ) {
+      return forward
+        ? smoother(clamp((t - 0.74) / 0.26, 0, 1))
+        : 1 - smoother(clamp(t / 0.26, 0, 1));
+    }
+
+    return structural;
+  }
+
   function activeAngle(config) {
     let factor = 1;
-    if (config.key.includes('z')) factor *= state.zMix;
-    if (config.key.includes('w')) factor *= state.wMix;
+    if (config.key.includes('z')) factor *= dimensionOrientationMix(3);
+    if (config.key.includes('w')) factor *= dimensionOrientationMix(4);
     return state.rotations[config.key] * RAD * factor;
   }
 
@@ -3631,8 +3699,16 @@
 
     p[0] *= sx;
     p[1] *= sy;
-    p[2] *= sz * state.zMix;
-    p[3] *= sw * state.wMix;
+
+    // Center the added dimensions for presentation. This is a uniform
+    // rendering offset only: it does not change the intrinsic geometry.
+    // It prevents asymmetric +Z architectures or W polarity from making the
+    // whole object visibly jump up/down or sideways while a dimension grows.
+    // Basis vectors use applyUserScale=false and must remain pure directions.
+    const centerZ = applyUserScale ? geometryStats.centerZ : 0;
+    const centerW = applyUserScale ? geometryStats.centerW : 0;
+    p[2] = (p[2] - centerZ) * sz * state.zMix;
+    p[3] = (p[3] - centerW) * sw * state.wMix;
 
     for (const config of ROTATION_CONFIG) {
       rotatePlane(p, config.a, config.b, activeAngle(config));
@@ -3662,13 +3738,31 @@
     ];
   }
 
+  function cameraViewMix() {
+    if (!state.transition) return state.dimension >= 3 ? 1 : 0;
+
+    const from = state.transition.fromDimension;
+    const to = state.transition.toDimension;
+    const t = transitionProgress();
+
+    if ((from === 2 && to === 3) || (from === 3 && to === 2)) {
+      const forward = to > from;
+
+      // Geometry separates first. Only once the new surfaces are legible does
+      // the camera move into the ordinary 3D viewpoint. On collapse the order
+      // reverses: return toward the plan view before flattening the geometry.
+      return forward
+        ? smoother(clamp((t - 0.34) / 0.66, 0, 1))
+        : 1 - smoother(clamp(t / 0.46, 0, 1));
+    }
+
+    return 1;
+  }
+
   function cameraTransform(p) {
     let [x, y, z] = p;
 
-    // Let the new dimension visibly separate before the viewpoint tilts.
-    // This preserves the feeling that the volume grows out of the 2D mandala.
-    const visibleZ = state.zMix;
-    const viewMix = smoother(clamp((visibleZ - 0.62) / 0.38, 0, 1));
+    const viewMix = cameraViewMix();
 
     const isometric = state.projection === 'isometric';
     const yaw = (
@@ -3781,16 +3875,35 @@
     return Math.abs(sum * 0.5);
   }
 
-  function faceVisibility(face) {
-    if (face.bridge) return state.wMix;
-    if (face.wLayer === 1) return state.wMix;
+  function zConstructionReveal() {
+    return {
+      edges: smoother(clamp((state.zMix - 0.02) / 0.48, 0, 1)),
+      faces: smoother(clamp((state.zMix - 0.18) / 0.58, 0, 1)),
+      solid: smoother(clamp((state.zMix - 0.42) / 0.58, 0, 1)),
+    };
+  }
+
+  function wConstructionReveal() {
+    return {
+      edges: smoother(clamp((state.wMix - 0.04) / 0.42, 0, 1)),
+      faces: smoother(clamp((state.wMix - 0.24) / 0.50, 0, 1)),
+      shell: smoother(clamp((state.wMix - 0.48) / 0.52, 0, 1)),
+    };
+  }
+
+  function faceVisibility() {
+    // Filled rendering morphs through geometry, not transparency. Side and
+    // bridge faces naturally grow from zero projected area as Z/W separates.
     return 1;
   }
 
   function edgeVisibility(edge) {
-    if (edge.axis === 'w') return state.wMix;
-    if (edge.axis === 'z') return state.zMix;
-    if (edge.wLayer === 1) return state.wMix;
+    const zReveal = zConstructionReveal();
+    const wReveal = wConstructionReveal();
+
+    if (edge.axis === 'w') return wReveal.edges;
+    if (edge.axis === 'z') return zReveal.edges;
+    if (edge.wLayer === 1) return wReveal.shell;
     return 1;
   }
 
@@ -3807,6 +3920,14 @@
     return centroid.map((value) => value / n);
   }
 
+  function faceStyleMix() {
+    if (!state.transition) return 1;
+    const from = state.transition.fromDimension;
+    const to = state.transition.toDimension;
+    if (!((from === 2 && to === 3) || (from === 3 && to === 2))) return 1;
+    return dimensionOrientationMix(3);
+  }
+
   function classicFaceRgb(face, module) {
     const centroid = faceCentroid(face, module);
     const base = classicRegionRgb(
@@ -3815,10 +3936,11 @@
       centroid[1],
     );
 
-    // Region hue is invariant across 2D/3D/4D. Orientation changes only
-    // brightness so the geometry remains readable.
+    // Keep the family/region hue continuous with the 2D source plan. Normal
+    // orientation shading arrives only as the 3D view itself settles.
     const orientationShade = CLASSIC_SHADE[face.axis] || 1;
-    return shadeRgb(base, orientationShade);
+    const shaded = shadeRgb(base, orientationShade);
+    return mixRgb(base, shaded, faceStyleMix());
   }
 
   function classicFaceColor(face, module) {
@@ -3826,8 +3948,14 @@
   }
 
   function faceFillRgb(face, module) {
+    const styleMix = faceStyleMix();
+
     if (state.colorMode === 'axis') {
-      return hexToRgb(axisColor(face.axis));
+      return mixRgb(
+        hexToRgb('#d9dde4'),
+        hexToRgb(axisColor(face.axis)),
+        styleMix,
+      );
     }
 
     if (state.colorMode === 'classic') {
@@ -3842,7 +3970,11 @@
       n: '#c0b49d',
     };
 
-    return hexToRgb(formColors[face.axis] || formColors.n);
+    return mixRgb(
+      hexToRgb('#c9b995'),
+      hexToRgb(formColors[face.axis] || formColors.n),
+      styleMix,
+    );
   }
 
   function faceFillColor(face, module) {
@@ -3907,11 +4039,9 @@
           ? classicPlanColor(face)
           : '#c9b995';
 
-      // Classic regions are opaque at rest. This prevents overlapping
-      // translucent polygons from inventing colors that don't exist in 3D.
-      ctx.globalAlpha = state.colorMode === 'classic'
-        ? alpha
-        : alpha * 0.16;
+      // Rendering, not palette, determines whether faces are filled.
+      // Solid and Solid + wireframe stay solid in 2D for every palette.
+      ctx.globalAlpha = alpha;
       ctx.fill();
 
       if (state.colorMode === 'classic') {
@@ -4031,7 +4161,7 @@
             rgb.r / 255,
             rgb.g / 255,
             rgb.b / 255,
-            1,
+            clamp(alpha * entry.visibility, 0, 1),
           );
         }
       }
@@ -4077,9 +4207,15 @@
     gl.depthFunc(gl.LEQUAL);
     gl.depthMask(true);
 
-    gl.disable(gl.BLEND);
+    if (alpha < 0.999) {
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    } else {
+      gl.disable(gl.BLEND);
+    }
     gl.disable(gl.CULL_FACE);
     gl.drawArrays(gl.TRIANGLES, 0, faceData.length / 7);
+    gl.disable(gl.BLEND);
 
     // Default Solid follows the 2D visual grammar: colored faces plus only
     // the edges that survive the same depth buffer. Hidden/back edges fail
@@ -4221,9 +4357,7 @@
       ctx.closePath();
 
       ctx.fillStyle = faceFillColor(item.face, item.module);
-      ctx.globalAlpha = item.visibility >= 0.995
-        ? 1
-        : clamp(item.visibility, 0, 1);
+      ctx.globalAlpha = clamp(alpha * item.visibility, 0, 1);
       ctx.fill();
 
       ctx.strokeStyle = '#1d1714';
@@ -4362,25 +4496,39 @@
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    // Keep the originating mandala visible while the new dimension separates.
-    // It only fades late in the transition, so the viewer can follow where
-    // every emerging volume came from.
-    const visibleZ = state.zMix;
-    const planFade = smoother(clamp((visibleZ - 0.72) / 0.28, 0, 1));
-    const planAlpha = 1 - planFade;
+    const zReveal = zConstructionReveal();
+    const wReveal = wConstructionReveal();
+    const transitionEdgeAlpha = Math.max(zReveal.edges, wReveal.edges);
 
-    // Faces arrive after the first geometric separation; edges lead the motion.
-    const volumeAlpha = smoother(clamp((visibleZ - 0.08) / 0.92, 0, 1));
-    const edgeAlpha = smoother(clamp(visibleZ / 0.82, 0, 1));
+    if (state.renderMode === 'wire') {
+      // Wire remains line-only for the complete journey.
+      clearSolidLayer();
+      const planEdgeAlpha =
+        1 - smoother(clamp((state.zMix - 0.48) / 0.42, 0, 1));
+      drawPlanEdges(planEdgeAlpha);
+      drawEdges(transitionEdgeAlpha);
+      drawVertices(transitionEdgeAlpha);
+      return;
+    }
 
-    drawPlanFaces(planAlpha);
-    drawPlanEdges(planAlpha);
+    // Filled modes remain opaque. The geometry itself performs the morph:
+    // collapsed faces open into surfaces/solids as Z or W separates.
+    const usePlanRenderer = state.zMix < 0.025;
+    if (usePlanRenderer) {
+      clearSolidLayer();
+      drawPlanFaces(1);
+      drawPlanEdges(1);
+      return;
+    }
 
-    const solidHandled = drawSolidLayer(volumeAlpha);
-    if (!solidHandled) drawFaces(volumeAlpha);
+    const solidHandled = drawSolidLayer(1);
+    if (!solidHandled) drawFaces(1);
 
-    drawEdges(edgeAlpha);
-    drawVertices(edgeAlpha);
+    // Only the explicit Solid + wireframe mode receives the structural overlay.
+    if (state.renderMode === 'solid-edges') {
+      drawEdges(transitionEdgeAlpha);
+      drawVertices(transitionEdgeAlpha);
+    }
   }
 
   function drawPreviewToCanvas(previewCanvas) {
@@ -4847,6 +4995,7 @@
       toZ,
       toW,
       start: performance.now(),
+      progress: 0,
       duration: reducedMotion ? 80 : 2150,
     };
   }
@@ -4891,10 +5040,31 @@
       0,
       1,
     );
-    const e = smoother(t);
+    state.transition.progress = t;
 
-    state.zMix = mix(state.transition.fromZ, state.transition.toZ, e);
-    state.wMix = mix(state.transition.fromW, state.transition.toW, e);
+    const from = state.transition.fromDimension;
+    const to = state.transition.toDimension;
+
+    if (from === 2 && to === 3) {
+      // Build depth first; reserve the end of the transition for the final
+      // viewpoint/orientation settling.
+      state.zMix = smoother(clamp(t / 0.80, 0, 1));
+      state.wMix = 0;
+    } else if (from === 3 && to === 2) {
+      // Reverse the visual grammar: settle toward plan view, then collapse.
+      state.zMix = 1 - smoother(clamp((t - 0.14) / 0.86, 0, 1));
+      state.wMix = 0;
+    } else if (from === 3 && to === 4) {
+      state.zMix = 1;
+      state.wMix = smoother(clamp(t / 0.82, 0, 1));
+    } else if (from === 4 && to === 3) {
+      state.zMix = 1;
+      state.wMix = 1 - smoother(clamp((t - 0.12) / 0.88, 0, 1));
+    } else {
+      const e = smoother(t);
+      state.zMix = mix(state.transition.fromZ, state.transition.toZ, e);
+      state.wMix = mix(state.transition.fromW, state.transition.toW, e);
+    }
 
     if (t >= 1) completeStage();
   }
@@ -4944,12 +5114,35 @@
     const meta = PRESET_META[state.preset] || PRESET_META.square;
 
     if (state.transition) {
-      dimensionValue.textContent =
-        state.transition.fromDimension
-        + 'D → '
-        + state.transition.toDimension
-        + 'D';
-      dimensionStatus.textContent = 'unfolding';
+      const from = state.transition.fromDimension;
+      const to = state.transition.toDimension;
+      const t = transitionProgress();
+
+      dimensionValue.textContent = from + 'D → ' + to + 'D';
+
+      if (from === 2 && to === 3) {
+        dimensionStatus.textContent =
+          t < 0.34 ? 'lifting edges'
+          : t < 0.72 ? 'forming surfaces'
+          : 'forming solid';
+      } else if (from === 3 && to === 2) {
+        dimensionStatus.textContent =
+          t < 0.30 ? 'settling view'
+          : t < 0.74 ? 'collapsing surfaces'
+          : 'returning to plan';
+      } else if (from === 3 && to === 4) {
+        dimensionStatus.textContent =
+          t < 0.34 ? 'extending W edges'
+          : t < 0.72 ? 'forming hyperfaces'
+          : 'forming hyperform';
+      } else if (from === 4 && to === 3) {
+        dimensionStatus.textContent =
+          t < 0.30 ? 'settling projection'
+          : t < 0.74 ? 'collapsing hyperfaces'
+          : 'returning to form';
+      } else {
+        dimensionStatus.textContent = 'transforming';
+      }
     } else {
       dimensionValue.textContent = state.dimension + 'D';
 
@@ -5014,6 +5207,11 @@
   }
 
   function updateAutorotation(dt) {
+    // A dimensional morph must describe the geometry itself. Autorotation
+    // would turn it back into a moving-camera/object animation, so pause it
+    // temporarily without changing the user's autorotation toggles.
+    if (state.transition) return;
+
     let changed = false;
 
     for (const config of ROTATION_CONFIG) {
