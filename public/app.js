@@ -4979,6 +4979,7 @@
       toZ,
       toW,
       start: performance.now(),
+      progress: 0,
       duration: reducedMotion ? 80 : 2150,
     };
   }
@@ -5023,10 +5024,31 @@
       0,
       1,
     );
-    const e = smoother(t);
+    state.transition.progress = t;
 
-    state.zMix = mix(state.transition.fromZ, state.transition.toZ, e);
-    state.wMix = mix(state.transition.fromW, state.transition.toW, e);
+    const from = state.transition.fromDimension;
+    const to = state.transition.toDimension;
+
+    if (from === 2 && to === 3) {
+      // Build depth first; reserve the end of the transition for the final
+      // viewpoint/orientation settling.
+      state.zMix = smoother(clamp(t / 0.80, 0, 1));
+      state.wMix = 0;
+    } else if (from === 3 && to === 2) {
+      // Reverse the visual grammar: settle toward plan view, then collapse.
+      state.zMix = 1 - smoother(clamp((t - 0.14) / 0.86, 0, 1));
+      state.wMix = 0;
+    } else if (from === 3 && to === 4) {
+      state.zMix = 1;
+      state.wMix = smoother(clamp(t / 0.82, 0, 1));
+    } else if (from === 4 && to === 3) {
+      state.zMix = 1;
+      state.wMix = 1 - smoother(clamp((t - 0.12) / 0.88, 0, 1));
+    } else {
+      const e = smoother(t);
+      state.zMix = mix(state.transition.fromZ, state.transition.toZ, e);
+      state.wMix = mix(state.transition.fromW, state.transition.toW, e);
+    }
 
     if (t >= 1) completeStage();
   }
@@ -5146,6 +5168,11 @@
   }
 
   function updateAutorotation(dt) {
+    // A dimensional morph must describe the geometry itself. Autorotation
+    // would turn it back into a moving-camera/object animation, so pause it
+    // temporarily without changing the user's autorotation toggles.
+    if (state.transition) return;
+
     let changed = false;
 
     for (const config of ROTATION_CONFIG) {
