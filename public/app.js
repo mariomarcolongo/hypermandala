@@ -2008,8 +2008,16 @@
     const wallCenter = half - thickness / 2;
     const gateCapOffset = half + thickness * 0.65;
 
+    const radialDistance = half;
+
     const push = (points, order = paintOrder) => {
-      pieces.push({ points, regionId, level, paintOrder: order });
+      pieces.push({
+        points,
+        regionId,
+        level,
+        paintOrder: order,
+        radialDistance,
+      });
     };
 
     for (const sx of [-1, 1]) {
@@ -2051,6 +2059,7 @@
         regionId,
         level,
         paintOrder,
+        radialDistance: radius,
       };
     });
   }
@@ -2130,6 +2139,7 @@
             regionId: 'sri-lotus8',
             level: 3,
             paintOrder: order,
+            radialDistance: (outer + inner) * 0.5,
           });
         }
       }
@@ -3352,27 +3362,53 @@
     return covering[covering.length - 1];
   }
 
+  function yantraPieceRadialDistance(piece) {
+    if (Number.isFinite(piece.radialDistance)) {
+      return piece.radialDistance;
+    }
+
+    return piece.points.reduce(
+      (sum, point) => sum + Math.hypot(point[0], point[1]),
+      0,
+    ) / Math.max(1, piece.points.length);
+  }
+
   function buildYantraOuterTerraces(
     outerPieces,
     {
       firstTop = 0.045,
       levelStep = 0.042,
       separatedGap = 0.055,
+      maxOuterRise = 0.18,
     } = {},
   ) {
-    const levels = [...new Set(
-      outerPieces.map((piece) => piece.level),
-    )].sort((a, b) => a - b);
-    const rankByLevel = new Map(
-      levels.map((level, rank) => [level, rank]),
+    // Do not use region/color or legacy level metadata here. Concentric
+    // structures are ranked only by their actual radial distance from bindu.
+    const radialKeys = [...new Set(
+      outerPieces.map((piece) => (
+        Number(yantraPieceRadialDistance(piece).toFixed(5))
+      )),
+    )].sort((a, b) => b - a);
+
+    const rankByRadius = new Map(
+      radialKeys.map((radius, rank) => [radius, rank]),
     );
     const separated = state.spacingStyle === 'separated';
+    const effectiveStep = radialKeys.length <= 1
+      ? 0
+      : Math.min(
+          levelStep,
+          maxOuterRise / (radialKeys.length - 1),
+        );
 
     let highestTop = 0;
 
     for (const piece of outerPieces) {
-      const rank = rankByLevel.get(piece.level) || 0;
-      const topZ = firstTop + rank * levelStep;
+      const radialKey = Number(
+        yantraPieceRadialDistance(piece).toFixed(5),
+      );
+      const rank = rankByRadius.get(radialKey) || 0;
+      const topZ = firstTop + rank * effectiveStep;
       highestTop = Math.max(highestTop, topZ);
 
       if (separated) {
@@ -3390,9 +3426,9 @@
           piece.regionId,
           [],
           {
-            hierarchyT: levels.length <= 1
+            hierarchyT: radialKeys.length <= 1
               ? 0
-              : (rank / (levels.length - 1)) * 0.22,
+              : (rank / (radialKeys.length - 1)) * 0.22,
             polarity: 0,
           },
         );
@@ -3403,7 +3439,8 @@
         continue;
       }
 
-      // Compact mode is grounded: no floating petals or frame rails.
+      // Compact mode: every distinct concentric distance is a distinct
+      // grounded terrace, even when adjacent structures share the same color.
       addFootprintPrism(
         piece.points,
         0,
@@ -3411,9 +3448,9 @@
         piece.regionId,
         [],
         {
-          hierarchyT: levels.length <= 1
+          hierarchyT: radialKeys.length <= 1
             ? 0
-            : (rank / (levels.length - 1)) * 0.22,
+            : (rank / (radialKeys.length - 1)) * 0.22,
           polarity: 0,
         },
       );
