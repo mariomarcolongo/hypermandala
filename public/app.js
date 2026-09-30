@@ -6155,14 +6155,18 @@
       previewCtx.closePath();
       previewCtx.fillStyle = state.colorMode === 'classic'
         ? classicPlanColor(face)
-        : 'rgba(225,218,201,.055)';
+        : state.colorMode === 'form'
+          ? 'rgba(201,185,149,.18)'
+          : 'rgba(217,221,228,.16)';
       previewCtx.globalAlpha = state.colorMode === 'classic' ? 0.92 : 1;
       previewCtx.fill();
 
-      if (state.colorMode === 'classic') {
-        previewCtx.globalAlpha = 0.96;
-        previewCtx.strokeStyle = '#1d1714';
-        previewCtx.lineWidth = 1.1;
+      if (state.colorMode !== 'axis') {
+        previewCtx.globalAlpha = state.colorMode === 'classic' ? 0.96 : 0.72;
+        previewCtx.strokeStyle = state.colorMode === 'classic'
+          ? '#1d1714'
+          : 'rgba(220,212,194,.72)';
+        previewCtx.lineWidth = state.colorMode === 'classic' ? 1.1 : 0.95;
         previewCtx.lineJoin = 'round';
         previewCtx.stroke();
       }
@@ -6172,9 +6176,6 @@
 
     previewCtx.lineCap = 'round';
     previewCtx.lineJoin = 'round';
-    previewCtx.strokeStyle = state.colorMode === 'classic'
-      ? '#1d1714'
-      : 'rgba(240,237,228,.80)';
     previewCtx.lineWidth = state.colorMode === 'classic' ? 1.05 : 1;
 
     for (const edge of planEdges) {
@@ -6184,8 +6185,17 @@
       previewCtx.beginPath();
       previewCtx.moveTo(a.x, a.y);
       previewCtx.lineTo(b.x, b.y);
+      previewCtx.strokeStyle = state.colorMode === 'classic'
+        ? '#1d1714'
+        : state.colorMode === 'axis'
+          ? axisColor(edge.axis)
+          : 'rgba(240,237,228,.80)';
+      previewCtx.globalAlpha = state.colorMode === 'axis'
+        ? (edge.axis === 'n' ? 0.48 : 0.90)
+        : 1;
       previewCtx.stroke();
     }
+    previewCtx.globalAlpha = 1;
 
     previewCtx.setTransform(1, 0, 0, 1, 0, 0);
   }
@@ -6531,6 +6541,11 @@
     colorButtons.forEach((button) => {
       button.classList.toggle('is-active', button.dataset.color === mode);
     });
+
+    // Preview canvases are independent from the main render loop, so repaint
+    // them whenever the palette changes instead of waiting for a reload or
+    // geometry rebuild.
+    schedulePreviewRedraw();
   }
 
   function setRenderMode(mode) {
