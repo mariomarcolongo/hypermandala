@@ -337,7 +337,7 @@ button { color: inherit; }
 .about-panel {
   position: fixed;
   left: max(82px, calc(env(safe-area-inset-left) + 82px));
-  bottom: max(20px, env(safe-area-inset-bottom));
+  bottom: max(28px, env(safe-area-inset-bottom));
   z-index: 6;
   color: rgba(225,227,230,.34);
   font-size: 9px;
@@ -556,6 +556,9 @@ a:focus-visible {
   letter-spacing: .1em;
 }
 .mandala-dock__toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 28px;
   min-width: 28px;
   height: 24px;
@@ -612,7 +615,7 @@ a:focus-visible {
   display: none;
 }
 .mandala-dock.is-collapsed .mandala-dock__toggle {
-  transform: rotate(90deg);
+  transform: rotate(-90deg);
 }
 .mandala-dock.is-collapsed .mandala-dock__resize {
   display: none;
