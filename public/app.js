@@ -4879,8 +4879,9 @@
   }
 
   function resize() {
-    state.width = Math.max(1, Math.round(window.visualViewport?.width || innerWidth));
-    state.height = Math.max(1, Math.round(window.visualViewport?.height || innerHeight));
+    const mobileViewport = isMobileLayout() ? window.visualViewport : null;
+    state.width = Math.max(1, Math.round(mobileViewport?.width || innerWidth));
+    state.height = Math.max(1, Math.round(mobileViewport?.height || innerHeight));
     const dprCap = coarsePointerQuery.matches ? 1.75 : 2;
     state.dpr = Math.min(devicePixelRatio || 1, dprCap);
 
@@ -4923,8 +4924,6 @@
     if (mobile) {
       geometricFormsDock?.setAttribute('aria-hidden', String(!formsOpen));
       explorerControls?.setAttribute('aria-hidden', String(!controlsOpen));
-      geometricFormsDock?.classList.remove('is-collapsed');
-      toggleGeometricForms?.setAttribute('aria-expanded', 'true');
     } else {
       geometricFormsDock?.removeAttribute('aria-hidden');
       explorerControls?.removeAttribute('aria-hidden');
@@ -5158,19 +5157,25 @@
       canvas.releasePointerCapture(event.pointerId);
     }
 
-    if (activePointers.size === 1) {
+    if (activePointers.size >= 2) {
+      primaryPointerId = null;
+      state.pointerDown = false;
+      pinchStartDistance = pointerDistance();
+      pinchStartZoom = state.zoom;
+    } else if (activePointers.size === 1) {
       const [remainingId, remainingPoint] = activePointers.entries().next().value;
       primaryPointerId = remainingId;
       state.pointerDown = true;
       state.pointerX = remainingPoint.x;
       state.pointerY = remainingPoint.y;
+      pinchStartDistance = 0;
+      pinchStartZoom = state.zoom;
     } else {
       primaryPointerId = null;
       state.pointerDown = false;
+      pinchStartDistance = 0;
+      pinchStartZoom = state.zoom;
     }
-
-    pinchStartDistance = 0;
-    pinchStartZoom = state.zoom;
   }
 
   canvas.addEventListener('pointerup', pointerUp);
