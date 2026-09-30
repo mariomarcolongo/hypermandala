@@ -572,6 +572,29 @@ a:focus-visible {
 .mandala-dock__toggle:hover {
   background: rgba(255,255,255,.08);
 }
+.mandala-dock__resize {
+  min-width: 0;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 8px;
+  background: rgba(255,255,255,.035);
+  color: rgba(245,246,248,.58);
+  cursor: pointer;
+  font-size: 8px;
+  font-weight: 720;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+.mandala-dock__resize:hover {
+  border-color: rgba(255,255,255,.15);
+  background: rgba(255,255,255,.08);
+  color: rgba(245,246,248,.92);
+}
+.mandala-dock__resize--reduce { display: none; }
+.mandala-dock.is-expanded .mandala-dock__resize--expand { display: none; }
+.mandala-dock.is-expanded .mandala-dock__resize--reduce { display: inline-flex; align-items: center; }
 .mandala-dock__body {
   max-height: min(68vh, 650px);
   margin-top: 9px;
@@ -590,6 +613,9 @@ a:focus-visible {
 }
 .mandala-dock.is-collapsed .mandala-dock__toggle {
   transform: rotate(90deg);
+}
+.mandala-dock.is-collapsed .mandala-dock__resize {
+  display: none;
 }
 .preset-grid--dock {
   grid-template-columns: repeat(3, 1fr);
@@ -681,6 +707,15 @@ a:focus-visible {
   width: min(500px, calc(100vw - 36px));
   gap: 8px;
 }
+.mandala-dock.is-expanded {
+  width: min(940px, calc(100vw - 350px));
+}
+.mandala-dock.is-expanded .mandala-dock__body {
+  max-height: min(78vh, 760px);
+}
+.mandala-dock.is-expanded .mandala-library {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
 .mandala-library {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -737,6 +772,12 @@ a:focus-visible {
 @media (max-width: 960px) {
   .mandala-dock {
     width: min(500px, calc(100vw - 300px));
+  }
+  .mandala-dock.is-expanded {
+    width: calc(100vw - 24px);
+  }
+  .mandala-dock.is-expanded .mandala-library {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 }
 @media (max-width: 600px) {
@@ -1034,6 +1075,12 @@ a:focus-visible {
   .mandala-dock__toggle {
     display: none;
   }
+  .mandala-dock__resize {
+    min-height: 38px;
+    height: 38px;
+    padding: 0 10px;
+    font-size: 9px;
+  }
   .mandala-dock__title {
     font-size: 10px;
   }
@@ -1042,6 +1089,13 @@ a:focus-visible {
     margin-top: 4px;
     padding-right: 0;
     overflow: visible;
+  }
+  .mandala-dock.is-expanded {
+    width: auto;
+    max-height: min(82dvh, 780px);
+  }
+  .mandala-dock.is-expanded .mandala-library {
+    grid-template-columns: none;
   }
 
   .mandala-library {

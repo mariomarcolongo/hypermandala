@@ -53,6 +53,8 @@
   const resetAllButton = document.getElementById('resetAll');
   const geometricFormsDock = document.getElementById('geometricFormsDock');
   const toggleGeometricForms = document.getElementById('toggleGeometricForms');
+  const expandGeometricForms = document.getElementById('expandGeometricForms');
+  const reduceGeometricForms = document.getElementById('reduceGeometricForms');
   const explorerControls = document.getElementById('explorerControls');
   const mobileFormsButton = document.getElementById('mobileFormsButton');
   const mobileControlsButton = document.getElementById('mobileControlsButton');
@@ -363,6 +365,7 @@
   let settingsDirty = false;
   let lastSettingsSave = 0;
   let restoredDockCollapsed = false;
+  let restoredDockExpanded = false;
 
   function finiteNumber(value, fallback, min = -Infinity, max = Infinity) {
     return Number.isFinite(value)
@@ -393,6 +396,9 @@
       cameraPitch: state.cameraPitch,
       formsCollapsed: Boolean(
         geometricFormsDock?.classList.contains('is-collapsed'),
+      ),
+      formsExpanded: Boolean(
+        geometricFormsDock?.classList.contains('is-expanded'),
       ),
     };
   }
@@ -485,6 +491,9 @@
     state.cameraYaw = finiteNumber(saved.cameraYaw, -0.62, -Math.PI, Math.PI);
     state.cameraPitch = finiteNumber(saved.cameraPitch, 0.58, -Math.PI / 2, Math.PI / 2);
     restoredDockCollapsed = saved.formsCollapsed === true;
+    restoredDockExpanded =
+      saved.formsExpanded === true
+      && !restoredDockCollapsed;
 
     state.queue = [];
     state.transition = null;
@@ -557,6 +566,18 @@
     geometricFormsDock?.classList.toggle(
       'is-collapsed',
       restoredDockCollapsed,
+    );
+    geometricFormsDock?.classList.toggle(
+      'is-expanded',
+      restoredDockExpanded && !restoredDockCollapsed,
+    );
+    expandGeometricForms?.setAttribute(
+      'aria-pressed',
+      String(restoredDockExpanded && !restoredDockCollapsed),
+    );
+    reduceGeometricForms?.setAttribute(
+      'aria-pressed',
+      String(restoredDockExpanded && !restoredDockCollapsed),
     );
     if (toggleGeometricForms) {
       toggleGeometricForms.setAttribute(
@@ -6670,6 +6691,7 @@
     state.zoom = 1;
 
     restoredDockCollapsed = false;
+    restoredDockExpanded = false;
     syncSettingsUI();
     buildActiveMandala();
     updateUI();
@@ -6896,6 +6918,34 @@
     hideHint();
   });
 
+  function setFormsDockExpanded(expanded) {
+    if (!geometricFormsDock) return;
+
+    if (expanded) {
+      geometricFormsDock.classList.remove('is-collapsed');
+      restoredDockCollapsed = false;
+      toggleGeometricForms?.setAttribute('aria-expanded', 'true');
+      if (toggleGeometricForms) {
+        toggleGeometricForms.title = 'Collapse geometric forms';
+      }
+    }
+
+    geometricFormsDock.classList.toggle('is-expanded', expanded);
+    restoredDockExpanded = expanded;
+    expandGeometricForms?.setAttribute('aria-pressed', String(expanded));
+    reduceGeometricForms?.setAttribute('aria-pressed', String(expanded));
+    markSettingsDirty();
+    schedulePreviewRedraw();
+  }
+
+  expandGeometricForms?.addEventListener('click', () => {
+    setFormsDockExpanded(true);
+  });
+
+  reduceGeometricForms?.addEventListener('click', () => {
+    setFormsDockExpanded(false);
+  });
+
   toggleGeometricForms?.addEventListener('click', () => {
     if (isMobileLayout()) {
       closeMobilePanels();
@@ -6903,12 +6953,17 @@
     }
 
     const collapsed = geometricFormsDock.classList.toggle('is-collapsed');
+    if (collapsed) {
+      geometricFormsDock.classList.remove('is-expanded');
+      restoredDockExpanded = false;
+    }
     toggleGeometricForms.setAttribute('aria-expanded', String(!collapsed));
     restoredDockCollapsed = collapsed;
     toggleGeometricForms.title = collapsed
       ? 'Expand geometric forms'
       : 'Collapse geometric forms';
     markSettingsDirty();
+    schedulePreviewRedraw();
   });
 
   mobileFormsButton?.addEventListener('click', () => setMobilePanel('forms'));
