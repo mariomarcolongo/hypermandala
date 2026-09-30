@@ -573,7 +573,12 @@ a:focus-visible {
   background: rgba(255,255,255,.08);
 }
 .mandala-dock__body {
+  max-height: min(68vh, 650px);
   margin-top: 9px;
+  padding-right: 2px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
 }
 .mandala-dock.is-collapsed {
   width: auto;
@@ -1033,7 +1038,10 @@ a:focus-visible {
     font-size: 10px;
   }
   .mandala-dock__body {
+    max-height: none;
     margin-top: 4px;
+    padding-right: 0;
+    overflow: visible;
   }
 
   .mandala-library {
