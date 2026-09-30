@@ -4313,11 +4313,11 @@
     };
   }
 
-  function faceVisibility(face) {
-    const wReveal = wConstructionReveal();
-
-    if (face.bridge) return wReveal.faces;
-    if (face.wLayer === 1) return wReveal.shell;
+  function faceVisibility() {
+    // Filled rendering now morphs through geometry, not transparency.
+    // Side/bridge faces naturally have zero projected area while collapsed
+    // and grow into view as Z/W separates, so fading them is unnecessary and
+    // was the source of the apparent palette/render-mode switch.
     return 1;
   }
 
@@ -4344,6 +4344,17 @@
     return centroid.map((value) => value / n);
   }
 
+  function faceStyleMix() {
+    // During 2D↔3D, keep the palette visually continuous with the source plan.
+    // Orientation/material differentiation arrives only as the actual 3D view
+    // settles. Other transitions start from an already-spatial form.
+    if (!state.transition) return 1;
+    const from = state.transition.fromDimension;
+    const to = state.transition.toDimension;
+    if (!((from === 2 && to === 3) || (from === 3 && to === 2))) return 1;
+    return dimensionOrientationMix(3);
+  }
+
   function classicFaceRgb(face, module) {
     const centroid = faceCentroid(face, module);
     const base = classicRegionRgb(
@@ -4352,10 +4363,11 @@
       centroid[1],
     );
 
-    // Region hue is invariant across 2D/3D/4D. Orientation changes only
-    // brightness so the geometry remains readable.
+    // Preserve the family/region hue throughout the morph. Orientation only
+    // adds its normal brightness variation once the 3D view is established.
     const orientationShade = CLASSIC_SHADE[face.axis] || 1;
-    return shadeRgb(base, orientationShade);
+    const shaded = shadeRgb(base, orientationShade);
+    return mixRgb(base, shaded, faceStyleMix());
   }
 
   function classicFaceColor(face, module) {
@@ -4363,8 +4375,14 @@
   }
 
   function faceFillRgb(face, module) {
+    const styleMix = faceStyleMix();
+
     if (state.colorMode === 'axis') {
-      return hexToRgb(axisColor(face.axis));
+      return mixRgb(
+        hexToRgb('#d9dde4'),
+        hexToRgb(axisColor(face.axis)),
+        styleMix,
+      );
     }
 
     if (state.colorMode === 'classic') {
@@ -4379,7 +4397,11 @@
       n: '#c0b49d',
     };
 
-    return hexToRgb(formColors[face.axis] || formColors.n);
+    return mixRgb(
+      hexToRgb('#c9b995'),
+      hexToRgb(formColors[face.axis] || formColors.n),
+      styleMix,
+    );
   }
 
   function faceFillColor(face, module) {
