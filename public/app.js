@@ -3729,13 +3729,31 @@
     ];
   }
 
+  function cameraViewMix() {
+    if (!state.transition) return state.dimension >= 3 ? 1 : 0;
+
+    const from = state.transition.fromDimension;
+    const to = state.transition.toDimension;
+    const t = transitionProgress();
+
+    if ((from === 2 && to === 3) || (from === 3 && to === 2)) {
+      const forward = to > from;
+
+      // Geometry separates first. Only once the new surfaces are legible does
+      // the camera move into the ordinary 3D viewpoint. On collapse the order
+      // reverses: return toward the plan view before flattening the geometry.
+      return forward
+        ? smoother(clamp((t - 0.34) / 0.66, 0, 1))
+        : 1 - smoother(clamp(t / 0.46, 0, 1));
+    }
+
+    return 1;
+  }
+
   function cameraTransform(p) {
     let [x, y, z] = p;
 
-    // Let the new dimension visibly separate before the viewpoint tilts.
-    // This preserves the feeling that the volume grows out of the 2D mandala.
-    const visibleZ = state.zMix;
-    const viewMix = smoother(clamp((visibleZ - 0.62) / 0.38, 0, 1));
+    const viewMix = cameraViewMix();
 
     const isometric = state.projection === 'isometric';
     const yaw = (
