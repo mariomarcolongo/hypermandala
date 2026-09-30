@@ -89,16 +89,39 @@
     <span id="dimensionStatus">mandala plan</span>
   </div>
 
+  <nav class="mobile-panel-switcher" aria-label="Explorer panels">
+    <button
+      id="mobileFormsButton"
+      type="button"
+      aria-controls="geometricFormsDock"
+      aria-expanded="false"
+    >Forms</button>
+    <button
+      id="mobileControlsButton"
+      type="button"
+      aria-controls="explorerControls"
+      aria-expanded="false"
+    >Controls</button>
+  </nav>
+
   <nav class="dimension-switcher" aria-label="Choose dimension">
     <button type="button" data-dimension="2" class="is-active">2D</button>
     <button type="button" data-dimension="3">3D</button>
     <button type="button" data-dimension="4">4D</button>
   </nav>
 
-  <aside class="control-panel" aria-label="4D explorer controls">
+  <aside id="explorerControls" class="control-panel" aria-label="4D explorer controls">
     <div class="control-panel__title">
       <span>Explorer</span>
-      <button id="resetAll" type="button">reset</button>
+      <div class="control-panel__actions">
+        <button id="resetAll" type="button">reset</button>
+        <button
+          id="mobileControlsClose"
+          class="mobile-panel-close"
+          type="button"
+          aria-label="Close controls"
+        >close</button>
+      </div>
     </div>
 
     <section class="control-section">
@@ -148,14 +171,22 @@
   <aside class="mandala-dock" id="geometricFormsDock" aria-label="Geometric form library">
     <div class="mandala-dock__header">
       <div class="mandala-dock__title">Geometric forms</div>
-      <button
-        id="toggleGeometricForms"
-        class="mandala-dock__toggle"
-        type="button"
-        aria-expanded="true"
-        aria-controls="geometricFormsBody"
-        title="Collapse geometric forms"
-      >⌄</button>
+      <div class="mandala-dock__actions">
+        <button
+          id="mobileFormsClose"
+          class="mobile-panel-close"
+          type="button"
+          aria-label="Close geometric forms"
+        >close</button>
+        <button
+          id="toggleGeometricForms"
+          class="mandala-dock__toggle"
+          type="button"
+          aria-expanded="true"
+          aria-controls="geometricFormsBody"
+          title="Collapse geometric forms"
+        >⌄</button>
+      </div>
     </div>
     <div class="mandala-dock__body" id="geometricFormsBody">
       <div class="mandala-library" id="presetControl">

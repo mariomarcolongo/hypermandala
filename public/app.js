@@ -42,6 +42,11 @@
   const resetAllButton = document.getElementById('resetAll');
   const geometricFormsDock = document.getElementById('geometricFormsDock');
   const toggleGeometricForms = document.getElementById('toggleGeometricForms');
+  const explorerControls = document.getElementById('explorerControls');
+  const mobileFormsButton = document.getElementById('mobileFormsButton');
+  const mobileControlsButton = document.getElementById('mobileControlsButton');
+  const mobileFormsClose = document.getElementById('mobileFormsClose');
+  const mobileControlsClose = document.getElementById('mobileControlsClose');
 
   const dimensionButtons = [...document.querySelectorAll('[data-dimension]')];
   const projectionButtons = [...document.querySelectorAll('[data-projection]')];
@@ -58,6 +63,13 @@
   const TAU = Math.PI * 2;
   const RAD = Math.PI / 180;
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const mobileLayoutQuery = matchMedia('(max-width: 760px)');
+  const coarsePointerQuery = matchMedia('(pointer: coarse)');
+  const activePointers = new Map();
+  let primaryPointerId = null;
+  let pinchStartDistance = 0;
+  let pinchStartZoom = 1;
+  let mobilePanel = null;
 
   const COLORS = {
     form: '#e7ddc6',
@@ -4867,9 +4879,11 @@
   }
 
   function resize() {
-    state.width = innerWidth;
-    state.height = innerHeight;
-    state.dpr = Math.min(devicePixelRatio || 1, 2);
+    const mobileViewport = isMobileLayout() ? window.visualViewport : null;
+    state.width = Math.max(1, Math.round(mobileViewport?.width || innerWidth));
+    state.height = Math.max(1, Math.round(mobileViewport?.height || innerHeight));
+    const dprCap = coarsePointerQuery.matches ? 1.75 : 2;
+    state.dpr = Math.min(devicePixelRatio || 1, dprCap);
 
     canvas.width = Math.round(state.width * state.dpr);
     canvas.height = Math.round(state.height * state.dpr);
@@ -4888,6 +4902,55 @@
 
   function hideHint() {
     hint.classList.add('is-hidden');
+  }
+
+  function isMobileLayout() {
+    return mobileLayoutQuery.matches;
+  }
+
+  function syncMobilePanels() {
+    const mobile = isMobileLayout();
+    const formsOpen = mobile && mobilePanel === 'forms';
+    const controlsOpen = mobile && mobilePanel === 'controls';
+
+    geometricFormsDock?.classList.toggle('is-mobile-open', formsOpen);
+    explorerControls?.classList.toggle('is-mobile-open', controlsOpen);
+    mobileFormsButton?.classList.toggle('is-active', formsOpen);
+    mobileControlsButton?.classList.toggle('is-active', controlsOpen);
+
+    mobileFormsButton?.setAttribute('aria-expanded', String(formsOpen));
+    mobileControlsButton?.setAttribute('aria-expanded', String(controlsOpen));
+
+    if (mobile) {
+      geometricFormsDock?.setAttribute('aria-hidden', String(!formsOpen));
+      explorerControls?.setAttribute('aria-hidden', String(!controlsOpen));
+    } else {
+      geometricFormsDock?.removeAttribute('aria-hidden');
+      explorerControls?.removeAttribute('aria-hidden');
+      geometricFormsDock?.classList.remove('is-mobile-open');
+      explorerControls?.classList.remove('is-mobile-open');
+    }
+  }
+
+  function setMobilePanel(panel) {
+    if (!isMobileLayout()) return;
+    mobilePanel = mobilePanel === panel ? null : panel;
+    syncMobilePanels();
+    hideHint();
+  }
+
+  function closeMobilePanels() {
+    if (!isMobileLayout() || mobilePanel === null) return;
+    mobilePanel = null;
+    syncMobilePanels();
+  }
+
+  function syncInteractionHint() {
+    if (coarsePointerQuery.matches || isMobileLayout()) {
+      hint.textContent = 'drag to rotate · pinch to zoom';
+    } else {
+      hint.textContent = 'drag: XY in 2D · spin + tilt in 3D/4D · shift-drag: pure XY · scroll: zoom';
+    }
   }
 
   function rebuildFromChoice(buttons, button, stateKey, dataKey) {
@@ -4979,6 +5042,11 @@
   });
 
   toggleGeometricForms?.addEventListener('click', () => {
+    if (isMobileLayout()) {
+      closeMobilePanels();
+      return;
+    }
+
     const collapsed = geometricFormsDock.classList.toggle('is-collapsed');
     toggleGeometricForms.setAttribute('aria-expanded', String(!collapsed));
     restoredDockCollapsed = collapsed;
@@ -4988,20 +5056,73 @@
     markSettingsDirty();
   });
 
+  mobileFormsButton?.addEventListener('click', () => setMobilePanel('forms'));
+  mobileControlsButton?.addEventListener('click', () => setMobilePanel('controls'));
+  mobileFormsClose?.addEventListener('click', closeMobilePanels);
+  mobileControlsClose?.addEventListener('click', closeMobilePanels);
+
+  function pointerDistance() {
+    const points = [...activePointers.values()];
+    if (points.length < 2) return 0;
+    return Math.hypot(
+      points[0].x - points[1].x,
+      points[0].y - points[1].y,
+    );
+  }
+
   canvas.addEventListener('pointerdown', (event) => {
-    state.pointerDown = true;
-    state.pointerX = event.clientX;
-    state.pointerY = event.clientY;
-    canvas.setPointerCapture(event.pointerId);
+    closeMobilePanels();
+    activePointers.set(event.pointerId, {
+      x: event.clientX,
+      y: event.clientY,
+    });
+
+    if (canvas.setPointerCapture) {
+      canvas.setPointerCapture(event.pointerId);
+    }
+
+    if (activePointers.size === 1) {
+      primaryPointerId = event.pointerId;
+      state.pointerDown = true;
+      state.pointerX = event.clientX;
+      state.pointerY = event.clientY;
+    } else if (activePointers.size === 2) {
+      state.pointerDown = false;
+      pinchStartDistance = pointerDistance();
+      pinchStartZoom = state.zoom;
+    }
+
     hideHint();
   });
 
   canvas.addEventListener('pointermove', (event) => {
-    if (!state.pointerDown) return;
+    const previous = activePointers.get(event.pointerId);
+    if (!previous) return;
+
+    activePointers.set(event.pointerId, {
+      x: event.clientX,
+      y: event.clientY,
+    });
+
     if (state.transition) return;
 
-    const dx = event.clientX - state.pointerX;
-    const dy = event.clientY - state.pointerY;
+    if (activePointers.size >= 2) {
+      const distance = pointerDistance();
+      if (pinchStartDistance > 0 && distance > 0) {
+        state.zoom = clamp(
+          pinchStartZoom * (distance / pinchStartDistance),
+          0.55,
+          1.9,
+        );
+        markSettingsDirty();
+      }
+      return;
+    }
+
+    if (!state.pointerDown || event.pointerId !== primaryPointerId) return;
+
+    const dx = event.clientX - previous.x;
+    const dy = event.clientY - previous.y;
 
     state.pointerX = event.clientX;
     state.pointerY = event.clientY;
@@ -5030,9 +5151,30 @@
   });
 
   function pointerUp(event) {
-    state.pointerDown = false;
+    activePointers.delete(event.pointerId);
+
     if (canvas.hasPointerCapture?.(event.pointerId)) {
       canvas.releasePointerCapture(event.pointerId);
+    }
+
+    if (activePointers.size >= 2) {
+      primaryPointerId = null;
+      state.pointerDown = false;
+      pinchStartDistance = pointerDistance();
+      pinchStartZoom = state.zoom;
+    } else if (activePointers.size === 1) {
+      const [remainingId, remainingPoint] = activePointers.entries().next().value;
+      primaryPointerId = remainingId;
+      state.pointerDown = true;
+      state.pointerX = remainingPoint.x;
+      state.pointerY = remainingPoint.y;
+      pinchStartDistance = 0;
+      pinchStartZoom = state.zoom;
+    } else {
+      primaryPointerId = null;
+      state.pointerDown = false;
+      pinchStartDistance = 0;
+      pinchStartZoom = state.zoom;
     }
   }
 
@@ -5060,7 +5202,21 @@
     markSettingsDirty();
   });
 
-  window.addEventListener('resize', resize, { passive: true });
+  window.addEventListener('resize', () => {
+    resize();
+    syncMobilePanels();
+  }, { passive: true });
+  window.visualViewport?.addEventListener('resize', resize, { passive: true });
+  mobileLayoutQuery.addEventListener?.('change', () => {
+    if (!isMobileLayout()) mobilePanel = null;
+    syncMobilePanels();
+    syncInteractionHint();
+    resize();
+  });
+  coarsePointerQuery.addEventListener?.('change', () => {
+    syncInteractionHint();
+    resize();
+  });
   window.addEventListener('pagehide', () => persistSettings(true));
 
   window.addEventListener('keydown', (event) => {
@@ -5095,6 +5251,8 @@
   restoreSettings();
   syncSettingsUI();
   buildActiveMandala();
+  syncInteractionHint();
+  syncMobilePanels();
   resize();
   updateUI();
   requestAnimationFrame(tick);
