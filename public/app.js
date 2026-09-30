@@ -4137,7 +4137,7 @@
             rgb.r / 255,
             rgb.g / 255,
             rgb.b / 255,
-            1,
+            clamp(alpha * entry.visibility, 0, 1),
           );
         }
       }
@@ -4183,9 +4183,15 @@
     gl.depthFunc(gl.LEQUAL);
     gl.depthMask(true);
 
-    gl.disable(gl.BLEND);
+    if (alpha < 0.999) {
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    } else {
+      gl.disable(gl.BLEND);
+    }
     gl.disable(gl.CULL_FACE);
     gl.drawArrays(gl.TRIANGLES, 0, faceData.length / 7);
+    gl.disable(gl.BLEND);
 
     // Default Solid follows the 2D visual grammar: colored faces plus only
     // the edges that survive the same depth buffer. Hidden/back edges fail
@@ -4327,9 +4333,7 @@
       ctx.closePath();
 
       ctx.fillStyle = faceFillColor(item.face, item.module);
-      ctx.globalAlpha = item.visibility >= 0.995
-        ? 1
-        : clamp(item.visibility, 0, 1);
+      ctx.globalAlpha = clamp(alpha * item.visibility, 0, 1);
       ctx.fill();
 
       ctx.strokeStyle = '#1d1714';
@@ -4341,8 +4345,8 @@
     }
   }
 
-  function drawEdges(alpha) {
-    if (state.renderMode === 'solid' || alpha <= 0.001) return;
+  function drawEdges(alpha, force = false) {
+    if ((state.renderMode === 'solid' && !force) || alpha <= 0.001) return;
 
     const rendered = [];
 
@@ -4468,25 +4472,47 @@
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    // Keep the originating mandala visible while the new dimension separates.
-    // It only fades late in the transition, so the viewer can follow where
-    // every emerging volume came from.
-    const visibleZ = state.zMix;
-    const planFade = smoother(clamp((visibleZ - 0.72) / 0.28, 0, 1));
-    const planAlpha = 1 - planFade;
+    const zReveal = zConstructionReveal();
+    const wReveal = wConstructionReveal();
 
-    // Faces arrive after the first geometric separation; edges lead the motion.
-    const volumeAlpha = smoother(clamp((visibleZ - 0.08) / 0.92, 0, 1));
-    const edgeAlpha = smoother(clamp(visibleZ / 0.82, 0, 1));
+    // The 2D source behaves like a construction drawing: its filled regions
+    // fade first, while its lines remain long enough to show exactly where the
+    // new edges and surfaces originate.
+    const planFaceAlpha =
+      1 - smoother(clamp((state.zMix - 0.14) / 0.48, 0, 1));
+    const planEdgeAlpha =
+      1 - smoother(clamp((state.zMix - 0.58) / 0.42, 0, 1));
 
-    drawPlanFaces(planAlpha);
-    drawPlanEdges(planAlpha);
+    drawPlanFaces(planFaceAlpha);
+    drawPlanEdges(planEdgeAlpha);
 
-    const solidHandled = drawSolidLayer(volumeAlpha);
-    if (!solidHandled) drawFaces(volumeAlpha);
+    // Surface opacity arrives after structural edges. Unlike the old renderer,
+    // this alpha now genuinely controls both WebGL and Canvas face opacity.
+    const solidHandled = drawSolidLayer(zReveal.solid);
+    if (!solidHandled) drawFaces(zReveal.solid);
 
-    drawEdges(edgeAlpha);
-    drawVertices(edgeAlpha);
+    // In Solid mode show a temporary construction scaffold during a
+    // dimensional transition. This makes 2D→3D read as line→surface→solid and
+    // 3D→4D as W-edge→bridge-face→hyper-shell instead of a camera trick.
+    let scaffoldAlpha = 0;
+    if (state.transition) {
+      const from = state.transition.fromDimension;
+      const to = state.transition.toDimension;
+
+      if ((from === 2 && to === 3) || (from === 3 && to === 2)) {
+        scaffoldAlpha = zReveal.edges * (1 - zReveal.solid * 0.72);
+      } else if ((from === 3 && to === 4) || (from === 4 && to === 3)) {
+        scaffoldAlpha = wReveal.edges * (1 - wReveal.shell * 0.58);
+      }
+    }
+
+    if (state.renderMode === 'solid' && scaffoldAlpha > 0.001) {
+      drawEdges(scaffoldAlpha, true);
+    } else {
+      drawEdges(Math.max(zReveal.edges, wReveal.edges));
+    }
+
+    drawVertices(Math.max(zReveal.edges, wReveal.edges));
   }
 
   function drawPreviewToCanvas(previewCanvas) {
