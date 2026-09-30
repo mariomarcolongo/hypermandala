@@ -66,6 +66,12 @@
   const colorButtons = [...document.querySelectorAll('[data-color]')];
   const renderButtons = [...document.querySelectorAll('[data-render]')];
   const presetButtons = [...document.querySelectorAll('[data-preset]')];
+  const experimentalPresetButtons = [
+    ...document.querySelectorAll('.mandala-card--experimental[data-preset]'),
+  ];
+  const experimentalPresets = new Set(
+    experimentalPresetButtons.map((button) => button.dataset.preset),
+  );
   const complexityButtons = [...document.querySelectorAll('[data-complexity]')];
   const spacingButtons = [...document.querySelectorAll('[data-spacing]')];
   const zLiftButtons = [...document.querySelectorAll('[data-zlift]')];
@@ -397,7 +403,7 @@
       formsCollapsed: Boolean(
         geometricFormsDock?.classList.contains('is-collapsed'),
       ),
-      formsExpanded: Boolean(
+      moreFormsVisible: Boolean(
         geometricFormsDock?.classList.contains('is-expanded'),
       ),
     };
@@ -492,8 +498,15 @@
     state.cameraPitch = finiteNumber(saved.cameraPitch, 0.58, -Math.PI / 2, Math.PI / 2);
     restoredDockCollapsed = saved.formsCollapsed === true;
     restoredDockExpanded =
-      saved.formsExpanded === true
+      saved.moreFormsVisible === true
       && !restoredDockCollapsed;
+
+    if (
+      experimentalPresets.has(state.preset)
+      && !restoredDockExpanded
+    ) {
+      state.preset = 'square';
+    }
 
     state.queue = [];
     state.transition = null;
@@ -585,8 +598,8 @@
         String(!restoredDockCollapsed),
       );
       toggleGeometricForms.title = restoredDockCollapsed
-        ? 'Expand geometric forms'
-        : 'Collapse geometric forms';
+        ? 'Open geometric forms panel'
+        : 'Collapse geometric forms panel';
     }
   }
 
@@ -6918,32 +6931,44 @@
     hideHint();
   });
 
-  function setFormsDockExpanded(expanded) {
+  function setMoreFormsVisible(visible) {
     if (!geometricFormsDock) return;
 
-    if (expanded) {
+    if (visible) {
       geometricFormsDock.classList.remove('is-collapsed');
       restoredDockCollapsed = false;
       toggleGeometricForms?.setAttribute('aria-expanded', 'true');
       if (toggleGeometricForms) {
-        toggleGeometricForms.title = 'Collapse geometric forms';
+        toggleGeometricForms.title = 'Collapse geometric forms panel';
       }
     }
 
-    geometricFormsDock.classList.toggle('is-expanded', expanded);
-    restoredDockExpanded = expanded;
-    expandGeometricForms?.setAttribute('aria-pressed', String(expanded));
-    reduceGeometricForms?.setAttribute('aria-pressed', String(expanded));
+    if (!visible && experimentalPresets.has(state.preset)) {
+      state.preset = 'square';
+      presetButtons.forEach((button) => {
+        button.classList.toggle(
+          'is-active',
+          button.dataset.preset === state.preset,
+        );
+      });
+      buildActiveMandala();
+      updateUI();
+    }
+
+    geometricFormsDock.classList.toggle('is-expanded', visible);
+    restoredDockExpanded = visible;
+    expandGeometricForms?.setAttribute('aria-pressed', String(visible));
+    reduceGeometricForms?.setAttribute('aria-pressed', String(visible));
     markSettingsDirty();
     schedulePreviewRedraw();
   }
 
   expandGeometricForms?.addEventListener('click', () => {
-    setFormsDockExpanded(true);
+    setMoreFormsVisible(true);
   });
 
   reduceGeometricForms?.addEventListener('click', () => {
-    setFormsDockExpanded(false);
+    setMoreFormsVisible(false);
   });
 
   toggleGeometricForms?.addEventListener('click', () => {
@@ -6956,12 +6981,24 @@
     if (collapsed) {
       geometricFormsDock.classList.remove('is-expanded');
       restoredDockExpanded = false;
+
+      if (experimentalPresets.has(state.preset)) {
+        state.preset = 'square';
+        presetButtons.forEach((button) => {
+          button.classList.toggle(
+            'is-active',
+            button.dataset.preset === state.preset,
+          );
+        });
+        buildActiveMandala();
+        updateUI();
+      }
     }
     toggleGeometricForms.setAttribute('aria-expanded', String(!collapsed));
     restoredDockCollapsed = collapsed;
     toggleGeometricForms.title = collapsed
-      ? 'Expand geometric forms'
-      : 'Collapse geometric forms';
+      ? 'Open geometric forms panel'
+      : 'Collapse geometric forms panel';
     markSettingsDirty();
     schedulePreviewRedraw();
   });

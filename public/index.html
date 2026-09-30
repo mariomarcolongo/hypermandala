@@ -210,23 +210,23 @@
           id="expandGeometricForms"
           class="mandala-dock__resize mandala-dock__resize--expand"
           type="button"
-          aria-label="Expand geometric forms panel"
-          title="Expand geometric forms panel"
-        >expand</button>
+          aria-label="Show more geometric forms"
+          title="Show more geometric forms"
+        >show more</button>
         <button
           id="reduceGeometricForms"
           class="mandala-dock__resize mandala-dock__resize--reduce"
           type="button"
-          aria-label="De-expand geometric forms panel"
-          title="De-expand geometric forms panel"
-        >de-expand</button>
+          aria-label="Show fewer geometric forms"
+          title="Show fewer geometric forms"
+        >show less</button>
         <button
           id="toggleGeometricForms"
           class="mandala-dock__toggle"
           type="button"
           aria-expanded="true"
           aria-controls="geometricFormsBody"
-          title="Collapse geometric forms"
+          title="Collapse geometric forms panel"
         >⌄</button>
       </div>
     </div>
@@ -260,50 +260,6 @@
           <canvas id="previewBorobudur" width="120" height="120" aria-hidden="true"></canvas>
           <span>Borobudur</span>
         </button>
-        <button type="button" class="mandala-card" data-preset="chartres">
-          <canvas id="previewChartres" width="120" height="120" aria-hidden="true"></canvas>
-          <span>Chartres Labyrinth</span>
-        </button>
-        <button type="button" class="mandala-card" data-preset="rosewindow">
-          <canvas id="previewRoseWindow" width="120" height="120" aria-hidden="true"></canvas>
-          <span>Rose Window</span>
-        </button>
-        <button type="button" class="mandala-card" data-preset="sunstone">
-          <canvas id="previewSunStone" width="120" height="120" aria-hidden="true"></canvas>
-          <span>Aztec Sun Stone</span>
-        </button>
-        <button type="button" class="mandala-card" data-preset="lotfollah">
-          <canvas id="previewLotfollah" width="120" height="120" aria-hidden="true"></canvas>
-          <span>Lotfollah Dome</span>
-        </button>
-        <button type="button" class="mandala-card" data-preset="chladni">
-          <canvas id="previewChladni" width="120" height="120" aria-hidden="true"></canvas>
-          <span>Chladni Mode</span>
-        </button>
-        <button type="button" class="mandala-card" data-preset="diatom">
-          <canvas id="previewDiatom" width="120" height="120" aria-hidden="true"></canvas>
-          <span>Centric Diatom</span>
-        </button>
-        <button type="button" class="mandala-card" data-preset="radiolaria">
-          <canvas id="previewRadiolaria" width="120" height="120" aria-hidden="true"></canvas>
-          <span>Radiolaria</span>
-        </button>
-        <button type="button" class="mandala-card" data-preset="snowflake">
-          <canvas id="previewSnowflake" width="120" height="120" aria-hidden="true"></canvas>
-          <span>Snowflake</span>
-        </button>
-        <button type="button" class="mandala-card" data-preset="kolam">
-          <canvas id="previewKolam" width="120" height="120" aria-hidden="true"></canvas>
-          <span>Kolam</span>
-        </button>
-        <button type="button" class="mandala-card" data-preset="vastu">
-          <canvas id="previewVastu" width="120" height="120" aria-hidden="true"></canvas>
-          <span>Vastu Mandala</span>
-        </button>
-        <button type="button" class="mandala-card" data-preset="phyllotaxis">
-          <canvas id="previewPhyllotaxis" width="120" height="120" aria-hidden="true"></canvas>
-          <span>Phyllotaxis</span>
-        </button>
         <button type="button" class="mandala-card" data-preset="castel">
           <canvas id="previewCastel" width="120" height="120" aria-hidden="true"></canvas>
           <span>Castel del Monte</span>
@@ -315,6 +271,50 @@
         <button type="button" class="mandala-card" data-preset="lalibela">
           <canvas id="previewLalibela" width="120" height="120" aria-hidden="true"></canvas>
           <span>Bete Giyorgis</span>
+        </button>
+        <button type="button" class="mandala-card mandala-card--experimental" data-preset="chartres">
+          <canvas id="previewChartres" width="120" height="120" aria-hidden="true"></canvas>
+          <span>Chartres Labyrinth</span>
+        </button>
+        <button type="button" class="mandala-card mandala-card--experimental" data-preset="rosewindow">
+          <canvas id="previewRoseWindow" width="120" height="120" aria-hidden="true"></canvas>
+          <span>Rose Window</span>
+        </button>
+        <button type="button" class="mandala-card mandala-card--experimental" data-preset="sunstone">
+          <canvas id="previewSunStone" width="120" height="120" aria-hidden="true"></canvas>
+          <span>Aztec Sun Stone</span>
+        </button>
+        <button type="button" class="mandala-card mandala-card--experimental" data-preset="lotfollah">
+          <canvas id="previewLotfollah" width="120" height="120" aria-hidden="true"></canvas>
+          <span>Lotfollah Dome</span>
+        </button>
+        <button type="button" class="mandala-card mandala-card--experimental" data-preset="chladni">
+          <canvas id="previewChladni" width="120" height="120" aria-hidden="true"></canvas>
+          <span>Chladni Mode</span>
+        </button>
+        <button type="button" class="mandala-card mandala-card--experimental" data-preset="diatom">
+          <canvas id="previewDiatom" width="120" height="120" aria-hidden="true"></canvas>
+          <span>Centric Diatom</span>
+        </button>
+        <button type="button" class="mandala-card mandala-card--experimental" data-preset="radiolaria">
+          <canvas id="previewRadiolaria" width="120" height="120" aria-hidden="true"></canvas>
+          <span>Radiolaria</span>
+        </button>
+        <button type="button" class="mandala-card mandala-card--experimental" data-preset="snowflake">
+          <canvas id="previewSnowflake" width="120" height="120" aria-hidden="true"></canvas>
+          <span>Snowflake</span>
+        </button>
+        <button type="button" class="mandala-card mandala-card--experimental" data-preset="kolam">
+          <canvas id="previewKolam" width="120" height="120" aria-hidden="true"></canvas>
+          <span>Kolam</span>
+        </button>
+        <button type="button" class="mandala-card mandala-card--experimental" data-preset="vastu">
+          <canvas id="previewVastu" width="120" height="120" aria-hidden="true"></canvas>
+          <span>Vastu Mandala</span>
+        </button>
+        <button type="button" class="mandala-card mandala-card--experimental" data-preset="phyllotaxis">
+          <canvas id="previewPhyllotaxis" width="120" height="120" aria-hidden="true"></canvas>
+          <span>Phyllotaxis</span>
         </button>
       </div>
       <div class="mandala-dock__options">

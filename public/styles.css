@@ -575,7 +575,7 @@ a:focus-visible {
 .mandala-dock__resize {
   min-width: 0;
   height: 24px;
-  padding: 0 8px;
+  padding: 0 9px;
   border: 1px solid rgba(255,255,255,.08);
   border-radius: 8px;
   background: rgba(255,255,255,.035);
@@ -720,6 +720,12 @@ a:focus-visible {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 6px;
+}
+.mandala-library .mandala-card--experimental {
+  display: none;
+}
+.mandala-dock.is-expanded .mandala-library .mandala-card--experimental {
+  display: grid;
 }
 .mandala-card {
   display: grid;
