@@ -211,7 +211,7 @@
     sriyantra: {
       kind: 'symmetric',
       plan: 'Sri Yantra plan',
-      spatial: 'Sri Yantra hierarchy',
+      spatial: 'Sri Yantra pyramidal lift',
     },
     kaliyantra: {
       kind: 'symmetric',
@@ -221,7 +221,7 @@
     matangiyantra: {
       kind: 'symmetric',
       plan: 'Matangi Yantra plan',
-      spatial: 'Matangi Yantra hierarchy',
+      spatial: 'Matangi pyramidal lift',
     },
     hex: {
       kind: 'symmetric',
@@ -3212,8 +3212,379 @@
     );
   }
 
+  function yantraNetworkCells(segments) {
+    const vertices = new Map();
+    const adjacency = new Map();
+
+    const vertexKey = (point) => {
+      const normalized = point.map(symmetryCoord);
+      const key = normalized
+        .map((value) => value.toFixed(5))
+        .join(',');
+
+      if (!vertices.has(key)) vertices.set(key, normalized);
+      if (!adjacency.has(key)) adjacency.set(key, new Set());
+      return key;
+    };
+
+    for (const segment of segments) {
+      const a = vertexKey(segment[0]);
+      const b = vertexKey(segment[1]);
+      if (a === b) continue;
+      adjacency.get(a).add(b);
+      adjacency.get(b).add(a);
+    }
+
+    const orderedNeighbors = new Map();
+    for (const [key, neighbors] of adjacency) {
+      const point = vertices.get(key);
+      orderedNeighbors.set(
+        key,
+        [...neighbors].sort((a, b) => {
+          const pa = vertices.get(a);
+          const pb = vertices.get(b);
+          return (
+            Math.atan2(pa[1] - point[1], pa[0] - point[0])
+            - Math.atan2(pb[1] - point[1], pb[0] - point[0])
+          );
+        }),
+      );
+    }
+
+    const visited = new Set();
+    const cells = [];
+
+    for (const [startA, neighbors] of orderedNeighbors) {
+      for (const startB of neighbors) {
+        const firstEdge = startA + '>' + startB;
+        if (visited.has(firstEdge)) continue;
+
+        let a = startA;
+        let b = startB;
+        const polygon = [];
+        let closed = false;
+
+        for (let guard = 0; guard < 1000; guard += 1) {
+          const edgeKey = a + '>' + b;
+          if (visited.has(edgeKey)) break;
+
+          visited.add(edgeKey);
+          polygon.push(vertices.get(a));
+
+          const around = orderedNeighbors.get(b);
+          const incoming = around.indexOf(a);
+          if (incoming < 0) break;
+
+          // Walk the face on the left side of the directed edge.
+          const c = around[
+            (incoming - 1 + around.length) % around.length
+          ];
+
+          a = b;
+          b = c;
+
+          if (a === startA && b === startB) {
+            closed = true;
+            break;
+          }
+        }
+
+        if (!closed || polygon.length < 3) continue;
+
+        let signedArea = 0;
+        for (let index = 0; index < polygon.length; index += 1) {
+          const p = polygon[index];
+          const q = polygon[(index + 1) % polygon.length];
+          signedArea += p[0] * q[1] - q[0] * p[1];
+        }
+        signedArea *= 0.5;
+
+        // Positive cycles are the bounded cells; the outer face is negative.
+        if (signedArea > 1e-7) cells.push(polygon);
+      }
+    }
+
+    return cells;
+  }
+
+  function yantraCellCentroid(points) {
+    let x = 0;
+    let y = 0;
+
+    for (const point of points) {
+      x += point[0];
+      y += point[1];
+    }
+
+    return [x / points.length, y / points.length];
+  }
+
+  function visibleYantraPieceAt(point, pieces) {
+    const covering = pieces.filter((piece) => (
+      pointInConvexPolygon(point, piece.points)
+    ));
+
+    if (!covering.length) return null;
+
+    covering.sort((a, b) => {
+      const orderA = a.paintOrder ?? 0;
+      const orderB = b.paintOrder ?? 0;
+      if (orderA !== orderB) return orderA - orderB;
+      return rawPolygonArea(b.points) - rawPolygonArea(a.points);
+    });
+
+    return covering[covering.length - 1];
+  }
+
+  function yantraPyramidHeightFunction(
+    trianglePieces,
+    baseZ,
+    peakZ,
+  ) {
+    const network = yantraSubdivisionNetwork(trianglePieces);
+    let maxRadius = 0.001;
+
+    for (const segment of network) {
+      for (const point of segment) {
+        maxRadius = Math.max(
+          maxRadius,
+          Math.hypot(point[0], point[1]),
+        );
+      }
+    }
+
+    const heightAt = (point) => {
+      const radial = clamp(
+        Math.hypot(point[0], point[1]) / maxRadius,
+        0,
+        1,
+      );
+
+      // A linear radial rise gives the whole source network one coherent
+      // pyramidal tendency without introducing a single new XY edge.
+      const inward = 1 - radial;
+      return baseZ + (peakZ - baseZ) * inward;
+    };
+
+    return { network, maxRadius, heightAt };
+  }
+
+  function addYantraPyramidNetwork(
+    trianglePieces,
+    baseZ,
+    peakZ,
+  ) {
+    const {
+      network,
+      heightAt,
+    } = yantraPyramidHeightFunction(
+      trianglePieces,
+      baseZ,
+      peakZ,
+    );
+
+    const cells = yantraNetworkCells(network);
+
+    for (const cell of cells) {
+      const centroid = yantraCellCentroid(cell);
+      const visiblePiece = visibleYantraPieceAt(
+        centroid,
+        trianglePieces,
+      );
+      if (!visiblePiece) continue;
+
+      const vertices3 = cell.map((point) => [
+        point[0],
+        point[1],
+        heightAt(point),
+      ]);
+
+      const hierarchyT = clamp(
+        (heightAt(centroid) - baseZ)
+          / Math.max(0.001, peakZ - baseZ),
+        0,
+        1,
+      );
+
+      // Faces use only cells bounded by original triangle-network segments.
+      // There are deliberately no mesh edges here; the actual source network
+      // is added separately below, so hidden triangulation never appears.
+      extrudeTo4D(
+        vertices3,
+        [],
+        [{
+          indices: vertices3.map((_, index) => index),
+          axis: 'n',
+        }],
+        0.045,
+        cell,
+        [],
+        visiblePiece.regionId,
+        {
+          hierarchyT,
+          polarity: regionPolarity(visiblePiece.regionId),
+        },
+      );
+    }
+
+    // Lift the exact source triangle network. These are the only visible
+    // structural edges of the pyramidal surface.
+    for (const piece of trianglePieces) {
+      const segments = network.filter((segment) => (
+        segmentOnPolygonBoundary(segment, piece.points)
+      ));
+
+      const vertices3 = [];
+      const vertexByKey = new Map();
+      const edges3 = [];
+
+      const vertexIndex = (point) => {
+        const normalized = point.map(symmetryCoord);
+        const key = normalized
+          .map((value) => value.toFixed(5))
+          .join(',');
+
+        if (vertexByKey.has(key)) {
+          return vertexByKey.get(key);
+        }
+
+        const index = vertices3.length;
+        vertices3.push([
+          normalized[0],
+          normalized[1],
+          heightAt(normalized) + 0.003,
+        ]);
+        vertexByKey.set(key, index);
+        return index;
+      };
+
+      for (const segment of segments) {
+        const a = vertexIndex(segment[0]);
+        const b = vertexIndex(segment[1]);
+        if (a === b) continue;
+        edges3.push({ a, b, axis: 'n' });
+      }
+
+      if (!edges3.length) continue;
+
+      const centroid = yantraCellCentroid(piece.points);
+      const hierarchyT = clamp(
+        (heightAt(centroid) - baseZ)
+          / Math.max(0.001, peakZ - baseZ),
+        0,
+        1,
+      );
+
+      // Edge extrusion supplies the W-side ribbons in 4D while remaining
+      // exactly on the original 2D network in XY.
+      extrudeTo4D(
+        vertices3,
+        edges3,
+        [],
+        0.026,
+        piece.points,
+        [],
+        piece.regionId,
+        {
+          hierarchyT,
+          polarity: regionPolarity(piece.regionId),
+        },
+      );
+    }
+
+    return { heightAt, baseZ, peakZ };
+  }
+
+  function addYantraPyramidOuterPieces(
+    pieces,
+    trianglePredicate,
+    levelCenters,
+  ) {
+    for (const piece of pieces) {
+      if (
+        trianglePredicate(piece)
+        || piece.regionId?.includes('bindu')
+      ) continue;
+
+      const centerZ = levelCenters(piece);
+      let thickness = 0.050;
+
+      if (piece.regionId?.includes('bhupura')) {
+        thickness = 0.060;
+      } else if (piece.regionId?.includes('lotus')) {
+        thickness = 0.048;
+      }
+
+      addFootprintPrismCentered(
+        piece.points,
+        centerZ,
+        thickness,
+        piece.regionId,
+        [],
+        {
+          hierarchyT: clamp(
+            (centerZ + 0.38) / 1.2,
+            0,
+            0.32,
+          ),
+          polarity: 0,
+        },
+      );
+    }
+  }
+
   function buildSriYantraForm() {
-    buildYantraForm(sriYantraPieces());
+    const pieces = sriYantraPieces();
+
+    // Keep Mirror as the intentionally experimental reflection-symmetric
+    // alternative. Hierarchy is the plan-faithful pyramidal construction.
+    if (state.zLiftStyle === 'mirror') {
+      buildYantraForm(pieces);
+      return;
+    }
+
+    resetGeometry();
+
+    const trianglePredicate = (piece) => (
+      piece.regionId?.startsWith('sri-shiva-')
+      || piece.regionId?.startsWith('sri-shakti-')
+    );
+    const triangles = pieces.filter(trianglePredicate);
+    const separated = state.spacingStyle === 'separated';
+    const gap = separated ? 0.045 : 0;
+
+    addYantraPyramidOuterPieces(
+      pieces,
+      trianglePredicate,
+      (piece) => {
+        if (piece.level <= 0) return -0.34;
+        if (piece.level === 1) return -0.23 + gap;
+        if (piece.level === 2) return -0.13 + gap * 2;
+        return -0.045 + gap * 3;
+      },
+    );
+
+    const baseZ = 0.015 + gap * 3.5;
+    const peakZ = 0.79 + gap * 4.5;
+    addYantraPyramidNetwork(
+      triangles,
+      baseZ,
+      peakZ,
+    );
+
+    const bindu = pieces.find((piece) => (
+      piece.regionId === 'sri-bindu'
+    ));
+    if (bindu) {
+      addFootprintPrismCentered(
+        bindu.points,
+        peakZ + 0.045,
+        0.090,
+        bindu.regionId,
+        [],
+        { hierarchyT: 1, polarity: 0 },
+      );
+    }
   }
 
   function buildKaliYantraForm() {
@@ -3221,7 +3592,55 @@
   }
 
   function buildMatangiYantraForm() {
-    buildYantraForm(matangiYantraPieces());
+    const pieces = matangiYantraPieces();
+
+    if (state.zLiftStyle === 'mirror') {
+      buildYantraForm(pieces);
+      return;
+    }
+
+    resetGeometry();
+
+    const trianglePredicate = (piece) => (
+      piece.regionId === 'matangi-shiva'
+      || piece.regionId === 'matangi-shakti'
+    );
+    const triangles = pieces.filter(trianglePredicate);
+    const separated = state.spacingStyle === 'separated';
+    const gap = separated ? 0.045 : 0;
+
+    addYantraPyramidOuterPieces(
+      pieces,
+      trianglePredicate,
+      (piece) => {
+        if (piece.level <= 0) return -0.31;
+        if (piece.level === 1) return -0.21 + gap;
+        if (piece.level === 2) return -0.13 + gap * 2;
+        return -0.055 + gap * 3;
+      },
+    );
+
+    const baseZ = 0.005 + gap * 3.5;
+    const peakZ = 0.66 + gap * 4.5;
+    addYantraPyramidNetwork(
+      triangles,
+      baseZ,
+      peakZ,
+    );
+
+    const bindu = pieces.find((piece) => (
+      piece.regionId === 'matangi-bindu'
+    ));
+    if (bindu) {
+      addFootprintPrismCentered(
+        bindu.points,
+        peakZ + 0.042,
+        0.084,
+        bindu.regionId,
+        [],
+        { hierarchyT: 1, polarity: 0 },
+      );
+    }
   }
 
   
