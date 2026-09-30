@@ -721,10 +721,10 @@ a:focus-visible {
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 6px;
 }
-.mandala-card--experimental {
+.mandala-library .mandala-card--experimental {
   display: none;
 }
-.mandala-dock.is-expanded .mandala-card--experimental {
+.mandala-dock.is-expanded .mandala-library .mandala-card--experimental {
   display: grid;
 }
 .mandala-card {
