@@ -1110,3 +1110,187 @@ a:focus-visible {
     bottom: max(6px, env(safe-area-inset-bottom));
   }
 }
+
+
+/* Mobile live editor: keep the geometry visible while controls are used. */
+@media (max-width: 760px) {
+  body {
+    --mobile-editor-height: min(28dvh, 220px);
+    --mobile-bottom-gap: max(8px, env(safe-area-inset-bottom));
+    --mobile-dimension-height: 54px;
+  }
+
+  .mobile-panel-close {
+    display: none !important;
+  }
+
+  .dimension-switcher {
+    bottom: var(--mobile-bottom-gap);
+    min-height: var(--mobile-dimension-height);
+  }
+
+  .mobile-panel-switcher {
+    left: 50%;
+    right: auto;
+    bottom: calc(
+      var(--mobile-bottom-gap)
+      + var(--mobile-dimension-height)
+      + var(--mobile-editor-height)
+      + 8px
+    );
+    width: min(214px, calc(100vw - 28px));
+    transform: translateX(-50%);
+    z-index: 10;
+  }
+  .mobile-panel-switcher button {
+    min-height: 42px;
+  }
+
+  .control-panel,
+  .mandala-dock,
+  .mandala-dock.is-collapsed {
+    top: auto;
+    left: max(8px, env(safe-area-inset-left));
+    right: max(8px, env(safe-area-inset-right));
+    bottom: calc(
+      var(--mobile-bottom-gap)
+      + var(--mobile-dimension-height)
+      + 4px
+    );
+    width: auto;
+    height: var(--mobile-editor-height);
+    min-height: 0;
+    max-height: none;
+    margin: 0;
+    border-radius: 17px;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: none;
+    overflow: auto;
+    box-shadow: none;
+    transition: opacity 130ms ease, visibility 0s linear 130ms;
+  }
+
+  .control-panel.is-mobile-open,
+  .mandala-dock.is-mobile-open {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: none;
+    transition: opacity 130ms ease, visibility 0s;
+  }
+
+  .mandala-dock,
+  .mandala-dock.is-collapsed {
+    padding: 8px 9px 9px;
+  }
+  .mandala-dock__header {
+    display: none;
+  }
+  .mandala-dock__body,
+  .mandala-dock.is-collapsed .mandala-dock__body {
+    display: block;
+    margin-top: 0;
+  }
+
+  .mandala-library {
+    grid-auto-columns: 78px;
+    gap: 5px;
+    padding: 0 1px 6px;
+  }
+  .mandala-card {
+    grid-template-rows: 55px auto;
+    min-height: 82px;
+    padding: 4px 3px 5px;
+    border-radius: 10px;
+  }
+  .mandala-card canvas {
+    width: 54px;
+    height: 54px;
+  }
+
+  .mandala-dock__options {
+    display: grid;
+    gap: 3px;
+  }
+  .dock-option {
+    grid-template-columns: 58px minmax(0, 1fr);
+    gap: 6px;
+    margin-top: 3px;
+  }
+  .dock-option .segmented button {
+    min-height: 36px;
+    font-size: 9px;
+  }
+
+  .control-panel {
+    padding: 9px 10px 11px;
+  }
+  .control-panel__title {
+    position: sticky;
+    top: -9px;
+    min-height: 40px;
+    margin: -9px -10px 5px;
+    padding: 8px 10px 6px;
+  }
+  .control-panel__title button {
+    min-height: 34px;
+  }
+  .control-section {
+    padding-top: 9px;
+    margin-top: 7px;
+  }
+  .segmented button {
+    min-height: 38px;
+  }
+  .control-row {
+    min-height: 40px;
+  }
+  .control-row input[type="range"] {
+    height: 30px;
+  }
+
+  .hint {
+    top: max(46px, calc(env(safe-area-inset-top) + 40px));
+  }
+}
+
+@media (max-width: 420px) and (max-height: 740px) {
+  body {
+    --mobile-editor-height: min(25dvh, 170px);
+  }
+
+  .mandala-library {
+    grid-auto-columns: 72px;
+  }
+  .mandala-card {
+    grid-template-rows: 49px auto;
+    min-height: 74px;
+  }
+  .mandala-card canvas {
+    width: 48px;
+    height: 48px;
+  }
+}
+
+@media (max-height: 520px) and (max-width: 900px) {
+  body {
+    --mobile-editor-height: min(33dvh, 150px);
+  }
+
+  .mobile-panel-switcher {
+    bottom: calc(
+      var(--mobile-bottom-gap)
+      + var(--mobile-dimension-height)
+      + var(--mobile-editor-height)
+      + 6px
+    );
+  }
+
+  .control-panel,
+  .mandala-dock,
+  .mandala-dock.is-collapsed {
+    max-height: none;
+  }
+}
