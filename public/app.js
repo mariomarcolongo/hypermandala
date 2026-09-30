@@ -510,7 +510,11 @@
   const planFaceKeys = new Set();
   const rotationUI = {};
   const scaleUI = {};
-  const geometryStats = { maxPlanRadius: 1 };
+  const geometryStats = {
+    maxPlanRadius: 1,
+    centerZ: 0,
+    centerW: 0,
+  };
 
   function compileGlShader(type, source) {
     if (!gl) return null;
@@ -744,12 +748,28 @@
 
   function updateGeometryStats() {
     let maxRadius = 0.001;
+    let minZ = Infinity;
+    let maxZ = -Infinity;
+    let minW = Infinity;
+    let maxW = -Infinity;
+
     for (const module of modules) {
       for (const point of module.vertices) {
         maxRadius = Math.max(maxRadius, Math.hypot(point[0], point[1]));
+        minZ = Math.min(minZ, point[2]);
+        maxZ = Math.max(maxZ, point[2]);
+        minW = Math.min(minW, point[3]);
+        maxW = Math.max(maxW, point[3]);
       }
     }
+
     geometryStats.maxPlanRadius = maxRadius;
+    geometryStats.centerZ = Number.isFinite(minZ) && Number.isFinite(maxZ)
+      ? (minZ + maxZ) * 0.5
+      : 0;
+    geometryStats.centerW = Number.isFinite(minW) && Number.isFinite(maxW)
+      ? (minW + maxW) * 0.5
+      : 0;
   }
 
   function rotateXYPoint(x, y, angle) {
@@ -3614,10 +3634,52 @@
     point[b] = s * pa + c * pb;
   }
 
+  function transitionProgress() {
+    return state.transition?.progress ?? 0;
+  }
+
+  function transitionTouchesDimension(dimension) {
+    if (!state.transition) return false;
+    return (
+      state.transition.fromDimension === dimension
+      || state.transition.toDimension === dimension
+    );
+  }
+
+  function dimensionOrientationMix(dimension) {
+    const structural = dimension === 3 ? state.zMix : state.wMix;
+    if (!state.transition || !transitionTouchesDimension(dimension)) {
+      return structural;
+    }
+
+    const t = transitionProgress();
+    const forward = state.transition.toDimension > state.transition.fromDimension;
+
+    if (dimension === 3 && new Set([
+      state.transition.fromDimension,
+      state.transition.toDimension,
+    ]).has(2)) {
+      return forward
+        ? smoother(clamp((t - 0.78) / 0.22, 0, 1))
+        : 1 - smoother(clamp(t / 0.24, 0, 1));
+    }
+
+    if (dimension === 4 && new Set([
+      state.transition.fromDimension,
+      state.transition.toDimension,
+    ]).has(3)) {
+      return forward
+        ? smoother(clamp((t - 0.74) / 0.26, 0, 1))
+        : 1 - smoother(clamp(t / 0.26, 0, 1));
+    }
+
+    return structural;
+  }
+
   function activeAngle(config) {
     let factor = 1;
-    if (config.key.includes('z')) factor *= state.zMix;
-    if (config.key.includes('w')) factor *= state.wMix;
+    if (config.key.includes('z')) factor *= dimensionOrientationMix(3);
+    if (config.key.includes('w')) factor *= dimensionOrientationMix(4);
     return state.rotations[config.key] * RAD * factor;
   }
 
@@ -3631,8 +3693,13 @@
 
     p[0] *= sx;
     p[1] *= sy;
-    p[2] *= sz * state.zMix;
-    p[3] *= sw * state.wMix;
+
+    // Center the added dimensions for presentation. This is a uniform
+    // rendering offset only: it does not change the intrinsic geometry.
+    // It prevents asymmetric +Z architectures or W polarity from making the
+    // whole object visibly jump up/down or sideways while a dimension grows.
+    p[2] = (p[2] - geometryStats.centerZ) * sz * state.zMix;
+    p[3] = (p[3] - geometryStats.centerW) * sw * state.wMix;
 
     for (const config of ROTATION_CONFIG) {
       rotatePlane(p, config.a, config.b, activeAngle(config));
