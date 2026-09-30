@@ -4318,11 +4318,9 @@
     };
   }
 
-  function faceVisibility(face) {
-    const wReveal = wConstructionReveal();
-
-    if (face.bridge) return wReveal.faces;
-    if (face.wLayer === 1) return wReveal.shell;
+  function faceVisibility() {
+    // Filled rendering morphs through geometry, not transparency. Side and
+    // bridge faces naturally grow from zero projected area as Z/W separates.
     return 1;
   }
 
@@ -4349,6 +4347,14 @@
     return centroid.map((value) => value / n);
   }
 
+  function faceStyleMix() {
+    if (!state.transition) return 1;
+    const from = state.transition.fromDimension;
+    const to = state.transition.toDimension;
+    if (!((from === 2 && to === 3) || (from === 3 && to === 2))) return 1;
+    return dimensionOrientationMix(3);
+  }
+
   function classicFaceRgb(face, module) {
     const centroid = faceCentroid(face, module);
     const base = classicRegionRgb(
@@ -4357,10 +4363,11 @@
       centroid[1],
     );
 
-    // Region hue is invariant across 2D/3D/4D. Orientation changes only
-    // brightness so the geometry remains readable.
+    // Keep the family/region hue continuous with the 2D source plan. Normal
+    // orientation shading arrives only as the 3D view itself settles.
     const orientationShade = CLASSIC_SHADE[face.axis] || 1;
-    return shadeRgb(base, orientationShade);
+    const shaded = shadeRgb(base, orientationShade);
+    return mixRgb(base, shaded, faceStyleMix());
   }
 
   function classicFaceColor(face, module) {
@@ -4368,8 +4375,14 @@
   }
 
   function faceFillRgb(face, module) {
+    const styleMix = faceStyleMix();
+
     if (state.colorMode === 'axis') {
-      return hexToRgb(axisColor(face.axis));
+      return mixRgb(
+        hexToRgb('#d9dde4'),
+        hexToRgb(axisColor(face.axis)),
+        styleMix,
+      );
     }
 
     if (state.colorMode === 'classic') {
@@ -4384,7 +4397,11 @@
       n: '#c0b49d',
     };
 
-    return hexToRgb(formColors[face.axis] || formColors.n);
+    return mixRgb(
+      hexToRgb('#c9b995'),
+      hexToRgb(formColors[face.axis] || formColors.n),
+      styleMix,
+    );
   }
 
   function faceFillColor(face, module) {
@@ -4449,11 +4466,9 @@
           ? classicPlanColor(face)
           : '#c9b995';
 
-      // Classic regions are opaque at rest. This prevents overlapping
-      // translucent polygons from inventing colors that don't exist in 3D.
-      ctx.globalAlpha = state.colorMode === 'classic'
-        ? alpha
-        : alpha * 0.16;
+      // Rendering, not palette, determines whether faces are filled.
+      // Solid and Solid + wireframe stay solid in 2D for every palette.
+      ctx.globalAlpha = alpha;
       ctx.fill();
 
       if (state.colorMode === 'classic') {
@@ -4910,31 +4925,37 @@
 
     const zReveal = zConstructionReveal();
     const wReveal = wConstructionReveal();
-
-    // The 2D source behaves like a construction drawing: its filled regions
-    // fade first, while its lines remain long enough to show exactly where the
-    // new edges and surfaces originate.
-    const planFaceAlpha =
-      1 - smoother(clamp((state.zMix - 0.14) / 0.48, 0, 1));
-    const planEdgeAlpha =
-      1 - smoother(clamp((state.zMix - 0.58) / 0.42, 0, 1));
-
-    drawPlanFaces(planFaceAlpha);
-    drawPlanEdges(planEdgeAlpha);
-
-    // Surfaces first appear translucent, then become fully opaque solids.
-    // This gives the morph a readable edge → face → solid progression.
-    const surfaceAlpha = zReveal.faces * (0.18 + zReveal.solid * 0.82);
-    const solidHandled = drawSolidLayer(surfaceAlpha);
-    if (!solidHandled) drawFaces(surfaceAlpha);
-
-    // Respect the selected rendering mode throughout the morph.
-    // Solid remains Solid, Solid + wireframe keeps its structural overlay,
-    // and Wire remains Wire. Construction is communicated by geometry growth
-    // and face opacity rather than by temporarily switching render styles.
     const transitionEdgeAlpha = Math.max(zReveal.edges, wReveal.edges);
-    drawEdges(transitionEdgeAlpha);
-    drawVertices(transitionEdgeAlpha);
+
+    if (state.renderMode === 'wire') {
+      // Wire remains line-only for the complete journey.
+      clearSolidLayer();
+      const planEdgeAlpha =
+        1 - smoother(clamp((state.zMix - 0.48) / 0.42, 0, 1));
+      drawPlanEdges(planEdgeAlpha);
+      drawEdges(transitionEdgeAlpha);
+      drawVertices(transitionEdgeAlpha);
+      return;
+    }
+
+    // Filled modes remain opaque. The geometry itself performs the morph:
+    // collapsed faces open into surfaces/solids as Z or W separates.
+    const usePlanRenderer = state.zMix < 0.025;
+    if (usePlanRenderer) {
+      clearSolidLayer();
+      drawPlanFaces(1);
+      drawPlanEdges(1);
+      return;
+    }
+
+    const solidHandled = drawSolidLayer(1);
+    if (!solidHandled) drawFaces(1);
+
+    // Only the explicit Solid + wireframe mode receives the structural overlay.
+    if (state.renderMode === 'solid-edges') {
+      drawEdges(transitionEdgeAlpha);
+      drawVertices(transitionEdgeAlpha);
+    }
   }
 
   function drawPreviewToCanvas(previewCanvas) {
