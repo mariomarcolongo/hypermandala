@@ -6433,6 +6433,148 @@
     }
   }
 
+  function intrinsicLineKey(a, b) {
+    const delta = a.map((value, index) => b[index] - value);
+    const length = Math.hypot(...delta);
+    if (length < 1e-10) return null;
+
+    let direction = delta.map((value) => value / length);
+    const firstNonZero = direction.find((value) => Math.abs(value) > 1e-9);
+    if (firstNonZero < 0) {
+      direction = direction.map((value) => -value);
+    }
+
+    const t = a.reduce(
+      (sum, value, index) => sum + value * direction[index],
+      0,
+    );
+    const anchor = a.map(
+      (value, index) => value - direction[index] * t,
+    );
+
+    return {
+      key:
+        direction.map(symmetryCoord).join(',')
+        + '|'
+        + anchor.map(symmetryCoord).join(','),
+      direction,
+      anchor,
+    };
+  }
+
+  function uniqueStructuralEdgeSegments() {
+    if (PRESET_META[state.preset]?.kind !== 'symmetric') {
+      return null;
+    }
+
+    const groups = new Map();
+
+    modules.forEach((module, moduleIndex) => {
+      const moduleAmount = moduleEmergence(module);
+      if (moduleAmount <= 0.002) return;
+
+      module.edges.forEach((edge, edgeIndex) => {
+        const visibility = edgeVisibility(edge) * moduleAmount;
+        if (visibility <= 0.002) return;
+
+        const a = module.vertices[edge.a];
+        const b = module.vertices[edge.b];
+        const line = intrinsicLineKey(a, b);
+        if (!line) return;
+
+        const ta = a.reduce(
+          (sum, value, index) => sum + value * line.direction[index],
+          0,
+        );
+        const tb = b.reduce(
+          (sum, value, index) => sum + value * line.direction[index],
+          0,
+        );
+
+        const segment = {
+          lo: Math.min(ta, tb),
+          hi: Math.max(ta, tb),
+          module,
+          edge,
+          moduleIndex,
+          edgeIndex,
+          visibility,
+        };
+
+        if (!groups.has(line.key)) {
+          groups.set(line.key, {
+            direction: line.direction,
+            anchor: line.anchor,
+            segments: [],
+          });
+        }
+        groups.get(line.key).segments.push(segment);
+      });
+    });
+
+    const result = [];
+    const epsilon = 1e-7;
+
+    for (const group of groups.values()) {
+      const endpoints = group.segments
+        .flatMap((segment) => [segment.lo, segment.hi])
+        .sort((a, b) => a - b);
+
+      const unique = [];
+      for (const value of endpoints) {
+        if (
+          !unique.length
+          || Math.abs(value - unique[unique.length - 1]) > epsilon
+        ) {
+          unique.push(value);
+        }
+      }
+
+      for (let index = 0; index < unique.length - 1; index += 1) {
+        const lo = unique[index];
+        const hi = unique[index + 1];
+        if (hi - lo <= epsilon) continue;
+
+        const middle = (lo + hi) * 0.5;
+        const covering = group.segments.filter((segment) => (
+          middle > segment.lo - epsilon
+          && middle < segment.hi + epsilon
+        ));
+        if (!covering.length) continue;
+
+        covering.sort((a, b) => {
+          if (Math.abs(a.visibility - b.visibility) > 1e-6) {
+            return b.visibility - a.visibility;
+          }
+          if (Boolean(a.edge.detail) !== Boolean(b.edge.detail)) {
+            return a.edge.detail ? 1 : -1;
+          }
+          if (a.moduleIndex !== b.moduleIndex) {
+            return b.moduleIndex - a.moduleIndex;
+          }
+          return b.edgeIndex - a.edgeIndex;
+        });
+
+        const representative = covering[0];
+        const pointAt = (t) => group.anchor.map(
+          (value, axis) => value + group.direction[axis] * t,
+        );
+
+        result.push({
+          a: pointAt(lo),
+          b: pointAt(hi),
+          edge: representative.edge,
+          module: representative.module,
+          visibility: Math.max(
+            ...covering.map((segment) => segment.visibility),
+          ),
+        });
+      }
+    }
+
+    return result;
+  }
+
   function faceWorldKey(module, face) {
     const transitionGroup = state.wMix >= 0.999
       ? ''
@@ -6466,7 +6608,7 @@
     const entries = [];
     const counts = new Map();
     const filledModules = (
-      state.wMix > 0.001
+      state.zMix > 0.001
       && surfaceModules.length
     ) ? surfaceModules : modules;
 
@@ -6597,40 +6739,40 @@
       );
     };
 
-    for (const module of modules) {
-      const moduleAmount = moduleEmergence(module);
-      if (moduleAmount <= 0.002) continue;
+    const normalizedStructuralEdges = uniqueStructuralEdgeSegments();
+    const structuralEdges = normalizedStructuralEdges
+      ?? modules.flatMap((module) => {
+        const moduleAmount = moduleEmergence(module);
+        if (moduleAmount <= 0.002) return [];
 
-      for (const edge of module.edges) {
-        const visibility = edgeVisibility(edge) * moduleAmount;
-        if (visibility <= 0.002) continue;
-
-        const a = projectModulePoint(
+        return module.edges.map((edge) => ({
+          a: module.vertices[edge.a],
+          b: module.vertices[edge.b],
+          edge,
           module,
-          module.vertices[edge.a],
-        );
-        const b = projectModulePoint(
-          module,
-          module.vertices[edge.b],
-        );
+          visibility: edgeVisibility(edge) * moduleAmount,
+        })).filter((item) => item.visibility > 0.002);
+      });
 
-        const dx = b.x - a.x;
-        const dy = b.y - a.y;
-        const length = Math.hypot(dx, dy);
-        if (length < 0.5) continue;
+    for (const item of structuralEdges) {
+      const a = projectToScreen(item.a);
+      const b = projectToScreen(item.b);
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const length = Math.hypot(dx, dy);
+      if (length < 0.5) continue;
 
-        const ox = (-dy / length) * halfWidth;
-        const oy = (dx / length) * halfWidth;
-        const edgeAlpha = clamp(alpha * visibility, 0, 1);
+      const ox = (-dy / length) * halfWidth;
+      const oy = (dx / length) * halfWidth;
+      const edgeAlpha = clamp(alpha * item.visibility, 0, 1);
 
-        const a0 = [a.x + ox, a.y + oy, a.depth];
-        const a1 = [a.x - ox, a.y - oy, a.depth];
-        const b0 = [b.x + ox, b.y + oy, b.depth];
-        const b1 = [b.x - ox, b.y - oy, b.depth];
+      const a0 = [a.x + ox, a.y + oy, a.depth];
+      const a1 = [a.x - ox, a.y - oy, a.depth];
+      const b0 = [b.x + ox, b.y + oy, b.depth];
+      const b1 = [b.x - ox, b.y - oy, b.depth];
 
-        for (const p of [a0, a1, b0, b0, a1, b1]) {
-          pushEdgeVertex(p[0], p[1], p[2], edgeAlpha);
-        }
+      for (const p of [a0, a1, b0, b0, a1, b1]) {
+        pushEdgeVertex(p[0], p[1], p[2], edgeAlpha);
       }
     }
 
@@ -6675,7 +6817,7 @@
 
     const rendered = [];
     const filledModules = (
-      state.wMix > 0.001
+      state.zMix > 0.001
       && surfaceModules.length
     ) ? surfaceModules : modules;
 
@@ -6734,30 +6876,54 @@
   function drawEdges(alpha) {
     if (state.renderMode === 'solid' || alpha <= 0.001) return;
 
-    const rendered = [];
+    const normalized = uniqueStructuralEdgeSegments();
+    const rendered = normalized
+      ? normalized.map((item) => {
+          const a = projectToScreen(item.a);
+          const b = projectToScreen(item.b);
+          return {
+            edge: item.edge,
+            module: item.module,
+            sourceA: item.a,
+            sourceB: item.b,
+            a,
+            b,
+            depth: (a.depth + b.depth) * 0.5,
+            visibility: item.visibility,
+          };
+        }).filter((item) => {
+          const dx = item.b.x - item.a.x;
+          const dy = item.b.y - item.a.y;
+          return dx * dx + dy * dy >= 0.25;
+        })
+      : [];
 
-    for (const module of modules) {
-      const moduleAmount = moduleEmergence(module);
-      if (moduleAmount <= 0.002) continue;
+    if (!normalized) {
+      for (const module of modules) {
+        const moduleAmount = moduleEmergence(module);
+        if (moduleAmount <= 0.002) continue;
 
-      for (const edge of module.edges) {
-        const visibility = edgeVisibility(edge) * moduleAmount;
-        if (visibility <= 0.002) continue;
+        for (const edge of module.edges) {
+          const visibility = edgeVisibility(edge) * moduleAmount;
+          if (visibility <= 0.002) continue;
 
-        const a = projectModulePoint(module, module.vertices[edge.a]);
-        const b = projectModulePoint(module, module.vertices[edge.b]);
-        const dx = b.x - a.x;
-        const dy = b.y - a.y;
-        if (dx * dx + dy * dy < 0.25) continue;
+          const a = projectModulePoint(module, module.vertices[edge.a]);
+          const b = projectModulePoint(module, module.vertices[edge.b]);
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          if (dx * dx + dy * dy < 0.25) continue;
 
-        rendered.push({
-          edge,
-          module,
-          a,
-          b,
-          depth: (a.depth + b.depth) * 0.5,
-          visibility,
-        });
+          rendered.push({
+            edge,
+            module,
+            sourceA: module.vertices[edge.a],
+            sourceB: module.vertices[edge.b],
+            a,
+            b,
+            depth: (a.depth + b.depth) * 0.5,
+            visibility,
+          });
+        }
       }
     }
 
@@ -6777,7 +6943,10 @@
         continue;
       }
 
-      const width = 0.72 + depth * 0.52 + (item.edge.axis === 'w' ? 0.14 : 0);
+      const width =
+        0.72
+        + depth * 0.52
+        + (item.edge.axis === 'w' ? 0.14 : 0);
       const lineAlpha = alpha
         * item.visibility
         * 0.82
@@ -6785,12 +6954,12 @@
 
       let color = axisColor(item.edge.axis);
       if (state.colorMode === 'classic') {
-        const va = item.module.vertices[item.edge.a];
-        const vb = item.module.vertices[item.edge.b];
+        const mx = (item.sourceA[0] + item.sourceB[0]) * 0.5;
+        const my = (item.sourceA[1] + item.sourceB[1]) * 0.5;
         color = classicWireColor(
           item.module.regionId,
-          (va[0] + vb[0]) * 0.5,
-          (va[1] + vb[1]) * 0.5,
+          mx,
+          my,
         );
       }
 

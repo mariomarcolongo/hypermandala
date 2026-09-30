@@ -23,8 +23,8 @@ Families then divide naturally:
 
 In every case:
 
-- **2D → 3D:** every non-zero XY edge in the 3D object must already exist in the 2D geometric plan, and every 2D plan edge must be represented by the collapsed 3D object.
-- **3D → 4D:** for the free symmetric families (Square, Sri Yantra, Kali Yantra, Matangi Yantra and Hex), the default extension is the topology-preserving Cartesian product **G₃ × [-w,w]**. Every point of the finished 3D object receives the same centered W interval. Collapsing W returns the same 3D object exactly, and any regions that touch in 3D remain touching in 4D. Other reference, physical, natural and architectural families may use explicitly documented W semantics.
+- **2D → 3D:** the source plan is treated as a shared cell complex. A shared 2D edge generates one shared 3D interface, not two independently overlapping walls. The generated prism pieces are normalized into a common XY×Z cell complex before filled 3D rendering; partial overlaps are split at all footprint and Z boundaries, internal paired faces cancel, and the original plan-derived black network remains the semantic structural skeleton.
+- **3D → 4D:** for the free symmetric families (Square, Sri Yantra, Kali Yantra, Matangi Yantra and Hex), that same glued 3D cell complex receives the topology-preserving Cartesian product **G₃ × [-w,w]**. Shared 3D faces generate one shared 4D interface, every point receives the same centered W interval, collapsing W returns the exact 3D complex, and no new adjacency or holes are introduced. Other reference, physical, natural and architectural families may use explicitly documented W semantics.
 
 The project therefore preserves identity instead of manufacturing a second interpretation of every object.
 
