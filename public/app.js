@@ -23,6 +23,13 @@
   });
   const basisCanvas = document.getElementById('basisCanvas');
   const basisCtx = basisCanvas.getContext('2d');
+  const referenceView = document.getElementById('referenceView');
+  const referenceCanvas = document.getElementById('referenceCanvas');
+  const referenceCtx = referenceCanvas?.getContext('2d');
+  const wSliceInput = document.getElementById('wSliceInput');
+  const wSliceValue = document.getElementById('wSliceValue');
+  const wSliceControl = document.getElementById('wSliceControl');
+  const replay4DButton = document.getElementById('replay4D');
   const previewCanvases = {
     square: document.getElementById('previewSquare'),
     sriyantra: document.getElementById('previewSriYantra'),
@@ -63,6 +70,7 @@
 
   const dimensionButtons = [...document.querySelectorAll('[data-dimension]')];
   const projectionButtons = [...document.querySelectorAll('[data-projection]')];
+  const insightButtons = [...document.querySelectorAll('[data-insight]')];
   const colorButtons = [...document.querySelectorAll('[data-color]')];
   const renderButtons = [...document.querySelectorAll('[data-render]')];
   const presetButtons = [...document.querySelectorAll('[data-preset]')];
@@ -343,6 +351,8 @@
     zLiftStyle: 'hierarchy',
 
     projection: 'perspective',
+    insightMode: 'standard',
+    wSlice: 0.5,
     colorMode: 'classic',
     renderMode: 'solid',
 
@@ -392,6 +402,8 @@
       zLiftStyle: state.zLiftStyle,
       dimension: state.dimension,
       projection: state.projection,
+      insightMode: state.insightMode,
+      wSlice: state.wSlice,
       colorMode: state.colorMode,
       renderMode: state.renderMode,
       rotations: { ...state.rotations },
@@ -469,6 +481,10 @@
     if (['perspective', 'orthographic', 'isometric'].includes(saved.projection)) {
       state.projection = saved.projection;
     }
+    if (['standard', 'w-color', 'w-slice', 'w-layers', 'compare'].includes(saved.insightMode)) {
+      state.insightMode = saved.insightMode;
+    }
+    state.wSlice = finiteNumber(saved.wSlice, 0.5, 0, 1);
     if (['form', 'axis', 'classic'].includes(saved.colorMode)) {
       state.colorMode = saved.colorMode;
     }
@@ -545,6 +561,14 @@
         button.dataset.projection === state.projection,
       );
     });
+    insightButtons.forEach((button) => {
+      button.classList.toggle(
+        'is-active',
+        button.dataset.insight === state.insightMode,
+      );
+    });
+    if (wSliceInput) wSliceInput.value = String(state.wSlice);
+    if (wSliceValue) wSliceValue.textContent = Math.round(state.wSlice * 100) + '%';
     colorButtons.forEach((button) => {
       button.classList.toggle(
         'is-active',
@@ -1046,21 +1070,22 @@
     }
 
     if (meta.kind === 'symmetric') {
-      // Default mathematical 4D continuation for free symmetric forms:
-      // take the *entire* finished 3D object and form G3 × [-h, h].
-      // Every module therefore occupies the exact same centered W interval.
-      // Adjacency/touching in 3D is preserved in 4D; color, polarity,
-      // hierarchy, region size and local radius cannot create new gaps.
+      // Pure dimensional promotion follows the same convention as the Z lift:
+      // the finished 3D complex starts on W=0 and sweeps into +W.
+      // Intrinsically this is G3 × [0,h]. The renderer may subtract the
+      // midpoint only as a presentation translation so the object stays
+      // centered on screen; the intrinsic geometry remains one-sided in +W.
       const hierarchy = clamp(
         liftMeta?.hierarchyT
           ?? ((z + 1.2) / 2.4),
         0,
         1,
       );
+      const extent = 0.48;
 
       return {
-        center: 0,
-        half: 0.24,
+        center: extent * 0.5,
+        half: extent * 0.5,
         hierarchy,
         polarity: 0,
         kind: 'topology-preserving-hyperprism',
@@ -1192,6 +1217,7 @@
       wProfile,
       source3: {
         vertices: vertices3.map((point) => [...point]),
+        edges: edges3.map((edge) => ({ ...edge })),
         footprint: footprint.map((point) => [...point]),
         baseHalf: wHalf,
         liftMeta: liftMeta ? { ...liftMeta } : null,
@@ -6021,13 +6047,15 @@
       || state.projection === 'isometric'
       || state.wMix < 0.001
     ) {
+      // Exact orthographic projection after 4D rotation: forget W.
       return [p[0], p[1], p[2]];
     }
 
-    const cameraW = 3.6;
-    const focal = 3.6;
-    const denom = Math.max(0.8, cameraW - p[3]);
-    const factor = focal / denom;
+    // Exact central perspective from a 4D camera on +W.
+    // The camera is outside every supported form, so no denominator clamp
+    // is needed; clamping would distort the projective geometry.
+    const cameraW = 9;
+    const factor = cameraW / (cameraW - p[3]);
 
     return [
       p[0] * factor,
@@ -6094,10 +6122,12 @@
     const p4 = transform4D(source, true);
     const p3 = cameraTransform(project4Dto3D(p4));
 
-    const cameraZ = 5.8;
-    const factor = state.projection === 'isometric'
-      ? 1
-      : cameraZ / Math.max(2.6, cameraZ - p3[2]);
+    // Perspective uses a true 3D central projection. Orthographic and
+    // Isometric remain orthographic all the way to the screen.
+    const cameraZ = 9;
+    const factor = state.projection === 'perspective'
+      ? cameraZ / (cameraZ - p3[2])
+      : 1;
 
     const mobile = isMobileLayout();
     const stageTop = mobile ? state.viewTopInset : 0;
@@ -6221,6 +6251,70 @@
     return centroid.map((value) => value / n);
   }
 
+  let transformedWBoundsCache = {
+    key: '',
+    min: -1,
+    max: 1,
+  };
+
+  function transformedWBounds() {
+    const key = [
+      state.preset,
+      state.zMix.toFixed(3),
+      state.wMix.toFixed(3),
+      ...ROTATION_CONFIG.map((config) => state.rotations[config.key].toFixed(3)),
+      ...SCALE_CONFIG.map((config) => state.scales[config.key].toFixed(3)),
+      modules.length,
+      surfaceModules.length,
+    ].join('|');
+
+    if (transformedWBoundsCache.key === key) {
+      return transformedWBoundsCache;
+    }
+
+    let min = Infinity;
+    let max = -Infinity;
+    const source = surfaceModules.length ? surfaceModules : modules;
+
+    for (const module of source) {
+      for (const vertex of module.vertices) {
+        const w = transform4D(vertex, true)[3];
+        min = Math.min(min, w);
+        max = Math.max(max, w);
+      }
+    }
+
+    if (!Number.isFinite(min) || !Number.isFinite(max) || max - min < 1e-7) {
+      min = -1;
+      max = 1;
+    }
+
+    transformedWBoundsCache = { key, min, max };
+    return transformedWBoundsCache;
+  }
+
+  function wCoordinateRgb(face, module) {
+    const bounds = transformedWBounds();
+    const averageW = face.indices.reduce(
+      (sum, index) => sum + transform4D(module.vertices[index], true)[3],
+      0,
+    ) / Math.max(1, face.indices.length);
+
+    const t = clamp(
+      (averageW - bounds.min) / Math.max(1e-7, bounds.max - bounds.min),
+      0,
+      1,
+    );
+
+    const negative = hexToRgb('#6ca8ff');
+    const neutral = hexToRgb('#e7ddc6');
+    const positive = hexToRgb('#f0c45c');
+
+    return t < 0.5
+      ? mixRgb(negative, neutral, t * 2)
+      : mixRgb(neutral, positive, (t - 0.5) * 2);
+  }
+
   function faceStyleMix() {
     if (!state.transition) return 1;
     const from = state.transition.fromDimension;
@@ -6298,6 +6392,13 @@
 
   function faceFillRgb(face, module, projectedPoints = null) {
     const styleMix = faceStyleMix();
+
+    if (state.insightMode === 'w-color' && state.wMix > 0.001) {
+      return shadeRgb(
+        wCoordinateRgb(face, module),
+        faceViewShade(projectedPoints),
+      );
+    }
 
     if (state.colorMode === 'axis') {
       const base = mixRgb(
@@ -6462,10 +6563,12 @@
     };
   }
 
-  function uniqueStructuralEdgeSegments() {
+  function uniqueStructuralEdgeSegments(options = {}) {
     if (PRESET_META[state.preset]?.kind !== 'symmetric') {
       return null;
     }
+
+    const collapseW = Boolean(options.collapseW);
 
     const groups = new Map();
 
@@ -6477,8 +6580,14 @@
         const visibility = edgeVisibility(edge) * moduleAmount;
         if (visibility <= 0.002) return;
 
-        const a = module.vertices[edge.a];
-        const b = module.vertices[edge.b];
+        if (collapseW && edge.axis === 'w') return;
+
+        const a = [...module.vertices[edge.a]];
+        const b = [...module.vertices[edge.b]];
+        if (collapseW) {
+          a[3] = 0;
+          b[3] = 0;
+        }
         const line = intrinsicLineKey(a, b);
         if (!line) return;
 
@@ -7007,6 +7116,161 @@
     ctx.globalAlpha = 1;
   }
 
+  function drawWLayerOverlay() {
+    if (
+      state.wMix <= 0.001
+      || !['w-slice', 'w-layers'].includes(state.insightMode)
+    ) return;
+
+    const edges = uniqueStructuralEdgeSegments({ collapseW: true });
+    if (!edges?.length) return;
+
+    const fractions = state.insightMode === 'w-slice'
+      ? [state.wSlice]
+      : [0, 0.25, 0.5, 0.75, 1];
+
+    for (const fraction of fractions) {
+      const distanceFromFocus = Math.abs(fraction - state.wSlice);
+      const alpha = state.insightMode === 'w-slice'
+        ? 0.92
+        : 0.13 + Math.max(0, 0.26 - distanceFromFocus * 0.28);
+      const width = state.insightMode === 'w-slice' ? 1.65 : 0.9;
+
+      for (const item of edges) {
+        const profile = item.module.wProfile;
+        const w =
+          profile.center
+          - profile.half
+          + fraction * profile.half * 2;
+
+        const a = projectToScreen([item.a[0], item.a[1], item.a[2], w]);
+        const b = projectToScreen([item.b[0], item.b[1], item.b[2], w]);
+
+        drawLine(
+          a,
+          b,
+          state.insightMode === 'w-slice'
+            ? 'rgba(246,221,151,.95)'
+            : 'rgba(220,224,232,.72)',
+          width,
+          alpha,
+        );
+      }
+    }
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(238,239,242,.48)';
+    ctx.font = '8px ui-monospace, SFMono-Regular, Menlo, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(
+      state.insightMode === 'w-slice'
+        ? 'intrinsic W layer ' + Math.round(state.wSlice * 100) + '%'
+        : 'intrinsic W layers 0 · 25 · 50 · 75 · 100%',
+      state.width * 0.5,
+      Math.max(24, state.height - (isMobileLayout() ? 122 : 34)),
+    );
+    ctx.restore();
+  }
+
+  function transform3DReference(source) {
+    const p = [
+      source[0] * state.scales.x,
+      source[1] * state.scales.y,
+      (source[2] - geometryStats.centerZ) * state.scales.z,
+      0,
+    ];
+
+    for (const config of ROTATION_CONFIG) {
+      if (config.key.includes('w')) continue;
+      rotatePlane(
+        p,
+        config.a,
+        config.b,
+        state.rotations[config.key] * RAD,
+      );
+    }
+
+    return cameraTransform([p[0], p[1], p[2]]);
+  }
+
+  function drawReference3D() {
+    if (!referenceView || !referenceCanvas || !referenceCtx) return;
+
+    const visible = (
+      state.insightMode === 'compare'
+      && state.wMix > 0.001
+      && !isMobileLayout()
+    );
+    referenceView.classList.toggle('is-visible', visible);
+    referenceView.setAttribute('aria-hidden', String(!visible));
+    if (!visible) return;
+
+    const cssWidth = 164;
+    const cssHeight = 164;
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    const width = Math.round(cssWidth * dpr);
+    const height = Math.round(cssHeight * dpr);
+
+    if (referenceCanvas.width !== width || referenceCanvas.height !== height) {
+      referenceCanvas.width = width;
+      referenceCanvas.height = height;
+    }
+
+    referenceCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    referenceCtx.clearRect(0, 0, cssWidth, cssHeight);
+
+    const edges = uniqueStructuralEdgeSegments({ collapseW: true });
+    if (!edges?.length) return;
+
+    const projected = edges.map((item) => ({
+      item,
+      a: transform3DReference(item.a),
+      b: transform3DReference(item.b),
+    }));
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    for (const edge of projected) {
+      for (const point of [edge.a, edge.b]) {
+        minX = Math.min(minX, point[0]);
+        minY = Math.min(minY, point[1]);
+        maxX = Math.max(maxX, point[0]);
+        maxY = Math.max(maxY, point[1]);
+      }
+    }
+
+    const spanX = Math.max(0.01, maxX - minX);
+    const spanY = Math.max(0.01, maxY - minY);
+    const scale = Math.min(
+      (cssWidth - 20) / spanX,
+      (cssHeight - 20) / spanY,
+    );
+    const centerX = (minX + maxX) * 0.5;
+    const centerY = (minY + maxY) * 0.5;
+
+    referenceCtx.lineCap = 'round';
+    referenceCtx.lineJoin = 'round';
+
+    for (const edge of projected) {
+      const ax = cssWidth * 0.5 + (edge.a[0] - centerX) * scale;
+      const ay = cssHeight * 0.5 + (edge.a[1] - centerY) * scale;
+      const bx = cssWidth * 0.5 + (edge.b[0] - centerX) * scale;
+      const by = cssHeight * 0.5 + (edge.b[1] - centerY) * scale;
+
+      referenceCtx.beginPath();
+      referenceCtx.moveTo(ax, ay);
+      referenceCtx.lineTo(bx, by);
+      referenceCtx.strokeStyle = edge.item.edge.detail
+        ? 'rgba(235,225,202,.38)'
+        : 'rgba(235,225,202,.72)';
+      referenceCtx.lineWidth = edge.item.edge.detail ? 0.75 : 1;
+      referenceCtx.stroke();
+    }
+  }
+
   function drawScene() {
     ctx.clearRect(0, 0, state.width, state.height);
 
@@ -7039,6 +7303,7 @@
       drawPlanEdges(planEdgeAlpha);
       drawEdges(transitionEdgeAlpha);
       drawVertices(transitionEdgeAlpha);
+      drawWLayerOverlay();
       return;
     }
 
@@ -7060,6 +7325,8 @@
       drawEdges(transitionEdgeAlpha);
       drawVertices(transitionEdgeAlpha);
     }
+
+    drawWLayerOverlay();
   }
 
   function drawPreviewToCanvas(previewCanvas) {
@@ -7513,6 +7780,33 @@
     });
   }
 
+  function setInsightMode(mode) {
+    if (!['standard', 'w-color', 'w-slice', 'w-layers', 'compare'].includes(mode)) {
+      return;
+    }
+
+    state.insightMode = mode;
+    insightButtons.forEach((button) => {
+      button.classList.toggle(
+        'is-active',
+        button.dataset.insight === mode,
+      );
+    });
+    markSettingsDirty();
+  }
+
+  function replay4DConstruction() {
+    if (state.transition || state.dimension !== 4) return;
+
+    state.dimension = 3;
+    state.requestedDimension = 4;
+    state.zMix = 1;
+    state.wMix = 0;
+    state.queue = [];
+    startStage(4);
+    hideHint();
+  }
+
   function setColorMode(mode) {
     if (!['form', 'axis', 'classic'].includes(mode)) return;
     state.colorMode = mode;
@@ -7654,6 +7948,23 @@
     }
 
     const meta = PRESET_META[state.preset] || PRESET_META.square;
+    const insightEnabled = dim >= 4 && !locked;
+
+    insightButtons.forEach((button) => {
+      button.disabled = button.dataset.insight === 'standard'
+        ? locked
+        : !insightEnabled;
+    });
+
+    if (wSliceInput) {
+      wSliceInput.disabled = !insightEnabled || state.insightMode !== 'w-slice';
+    }
+    wSliceControl?.classList.toggle(
+      'is-disabled',
+      !insightEnabled || state.insightMode !== 'w-slice',
+    );
+    if (replay4DButton) replay4DButton.disabled = !insightEnabled;
+
     const zLiftEnabled = meta.kind !== 'architecture' && !locked;
     zLiftButtons.forEach((button) => {
       button.disabled = !zLiftEnabled;
@@ -7744,6 +8055,8 @@
     state.zLiftStyle = 'hierarchy';
 
     state.projection = 'perspective';
+    state.insightMode = 'standard';
+    state.wSlice = 0.5;
     state.colorMode = 'classic';
     state.renderMode = 'solid';
 
@@ -7917,6 +8230,28 @@
       hideHint();
     });
   });
+
+  insightButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      setInsightMode(button.dataset.insight);
+      hideHint();
+    });
+  });
+
+  if (wSliceInput) {
+    installTouchRangeGuard(wSliceInput, (nextValue, interactive) => {
+      state.wSlice = clamp(nextValue, 0, 1);
+      if (wSliceValue) {
+        wSliceValue.textContent = Math.round(state.wSlice * 100) + '%';
+      }
+      if (interactive) {
+        markSettingsDirty();
+        hideHint();
+      }
+    });
+  }
+
+  replay4DButton?.addEventListener('click', replay4DConstruction);
 
   colorButtons.forEach((button) => {
     button.addEventListener('click', () => {
@@ -8238,6 +8573,7 @@
     updateUI();
     drawScene();
     drawBasis();
+    drawReference3D();
     persistSettings(false);
 
     requestAnimationFrame(tick);
