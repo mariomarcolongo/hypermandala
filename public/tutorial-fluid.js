@@ -9,16 +9,22 @@
     enhancements.src = './tutorial-enhancements.js?reload=' + Date.now();
     enhancements.async = false;
     enhancements.onload = () => {
-      const descriptions = document.createElement('script');
-      descriptions.src = './tutorial-descriptions.js?reload=' + Date.now();
-      descriptions.async = false;
-      descriptions.onload = () => {
-        const pacing = document.createElement('script');
-        pacing.src = './tutorial-emergence-pacing.js?reload=' + Date.now();
-        pacing.async = false;
-        document.body.appendChild(pacing);
+      const elements = document.createElement('script');
+      elements.src = './tutorial-elements-clean.js?reload=' + Date.now();
+      elements.async = false;
+      elements.onload = () => {
+        const descriptions = document.createElement('script');
+        descriptions.src = './tutorial-descriptions.js?reload=' + Date.now();
+        descriptions.async = false;
+        descriptions.onload = () => {
+          const pacing = document.createElement('script');
+          pacing.src = './tutorial-emergence-pacing.js?reload=' + Date.now();
+          pacing.async = false;
+          document.body.appendChild(pacing);
+        };
+        document.body.appendChild(descriptions);
       };
-      document.body.appendChild(descriptions);
+      document.body.appendChild(elements);
     };
     document.body.appendChild(enhancements);
   };
