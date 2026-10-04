@@ -239,6 +239,19 @@
     });
   }
 
+  function loadDimensionTutorial() {
+    if (
+      window.__hypermandalaTutorialInstalled
+      || document.querySelector('script[data-hypermandala-tutorial]')
+    ) return;
+
+    const script = document.createElement('script');
+    script.dataset.hypermandalaTutorial = 'true';
+    script.src = './tutorial.js?reload=' + Date.now();
+    script.async = true;
+    document.body.appendChild(script);
+  }
+
   function prepare() {
     if (prepared) return;
     prepared = true;
@@ -261,6 +274,7 @@
        compact/collapsed library. Restore the saved choice before the first
        animation-frame settings flush. */
     restoreExperimentalPreset(savedExperimentalPreset);
+    loadDimensionTutorial();
   }
 
   window.__hypermandalaPrepareUiFixes = prepare;
