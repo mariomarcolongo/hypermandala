@@ -37,5 +37,11 @@
 /tutorial-inspection-motion.js
   Cache-Control: no-cache, max-age=0, must-revalidate
 
+/tutorial-clean-background.js
+  Cache-Control: no-cache, max-age=0, must-revalidate
+
+/tutorial-build-rotation.js
+  Cache-Control: no-cache, max-age=0, must-revalidate
+
 /styles.css
   Cache-Control: no-cache, max-age=0, must-revalidate
