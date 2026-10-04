@@ -22,6 +22,9 @@
 /tutorial-enhancements.js
   Cache-Control: no-cache, max-age=0, must-revalidate
 
+/tutorial-elements-clean.js
+  Cache-Control: no-cache, max-age=0, must-revalidate
+
 /tutorial-descriptions.js
   Cache-Control: no-cache, max-age=0, must-revalidate
 
