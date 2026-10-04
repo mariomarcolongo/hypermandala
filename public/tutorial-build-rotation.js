@@ -12,7 +12,9 @@
 
   const WHITE = 'rgba(244,246,249,.92)';
   const GOLD = '#d8b662';
-  const BUILD_END = .56;
+  /* Keep the dimensional build smooth, then devote most of each stage to the
+     completed form's 360° rotation so it can actually be inspected. */
+  const BUILD_END = .30;
 
   const style = document.createElement('style');
   style.id = 'learn4dBuildRotationStyles';
