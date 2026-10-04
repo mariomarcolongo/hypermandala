@@ -1,6 +1,9 @@
 (() => {
   'use strict';
 
+  if (window.__hypermandalaTutorialEnhancementsInstalled) return;
+  window.__hypermandalaTutorialEnhancementsInstalled = true;
+
   const modesEl = document.querySelector('.learn4d-modes');
   const baseCanvas = document.querySelector('.learn4d-stage');
   const caption = document.querySelector('.learn4d-caption');
@@ -14,6 +17,7 @@
   const BLUE = '#6ca8ff';
 
   const style = document.createElement('style');
+  style.id = 'learn4dEnhancedStyles';
   style.textContent = `
     .learn4d-enhanced-stage {
       position: fixed;
@@ -26,7 +30,10 @@
       transition: opacity 140ms ease;
     }
     body.learn4d-active.learn4d-enhanced .learn4d-enhanced-stage { opacity: 1; }
-    body.learn4d-active.learn4d-enhanced .learn4d-stage:not(.learn4d-enhanced-stage) { opacity: 0 !important; }
+    body.learn4d-active.learn4d-enhanced .learn4d-stage:not(.learn4d-enhanced-stage),
+    body.learn4d-active.learn4d-enhanced .learn4d-elements-clean-stage {
+      opacity: 0 !important;
+    }
   `;
   document.head.appendChild(style);
 
@@ -37,7 +44,6 @@
   const ctx = canvas.getContext('2d');
 
   let mode = null;
-  let raf = 0;
 
   const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
   const lerp = (a, b, t) => a + (b - a) * t;
@@ -115,9 +121,6 @@
     return out;
   }
 
-  /* Canonical zero-origin copy used by Emergence.
-     Keeping unused dimensions at zero makes the completed result of one step
-     exactly the source object of the next: point -> line -> square -> cube. */
   function emergenceVertices(dim, newAxis, newAxisValue) {
     const axes = Array.from({ length: dim }, (_, i) => i);
     const out = [];
@@ -162,38 +165,18 @@
   function drawEmergence(width, height, t) {
     const { stage, local } = stageInfo(t);
     const axis = stage;
-
-    /* Deliberately sequential:
-       1. reveal an identical copy on top of the source;
-       2. move only that copy in the new perpendicular direction;
-       3. once it has arrived, connect corresponding vertices. */
     const duplicateIn = ease(clamp(local / .20));
     const move = ease(clamp((local - .20) / .52));
     const connect = ease(clamp((local - .72) / .28));
 
     const source = drawEmergenceCopy(stage, axis, 0, width, height, WHITE, .62, 1.35);
-    const target = drawEmergenceCopy(
-      stage,
-      axis,
-      move,
-      width,
-      height,
-      GOLD,
-      .96 * duplicateIn,
-      1.75,
-    );
+    const target = drawEmergenceCopy(stage, axis, move, width, height, GOLD, .96 * duplicateIn, 1.75);
 
     if (connect > 0) {
       for (let i = 0; i < Math.min(source.length, target.length); i += 1) {
         const end = source[i].slice();
         end[axis] = lerp(0, 1, connect);
-        line(
-          project(source[i], width, height),
-          project(end, width, height),
-          GOLD,
-          2,
-          .86,
-        );
+        line(project(source[i], width, height), project(end, width, height), GOLD, 2, .86);
       }
     }
 
@@ -201,15 +184,10 @@
     const connections = ['points', 'endpoints', 'corners', 'vertices'];
     const results = ['line', 'square', 'cube', 'tesseract'];
 
-    if (local < .20) {
-      caption.textContent = `duplicate the ${objects[stage]} · the new copy is identical`;
-    } else if (local < .72) {
-      caption.textContent = `move the identical ${objects[stage]} in a new perpendicular direction`;
-    } else if (connect < .98) {
-      caption.textContent = `connect corresponding ${connections[stage]}`;
-    } else {
-      caption.textContent = `regular case · two ${objects[stage]}s + connections → ${results[stage]}`;
-    }
+    if (local < .20) caption.textContent = `duplicate the ${objects[stage]} · the new copy is identical`;
+    else if (local < .72) caption.textContent = `move the identical ${objects[stage]} in a new perpendicular direction`;
+    else if (connect < .98) caption.textContent = `connect corresponding ${connections[stage]}`;
+    else caption.textContent = `regular case · two ${objects[stage]}s + connections → ${results[stage]}`;
   }
 
   function vertices(dim, fixedAxis = null, fixedValue = null) {
@@ -264,7 +242,6 @@
       const a = project([0, 0, 0, 0], width, height);
       const b = project([1, 0, 0, 0], width, height);
       line(a, b, WHITE, 1.1, .16);
-
       for (let i = 0; i < samples; i += 1) {
         const u = i / (samples - 1);
         const p = project([u, 0, 0, 0], width, height);
@@ -273,7 +250,6 @@
         const alpha = passed ? .10 + .46 * Math.exp(-distance * 7) : .025;
         dot(p, i % 12 === 0 ? 2.0 : 1.0, passed ? BLUE : WHITE, alpha);
       }
-
       dot(project([scan, 0, 0, 0], width, height), 4.8, GOLD, .98);
       caption.textContent = 'line = infinitely many points · the glowing point sweeps through the continuum';
       return;
@@ -316,17 +292,33 @@
     caption.textContent = 'tesseract = infinitely many cubic slices · a cube sweeps continuously through W';
   }
 
-  function setEnhanced(next) {
+  function activateEnhanced(next) {
     mode = next;
     document.body.classList.toggle('learn4d-enhanced', Boolean(mode));
-    modesEl.querySelectorAll('.learn4d-mode').forEach((button) => {
-      button.classList.toggle('is-active', button.dataset.mode === mode);
-    });
+
+    if (mode === 'emergence') {
+      modesEl.querySelectorAll('.learn4d-mode').forEach((button) => {
+        button.classList.toggle('is-active', button.dataset.mode === 'emergence');
+      });
+    }
 
     if (mode === 'emergence' || mode === 'continuum') {
       markers.innerHTML = '<span>0D</span><span>1D</span><span>2D</span><span>3D</span><span>4D</span>';
     }
   }
+
+  /* Capture the base buttons before adding Emergence. For normal modes, we
+     only disable the enhanced overlay; importantly we do NOT touch their
+     is-active class. The previous version cleared those classes, which left
+     Elements visually selected in the base state but prevented its clean
+     renderer from activating. */
+  const baseButtons = [...modesEl.querySelectorAll('.learn4d-mode')];
+  baseButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      if (button.dataset.mode === 'continuum') activateEnhanced('continuum');
+      else activateEnhanced(null);
+    });
+  });
 
   const emergence = document.createElement('button');
   emergence.type = 'button';
@@ -336,20 +328,12 @@
   emergence.addEventListener('click', () => {
     const build = modesEl.querySelector('[data-mode="build"]');
     build?.click();
-    setEnhanced('emergence');
+    activateEnhanced('emergence');
   });
 
   const continuumButton = modesEl.querySelector('[data-mode="continuum"]');
   if (continuumButton) modesEl.insertBefore(emergence, continuumButton);
   else modesEl.appendChild(emergence);
-
-  modesEl.querySelectorAll('.learn4d-mode').forEach((button) => {
-    if (button === emergence) return;
-    button.addEventListener('click', () => {
-      if (button.dataset.mode === 'continuum') setEnhanced('continuum');
-      else setEnhanced(null);
-    });
-  });
 
   function frame() {
     if (document.body.classList.contains('learn4d-active') && mode) {
@@ -361,8 +345,8 @@
     } else {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
-    raf = requestAnimationFrame(frame);
+    requestAnimationFrame(frame);
   }
 
-  raf = requestAnimationFrame(frame);
+  requestAnimationFrame(frame);
 })();
