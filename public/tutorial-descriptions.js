@@ -3,55 +3,169 @@
 
   const hud = document.querySelector('.learn4d-hud');
   const modesEl = document.querySelector('.learn4d-modes');
-  if (!hud || !modesEl || document.querySelector('.learn4d-description')) return;
-
-  const descriptions = {
-    build: 'Watch the same rule repeat: each shape extends in a new perpendicular direction to become one dimension higher.',
-    elements: 'Focus on one kind of part: points become edges, edges become faces, faces become cells, and the whole object gains a dimension.',
-    emergence: 'Duplicate the current shape, move the copy in a new perpendicular direction, then connect matching parts. The result is one dimension higher.',
-    continuum: 'Between the two ends are infinitely many slices: a line contains points, a square contains lines, a cube contains squares, and a tesseract contains cubes.',
-    freedom: 'The new dimension is a choice: changing its length, scale, or twist produces different higher-dimensional forms.',
-    slices: 'A slice shows only one cross-section. The same square or cube can belong to many different higher-dimensional objects.',
-  };
+  const timeline = document.querySelector('.learn4d-timeline');
+  if (!hud || !modesEl || !timeline || document.querySelector('.learn4d-step-description')) return;
 
   const style = document.createElement('style');
   style.textContent = `
-    .learn4d-description {
-      max-width: 650px;
-      margin: 0 auto;
-      padding: 1px 10px 3px;
-      color: rgba(238,240,244,.48);
-      font-size: 10px;
-      font-weight: 470;
+    .learn4d-step-description {
+      position: fixed;
+      top: max(46px, calc(env(safe-area-inset-top) + 42px));
+      left: 50%;
+      z-index: 9;
+      transform: translateX(-50%);
+      max-width: min(680px, calc(100vw - 40px));
+      padding: 6px 10px;
+      border-radius: 10px;
+      background: rgba(7,9,11,.34);
+      color: rgba(244,246,249,.68);
+      font-size: 11px;
+      font-weight: 480;
       line-height: 1.4;
       letter-spacing: .008em;
       text-align: center;
       text-wrap: balance;
+      backdrop-filter: blur(7px);
+      -webkit-backdrop-filter: blur(7px);
       pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 150ms ease, visibility 0s linear 150ms;
+    }
+
+    body.learn4d-active .learn4d-step-description {
+      opacity: 1;
+      visibility: visible;
+      transition: opacity 150ms ease, visibility 0s;
     }
 
     @media (max-width: 680px) {
-      .learn4d-description {
-        padding: 0 5px 2px;
-        font-size: 9px;
+      .learn4d-step-description {
+        top: max(42px, calc(env(safe-area-inset-top) + 38px));
+        max-width: calc(100vw - 24px);
+        padding: 5px 8px;
+        font-size: 10px;
         line-height: 1.35;
       }
     }
   `;
   document.head.appendChild(style);
 
-  const description = document.createElement('div');
-  description.className = 'learn4d-description';
-  description.setAttribute('aria-live', 'polite');
-  modesEl.insertAdjacentElement('afterend', description);
+  /* Remove the older static HUD paragraph if this script is hot-reloaded. */
+  document.querySelector('.learn4d-description')?.remove();
 
+  const description = document.createElement('div');
+  description.className = 'learn4d-step-description';
+  description.setAttribute('aria-live', 'polite');
+  document.body.appendChild(description);
+
+  const objects = ['point', 'line', 'square', 'cube'];
+  const results = ['line', 'square', 'cube', 'tesseract'];
+  const matchingParts = ['point', 'endpoints', 'corners', 'vertices'];
+
+  function stageInfo(t) {
+    const x = Math.max(0, Math.min(1, t)) * 4;
+    const stage = Math.min(3, Math.floor(x));
+    return { stage, local: x >= 4 ? 1 : x - stage };
+  }
+
+  function buildText(stage) {
+    return [
+      'A point moves along a new axis. Its path becomes a line.',
+      'Now the whole line moves. Every point traces a line, and together those paths fill a square.',
+      'The whole square moves through a third axis. Its edges sweep faces, while the square sweeps out a cube.',
+      'The whole cube moves through W. Vertices trace edges, edges sweep faces, and faces sweep cubic cells: a tesseract.',
+    ][stage];
+  }
+
+  function elementsText(stage) {
+    const focus = document.querySelector('.learn4d-focus-button.is-active')?.dataset.focus || 'all';
+    if (focus === 'vertices') {
+      return stage === 3
+        ? 'Follow the vertices: every cube vertex traces a new edge through W.'
+        : 'Follow the points: each point traces an edge in the new dimension.';
+    }
+    if (focus === 'edges') {
+      return stage >= 1
+        ? 'Follow the edges: every existing edge sweeps out a face in the new dimension.'
+        : 'Edges appear only after the first dimensional step.';
+    }
+    if (focus === 'faces') {
+      return stage >= 2
+        ? 'Follow the faces: every square face sweeps out a 3D cell in the new dimension.'
+        : 'Faces appear once the construction reaches 2D.';
+    }
+    if (focus === 'whole') {
+      return `The entire ${objects[stage]} sweeps out a ${results[stage]}.`;
+    }
+    return [
+      'The point gains one new direction and becomes an edge.',
+      'Every point traces an edge, while the line itself sweeps a face.',
+      'Points trace edges, edges sweep faces, and the square sweeps the cube.',
+      'Vertices trace W-edges, edges sweep square faces, faces sweep cubic cells, and the cube sweeps the tesseract.',
+    ][stage];
+  }
+
+  function emergenceText(stage, local) {
+    const source = objects[stage];
+    if (local < .20) {
+      return `1 · Make an identical copy of the ${source}. At first, the two copies occupy the same place.`;
+    }
+    if (local < .72) {
+      return `2 · Move only the copy in a new perpendicular direction. The original ${source} stays where it is.`;
+    }
+    if (local < .98) {
+      return `3 · Connect corresponding ${matchingParts[stage]} between the two identical copies.`;
+    }
+    return `Result · the two ${source}${stage === 0 ? 's' : 's'} and their connections form a ${results[stage]} — one dimension higher.`;
+  }
+
+  function continuumText(stage) {
+    return [
+      'A point sweeps continuously along the line. The dots are only samples: infinitely many point positions lie between them.',
+      'A line sweeps continuously across the square. Every intermediate position is another line, so the square contains infinitely many parallel lines.',
+      'A square sweeps continuously through the cube. Every intermediate depth is another square, so the cube contains infinitely many square slices.',
+      'A cube sweeps continuously through W. Every intermediate W-position is another cube, so the tesseract contains infinitely many cubic slices.',
+    ][stage];
+  }
+
+  function variationsText(t) {
+    return t < .5
+      ? 'The continuation is not unique: change how far the square moves, or let it taper or twist, and a different 3D form appears.'
+      : 'The same freedom exists in 4D. A tesseract is only the regular equal-length case; a cube can continue through W in many other ways.';
+  }
+
+  function slicesText(t) {
+    return t < .5
+      ? 'The highlighted square is only one 2D slice. Many different 3D objects can have exactly that same square cross-section.'
+      : 'The highlighted cube is only one 3D slice. Many different 4D objects can contain exactly that same cube cross-section.';
+  }
+
+  function textFor(mode, t) {
+    const { stage, local } = stageInfo(t);
+    if (mode === 'build') return buildText(stage);
+    if (mode === 'elements') return elementsText(stage);
+    if (mode === 'emergence') return emergenceText(stage, local);
+    if (mode === 'continuum') return continuumText(stage);
+    if (mode === 'freedom') return variationsText(t);
+    if (mode === 'slices') return slicesText(t);
+    return '';
+  }
+
+  let previousText = '';
   function syncDescription() {
     const active = modesEl.querySelector('.learn4d-mode.is-active');
     const mode = active?.dataset.mode || 'build';
-    description.textContent = descriptions[mode] || descriptions.build;
+    const t = Number(timeline.value) || 0;
+    const next = textFor(mode, t);
+    if (next !== previousText) {
+      previousText = next;
+      description.textContent = next;
+    }
   }
 
   modesEl.addEventListener('click', () => requestAnimationFrame(syncDescription));
+  timeline.addEventListener('input', syncDescription);
 
   const observer = new MutationObserver(syncDescription);
   observer.observe(modesEl, {
@@ -61,5 +175,11 @@
     childList: true,
   });
 
+  function frame() {
+    if (document.body.classList.contains('learn4d-active')) syncDescription();
+    requestAnimationFrame(frame);
+  }
+
   syncDescription();
+  requestAnimationFrame(frame);
 })();
