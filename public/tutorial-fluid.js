@@ -7,10 +7,15 @@
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const GOLD = '#d8b662';
   const WHITE = 'rgba(244,246,249,.92)';
+  const FAINT = 'rgba(244,246,249,.18)';
   const BLUE = '#6ca8ff';
+  const GREEN = '#62d48b';
+  const PINK = '#df7ab0';
 
   const modes = [
     { id: 'build', label: 'Build' },
+    { id: 'elements', label: 'Elements' },
+    { id: 'continuum', label: 'Continuum' },
     { id: 'freedom', label: 'Variations' },
     { id: 'slices', label: 'Slices' },
   ];
@@ -46,12 +51,12 @@
 
     .learn4d-caption {
       position: fixed;
-      top: max(22px, env(safe-area-inset-top));
+      top: max(20px, env(safe-area-inset-top));
       left: 50%;
       z-index: 9;
       transform: translateX(-50%);
-      max-width: min(620px, calc(100vw - 36px));
-      color: rgba(244,246,249,.58);
+      max-width: min(760px, calc(100vw - 36px));
+      color: rgba(244,246,249,.60);
       font-size: 11px;
       font-weight: 540;
       line-height: 1.35;
@@ -66,12 +71,12 @@
     .learn4d-hud {
       position: fixed;
       left: 50%;
-      bottom: max(18px, env(safe-area-inset-bottom));
+      bottom: max(16px, env(safe-area-inset-bottom));
       z-index: 10;
       transform: translateX(-50%);
       display: grid;
-      gap: 6px;
-      width: min(680px, calc(100vw - 28px));
+      gap: 5px;
+      width: min(760px, calc(100vw - 28px));
       padding: 7px 9px 8px;
       border: 1px solid rgba(255,255,255,.075);
       border-radius: 12px;
@@ -90,12 +95,18 @@
       transition: opacity 160ms ease, visibility 0s;
     }
 
-    .learn4d-modes {
+    .learn4d-modes,
+    .learn4d-focus {
       display: flex;
       justify-content: center;
       gap: 3px;
+      flex-wrap: wrap;
     }
+    .learn4d-focus[hidden] { display: none; }
+    .learn4d-focus { padding-top: 1px; }
+
     .learn4d-mode,
+    .learn4d-focus-button,
     .learn4d-icon {
       min-height: 27px;
       border: 0;
@@ -108,13 +119,17 @@
       letter-spacing: .05em;
       text-transform: uppercase;
     }
-    .learn4d-mode { padding: 0 10px; }
+    .learn4d-mode,
+    .learn4d-focus-button { padding: 0 9px; }
     .learn4d-mode:hover,
+    .learn4d-focus-button:hover,
     .learn4d-icon:hover { color: rgba(248,249,250,.84); }
-    .learn4d-mode.is-active {
+    .learn4d-mode.is-active,
+    .learn4d-focus-button.is-active {
       background: rgba(255,255,255,.065);
-      color: rgba(248,249,250,.88);
+      color: rgba(248,249,250,.90);
     }
+    .learn4d-focus-button.is-active { color: rgba(238,208,130,.96); }
 
     .learn4d-timeline-row {
       display: grid;
@@ -201,13 +216,14 @@
     }
 
     @media (max-width: 680px) {
-      .learn4d-caption { top: max(16px, env(safe-area-inset-top)); font-size: 10px; }
+      .learn4d-caption { top: max(15px, env(safe-area-inset-top)); font-size: 10px; }
       .learn4d-hud {
-        bottom: max(8px, env(safe-area-inset-bottom));
-        width: calc(100vw - 14px);
+        bottom: max(7px, env(safe-area-inset-bottom));
+        width: calc(100vw - 12px);
         padding: 6px 7px 7px;
       }
-      .learn4d-mode { padding: 0 8px; }
+      .learn4d-mode,
+      .learn4d-focus-button { padding: 0 7px; }
       .learn4d-markers { padding: 0 39px; }
     }
 
@@ -244,6 +260,7 @@
   hud.className = 'learn4d-hud';
   hud.innerHTML = `
     <div class="learn4d-modes" aria-label="4D lesson view"></div>
+    <div class="learn4d-focus" aria-label="Element focus" hidden></div>
     <div class="learn4d-timeline-row">
       <button class="learn4d-icon learn4d-play" type="button" aria-label="Pause animation">Ⅱ</button>
       <input class="learn4d-timeline" type="range" min="0" max="1" step="0.001" value="0" aria-label="Animation timeline" />
@@ -254,6 +271,7 @@
   document.body.appendChild(hud);
 
   const modesEl = hud.querySelector('.learn4d-modes');
+  const focusEl = hud.querySelector('.learn4d-focus');
   const timeline = hud.querySelector('.learn4d-timeline');
   const playButton = hud.querySelector('.learn4d-play');
   const closeButton = hud.querySelector('.learn4d-close');
@@ -262,19 +280,22 @@
   let active = false;
   let playing = !reduceMotion;
   let mode = 'build';
+  let focus = 'all';
   let progress = 0;
   let direction = 1;
   let lastFrame = performance.now();
   let raf = 0;
   let scrubbing = false;
 
-  const modeDurations = { build: 15, freedom: 11, slices: 11 };
+  const modeDurations = {
+    build: 16,
+    elements: 18,
+    continuum: 16,
+    freedom: 11,
+    slices: 11,
+  };
 
-  const cubeEdges = [
-    [0,1],[1,2],[2,3],[3,0],
-    [4,5],[5,6],[6,7],[7,4],
-    [0,4],[1,5],[2,6],[3,7],
-  ];
+  const axisColors = [WHITE, GOLD, BLUE, GREEN];
 
   function clamp(value, min = 0, max = 1) {
     return Math.max(min, Math.min(max, value));
@@ -316,7 +337,7 @@
     ctx.restore();
   }
 
-  function dot(p, radius = 3.3, color = WHITE, alpha = 1) {
+  function dot(p, radius = 3.2, color = WHITE, alpha = 1) {
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.fillStyle = color;
@@ -326,7 +347,7 @@
     ctx.restore();
   }
 
-  function polygon(points, fill, stroke = null, alpha = 1, width = 1) {
+  function polygon(points, fill = null, stroke = null, alpha = 1, width = 1) {
     if (!points.length) return;
     ctx.save();
     ctx.globalAlpha = alpha;
@@ -346,211 +367,442 @@
     ctx.restore();
   }
 
-  function squarePoints(cx, cy, side) {
-    const h = side / 2;
-    return [[cx-h,cy-h],[cx+h,cy-h],[cx+h,cy+h],[cx-h,cy+h]];
-  }
-
-  function extrudedSquare(cx, cy, side, depth) {
-    const dx = side * .28 * depth;
-    const dy = -side * .22 * depth;
-    const front = squarePoints(cx - dx / 2, cy - dy / 2, side);
-    const back = front.map(([x,y]) => [x + dx, y + dy]);
-    return [...front, ...back];
-  }
-
-  function drawCube(points, color = WHITE, alpha = .86, width = 1.5) {
-    cubeEdges.forEach(([a,b]) => line(points[a], points[b], color, width, alpha));
-  }
-
-  function transformPoints(points, cx, cy, scale, dx, dy) {
-    return points.map(([x,y]) => [cx + (x-cx)*scale + dx, cy + (y-cy)*scale + dy]);
-  }
-
-  function rotatePoint(p, center, angle) {
-    const x = p[0] - center[0];
-    const y = p[1] - center[1];
-    const c = Math.cos(angle);
-    const s = Math.sin(angle);
-    return [center[0] + c*x - s*y, center[1] + s*x + c*y];
-  }
-
-  function project3([x,y,z], center, scale) {
-    const yaw = -.68;
-    const pitch = .48;
-    let xx=x, yy=y, zz=z;
-    let c=Math.cos(yaw), s=Math.sin(yaw);
-    [xx,zz]=[c*xx-s*zz,s*xx+c*zz];
-    c=Math.cos(pitch); s=Math.sin(pitch);
-    [yy,zz]=[c*yy-s*zz,s*yy+c*zz];
-    const f = 4.8 / (4.8 - zz);
-    return [center[0] + xx*scale*f, center[1] + yy*scale*f];
-  }
-
-  function drawBuild(width, height, t) {
-    const stageFloat = clamp(t) * 4;
-    const stage = Math.min(3, Math.floor(stageFloat));
-    const u = ease(stageFloat - stage);
-    const cx = width * .5;
-    const cy = height * .44;
-    const side = Math.min(width, height) * .30;
-
-    if (stage === 0) {
-      const half = side * .5 * u;
-      const a = [cx, cy-half];
-      const b = [cx, cy+half];
-      line(a,b,GOLD,2.35,.92);
-      dot(a,3.8,WHITE,.90);
-      dot(b,3.8,WHITE,.90);
-      caption.textContent = u < .05 ? '0D · point' : '0D → 1D · point → line';
-      return;
-    }
-
-    if (stage === 1) {
-      const halfH = side * .5;
-      const halfW = side * .5 * u;
-      const left = [[cx-halfW,cy-halfH],[cx-halfW,cy+halfH]];
-      const right = [[cx+halfW,cy-halfH],[cx+halfW,cy+halfH]];
-      if (u > .002) polygon([left[0],left[1],right[1],right[0]],'rgba(216,182,98,.045)',GOLD,.65,1.05);
-      line(left[0],left[1],WHITE,1.65,.58);
-      line(right[0],right[1],GOLD,2.1,.92);
-      line(left[0],right[0],GOLD,1.35,.58*u);
-      line(left[1],right[1],GOLD,1.35,.58*u);
-      [...left,...right].forEach((p)=>dot(p,3.2,WHITE,.82));
-      caption.textContent = '1D → 2D · line → face';
-      return;
-    }
-
-    if (stage === 2) {
-      const cube = extrudedSquare(cx,cy,side,u);
-      const front = cube.slice(0,4);
-      const back = cube.slice(4,8);
-      polygon(front,'rgba(216,182,98,.018)',WHITE,.56,1.05);
-      if (u > .002) polygon(back,'rgba(216,182,98,.038)',GOLD,.78*u+.12,1.25);
-      for (let i=0;i<4;i+=1) {
-        const j=(i+1)%4;
-        if (u > .002) polygon([front[i],front[j],back[j],back[i]],'rgba(108,168,255,.018)',null,.60*u);
-        line(front[i],back[i],GOLD,1.65,.70*u);
-      }
-      front.forEach((p)=>dot(p,2.8,WHITE,.72));
-      back.forEach((p)=>dot(p,2.8,GOLD,.40+.48*u));
-      caption.textContent = '2D → 3D · point → edge · edge → face · face → volume';
-      return;
-    }
-
-    const source = extrudedSquare(cx,cy,side,1);
-    const targetScale = lerp(1,.58,u);
-    const target = transformPoints(source,cx,cy,targetScale,side*.09*u,-side*.065*u);
-
-    drawCube(source,WHITE,.52,1.2);
-
-    const ghostCount = 6;
-    for (let g=1;g<=ghostCount;g+=1) {
-      const q=(g/(ghostCount+1))*u;
-      const ghost=transformPoints(source,cx,cy,lerp(1,.58,q),side*.09*q,-side*.065*q);
-      drawCube(ghost,GOLD,.045+.055*q,.75);
-    }
-
-    if (u > .002) {
-      cubeEdges.forEach(([a,b])=>polygon([source[a],source[b],target[b],target[a]],'rgba(108,168,255,.015)',null,.80*u));
-      for (let i=0;i<8;i+=1) line(source[i],target[i],GOLD,1.75,.70*u);
-      drawCube(target,GOLD,.18+.74*u,1.45);
-      target.forEach((p)=>dot(p,2.7,GOLD,.22+.68*u));
-    }
-    source.forEach((p)=>dot(p,2.6,WHITE,.60));
-    caption.textContent = '3D → 4D · vertex → edge · edge → face · face → cell';
-  }
-
-  function freedomParams(t) {
-    const phase=t*Math.PI*2;
+  function basis(width, height) {
+    const scale = Math.min(width, height) * .285;
     return {
-      depth:.66+.48*(Math.sin(phase)*.5+.5),
-      taper:.36*(Math.sin(phase*.73+1.1)*.5+.5),
-      twist:.86*Math.sin(phase*.61),
+      center: [width * .5, height * .445],
+      vectors: [
+        [scale, 0],
+        [0, scale],
+        [scale * .34, -scale * .28],
+        [-scale * .27, -scale * .22],
+      ],
     };
   }
 
-  function drawFreedom(width,height,t) {
+  function projectCoord(coord, width, height) {
+    const { center, vectors } = basis(width, height);
+    let x = center[0];
+    let y = center[1];
+    for (let i = 0; i < 4; i += 1) {
+      x += (coord[i] - .5) * vectors[i][0];
+      y += (coord[i] - .5) * vectors[i][1];
+    }
+    return [x, y];
+  }
+
+  function extentsForDimension(d) {
+    return [0, 1, 2, 3].map((i) => ease(clamp(d - i)));
+  }
+
+  function hyperVertices(extents) {
+    const varying = extents.map((e) => e > .0001);
+    const axes = varying.map((v, i) => (v ? i : -1)).filter((i) => i >= 0);
+    const count = 1 << axes.length;
+    const vertices = [];
+    for (let mask = 0; mask < count; mask += 1) {
+      const coord = [.5, .5, .5, .5];
+      const bits = [0, 0, 0, 0];
+      axes.forEach((axis, k) => {
+        const bit = (mask >> k) & 1;
+        bits[axis] = bit;
+        coord[axis] = .5 + (bit ? .5 : -.5) * extents[axis];
+      });
+      vertices.push({ coord, bits });
+    }
+    if (!vertices.length) vertices.push({ coord: [.5,.5,.5,.5], bits: [0,0,0,0] });
+    return { vertices, axes };
+  }
+
+  function vertexKey(bits, axes) {
+    return axes.map((axis) => bits[axis]).join('');
+  }
+
+  function drawHyperWire(width, height, extents, options = {}) {
+    const { vertices, axes } = hyperVertices(extents);
+    const projected = new Map();
+    vertices.forEach((v) => projected.set(vertexKey(v.bits, axes), projectCoord(v.coord, width, height)));
+
+    axes.forEach((axis) => {
+      vertices.forEach((v) => {
+        if (v.bits[axis]) return;
+        const nextBits = [...v.bits];
+        nextBits[axis] = 1;
+        const aKey = vertexKey(v.bits, axes);
+        const bKey = vertexKey(nextBits, axes);
+        const a = projected.get(aKey);
+        const b = projected.get(bKey);
+        if (!a || !b) return;
+        const isNewest = axis === options.newAxis;
+        const color = isNewest ? GOLD : (options.colorByAxis ? axisColors[axis] : WHITE);
+        line(a, b, color, isNewest ? 2.2 : 1.35, isNewest ? .92 : .58);
+      });
+    });
+
+    if (options.points) projected.forEach((p) => dot(p, 2.8, WHITE, .75));
+    return { vertices, axes, projected };
+  }
+
+  function captionForBuild(stage, u) {
+    if (stage === 0) return u < .06 ? '0D · one point' : '0D → 1D · the point traces a line';
+    if (stage === 1) return '1D → 2D · every point traces a line · the whole line sweeps a square';
+    if (stage === 2) return '2D → 3D · points → edges · lines → faces · the square → cube';
+    return '3D → 4D · vertices → edges · edges → faces · faces → cubic cells · cube → tesseract';
+  }
+
+  function drawBuild(width, height, t) {
+    const d = clamp(t) * 4;
+    const stage = Math.min(3, Math.floor(d));
+    const u = d >= 4 ? 1 : ease(d - stage);
+    const extents = extentsForDimension(d);
+    drawHyperWire(width, height, extents, { newAxis: stage, points: true });
+    caption.textContent = captionForBuild(stage, u);
+  }
+
+  function sourceCoordinates(stage) {
+    const count = 1 << stage;
+    const out = [];
+    for (let mask = 0; mask < count; mask += 1) {
+      const coord = [.5,.5,.5,.5];
+      for (let axis = 0; axis < stage; axis += 1) coord[axis] = (mask >> axis) & 1;
+      out.push(coord);
+    }
+    return out;
+  }
+
+  function edgePairs(stage) {
+    const pairs = [];
+    const coords = sourceCoordinates(stage);
+    for (let i = 0; i < coords.length; i += 1) {
+      for (let axis = 0; axis < stage; axis += 1) {
+        if (coords[i][axis] !== 0) continue;
+        const target = [...coords[i]];
+        target[axis] = 1;
+        const j = coords.findIndex((c) => c.every((v,k) => v === target[k]));
+        if (j >= 0) pairs.push([i,j]);
+      }
+    }
+    return { coords, pairs };
+  }
+
+  function facesForStage(stage) {
+    if (stage < 2) return [];
+    const faces = [];
+    for (let a = 0; a < stage; a += 1) {
+      for (let b = a + 1; b < stage; b += 1) {
+        const other = [];
+        for (let k = 0; k < stage; k += 1) if (k !== a && k !== b) other.push(k);
+        const fixedCount = 1 << other.length;
+        for (let mask = 0; mask < fixedCount; mask += 1) {
+          const base = [.5,.5,.5,.5];
+          other.forEach((axis, idx) => { base[axis] = (mask >> idx) & 1; });
+          const coords = [];
+          [[0,0],[1,0],[1,1],[0,1]].forEach(([va,vb]) => {
+            const c = [...base];
+            c[a] = va; c[b] = vb;
+            coords.push(c);
+          });
+          faces.push(coords);
+        }
+      }
+    }
+    return faces;
+  }
+
+  function normalizedCoord(coord, stage, newAxisValue = 0) {
+    const out = [.5,.5,.5,.5];
+    for (let i = 0; i < stage; i += 1) out[i] = coord[i];
+    if (stage < 4) out[stage] = newAxisValue;
+    return out;
+  }
+
+  function drawPointPromotion(width, height, stage, u) {
+    const coords = sourceCoordinates(stage);
+    coords.forEach((coord) => {
+      const a = projectCoord(normalizedCoord(coord, stage, 0), width, height);
+      const b = projectCoord(normalizedCoord(coord, stage, u), width, height);
+      line(a,b,GOLD,2.4,.88);
+      dot(a,3.2,WHITE,.70);
+      dot(b,3.4,GOLD,.95);
+    });
+  }
+
+  function drawLinePromotion(width, height, stage, u) {
+    const { coords, pairs } = edgePairs(stage);
+    pairs.forEach(([i,j]) => {
+      const a0 = projectCoord(normalizedCoord(coords[i],stage,0),width,height);
+      const b0 = projectCoord(normalizedCoord(coords[j],stage,0),width,height);
+      const a1 = projectCoord(normalizedCoord(coords[i],stage,u),width,height);
+      const b1 = projectCoord(normalizedCoord(coords[j],stage,u),width,height);
+      polygon([a0,b0,b1,a1],'rgba(108,168,255,.055)',BLUE,.44,1.1);
+      line(a0,b0,WHITE,1.5,.52);
+      line(a1,b1,BLUE,1.8,.85);
+    });
+  }
+
+  function drawFacePromotion(width, height, stage, u) {
+    const faces = facesForStage(stage);
+    faces.forEach((face) => {
+      const src = face.map((c) => projectCoord(normalizedCoord(c,stage,0),width,height));
+      const dst = face.map((c) => projectCoord(normalizedCoord(c,stage,u),width,height));
+      polygon(src,'rgba(98,212,139,.018)',GREEN,.30,1);
+      polygon(dst,'rgba(98,212,139,.028)',GREEN,.72,1.3);
+      for (let i = 0; i < 4; i += 1) line(src[i],dst[i],GREEN,1.4,.48);
+    });
+  }
+
+  function drawCellPromotion(width, height, stage, u) {
+    if (stage < 3) return;
+    drawHyperWire(width,height,[1,1,1,0],{points:false});
+    drawHyperWire(width,height,[1,1,1,u],{newAxis:3,points:false});
+    const coords = sourceCoordinates(3);
+    coords.forEach((coord) => {
+      const a = projectCoord(normalizedCoord(coord,3,0),width,height);
+      const b = projectCoord(normalizedCoord(coord,3,u),width,height);
+      line(a,b,PINK,2,.56);
+    });
+  }
+
+  function drawElements(width, height, t) {
+    const d = clamp(t) * 4;
+    const stage = Math.min(3, Math.floor(d));
+    const u = d >= 4 ? 1 : ease(d - stage);
+    const extents = extentsForDimension(d);
+    drawHyperWire(width,height,extents,{newAxis:stage,points:false});
+
+    const available = { points: true, lines: stage >= 1, faces: stage >= 2, cells: stage >= 3 };
+    const selected = focus === 'all' ? ['points','lines','faces','cells'] : [focus];
+    selected.forEach((kind) => {
+      if (!available[kind]) return;
+      if (kind === 'points') drawPointPromotion(width,height,stage,u);
+      else if (kind === 'lines') drawLinePromotion(width,height,stage,u);
+      else if (kind === 'faces') drawFacePromotion(width,height,stage,u);
+      else drawCellPromotion(width,height,stage,u);
+    });
+
+    const names = {
+      all: 'all levels at once',
+      points: 'each point traces a new edge',
+      lines: 'each source line sweeps a face',
+      faces: 'each source face sweeps a 3D cell',
+      cells: 'the cube sweeps the 4D body',
+    };
+    const unavailable = focus !== 'all' && !available[focus];
+    caption.textContent = unavailable
+      ? `${names[focus]} · becomes available at the next relevant dimension`
+      : `${stage}D → ${stage + 1}D · ${names[focus]}`;
+  }
+
+  function drawContinuumLine(width,height,alpha) {
+    const { center, vectors } = basis(width,height);
+    const a = [center[0]-vectors[0][0]/2,center[1]-vectors[0][1]/2];
+    const b = [center[0]+vectors[0][0]/2,center[1]+vectors[0][1]/2];
+    line(a,b,WHITE,2,.70*alpha);
+    const samples = 31;
+    for(let i=0;i<samples;i+=1){
+      const u=i/(samples-1);
+      const p=[lerp(a[0],b[0],u),lerp(a[1],b[1],u)];
+      dot(p, i%5===0?2.5:1.4, i===Math.floor(samples/2)?GOLD:WHITE, (i%5===0?.72:.32)*alpha);
+    }
+  }
+
+  function drawContinuumSquare(width,height,alpha) {
+    const samples = 21;
+    for(let i=0;i<samples;i+=1){
+      const y=i/(samples-1);
+      const a=projectCoord([0,y,.5,.5],width,height);
+      const b=projectCoord([1,y,.5,.5],width,height);
+      const mid=Math.floor(samples/2);
+      line(a,b,i===mid?GOLD:WHITE,i===mid?2:1,(i===mid?.88:.18)*alpha);
+    }
+    const corners=[[0,0],[1,0],[1,1],[0,1]].map(([x,y])=>projectCoord([x,y,.5,.5],width,height));
+    polygon(corners,null,WHITE,.55*alpha,1.3);
+  }
+
+  function drawContinuumCube(width,height,alpha) {
+    const samples=13;
+    for(let i=0;i<samples;i+=1){
+      const z=i/(samples-1);
+      const corners=[[0,0],[1,0],[1,1],[0,1]].map(([x,y])=>projectCoord([x,y,z,.5],width,height));
+      const mid=Math.floor(samples/2);
+      polygon(corners,i===mid?'rgba(216,182,98,.025)':null,i===mid?GOLD:WHITE,(i===mid?.90:.13)*alpha,i===mid?1.8:.8);
+    }
+    drawHyperWire(width,height,[1,1,1,0],{points:false});
+  }
+
+  function drawContinuumTesseract(width,height,alpha) {
+    const samples=11;
+    for(let i=0;i<samples;i+=1){
+      const w=i/(samples-1);
+      const ext=[1,1,1,0];
+      const { vertices, axes }=hyperVertices(ext);
+      const p=new Map();
+      vertices.forEach((v)=>{
+        const c=[...v.coord]; c[3]=w;
+        p.set(vertexKey(v.bits,axes),projectCoord(c,width,height));
+      });
+      const mid=Math.floor(samples/2);
+      axes.forEach((axis)=>{
+        vertices.forEach((v)=>{
+          if(v.bits[axis])return;
+          const bits=[...v.bits]; bits[axis]=1;
+          const a=p.get(vertexKey(v.bits,axes));
+          const b=p.get(vertexKey(bits,axes));
+          line(a,b,i===mid?GOLD:WHITE,i===mid?1.8:.7,(i===mid?.88:.10)*alpha);
+        });
+      });
+    }
+    drawHyperWire(width,height,[1,1,1,1],{newAxis:3,points:false});
+  }
+
+  function drawContinuum(width,height,t){
+    const x=clamp(t)*4;
+    const stage=Math.min(3,Math.floor(x));
+    const local=x>=4?1:x-stage;
+    const alpha=(local<.15)?ease(local/.15):(local>.85?1-ease((local-.85)/.15):1);
+    const a=Math.max(.22,alpha);
+    if(stage===0){
+      drawContinuumLine(width,height,a);
+      caption.textContent='1D line = a continuum of points · dots are samples; infinitely many lie between them';
+    } else if(stage===1){
+      drawContinuumSquare(width,height,a);
+      caption.textContent='2D square = a continuum of parallel line slices · only a few are drawn';
+    } else if(stage===2){
+      drawContinuumCube(width,height,a);
+      caption.textContent='3D cube = a continuum of square slices · infinitely many squares fill the depth';
+    } else {
+      drawContinuumTesseract(width,height,a);
+      caption.textContent='4D tesseract = a continuum of cubic slices along W · the drawn cubes are samples';
+    }
+  }
+
+  function freedomParams(t) {
+    const phase = t * Math.PI * 2;
+    return {
+      depth: .58 + .52 * (Math.sin(phase) * .5 + .5),
+      taper: .42 * (Math.sin(phase * .73 + 1.2) * .5 + .5),
+      twist: .92 * Math.sin(phase * .61),
+    };
+  }
+
+  function project3([x,y,z], center, scale) {
+    const yaw=-.68, pitch=.48;
+    let xx=x,yy=y,zz=z;
+    let c=Math.cos(yaw),s=Math.sin(yaw);
+    [xx,zz]=[c*xx-s*zz,s*xx+c*zz];
+    c=Math.cos(pitch);s=Math.sin(pitch);
+    [yy,zz]=[c*yy-s*zz,s*yy+c*zz];
+    const f=4.8/(4.8-zz);
+    return [center[0]+xx*scale*f,center[1]+yy*scale*f];
+  }
+
+  function drawFreedom(width,height,t){
     const {depth,taper,twist}=freedomParams(t);
-    const center=[width*.5,height*.44];
-    const scale=Math.min(width,height)*.20;
-    const rings=12;
+    const center=[width*.5,height*.445];
+    const scale=Math.min(width,height)*.21;
+    const rings=13;
     const all=[];
-    for (let i=0;i<rings;i+=1) {
-      const q=i/(rings-1);
-      const z=(q-.5)*2*depth;
-      const s=1-taper*q;
-      const a=twist*q;
-      const c=Math.cos(a), sn=Math.sin(a);
-      const corners=[[-1,-1],[1,-1],[1,1],[-1,1]].map(([x,y])=>{
+    for(let i=0;i<rings;i+=1){
+      const u=i/(rings-1);
+      const z=(u-.5)*2*depth;
+      const s=1-taper*u;
+      const angle=twist*u;
+      const c=Math.cos(angle),sn=Math.sin(angle);
+      all.push([[-1,-1],[1,-1],[1,1],[-1,1]].map(([x,y])=>{
         const xx=(c*x-sn*y)*s;
         const yy=(sn*x+c*y)*s;
         return project3([xx,yy,z],center,scale);
-      });
-      all.push(corners);
+      }));
     }
-    all.forEach((ring,i)=>polygon(ring,i===0?'rgba(216,182,98,.04)':null,i===0?GOLD:WHITE,i===0?.90:.14,i===0?1.7:.8));
-    for (let k=0;k<4;k+=1) for (let i=0;i<rings-1;i+=1) line(all[i][k],all[i+1][k],BLUE,.9,.18);
-    caption.textContent = 'Same source · different depth, taper or twist · the higher-dimensional continuation is a choice';
+    all.forEach((ring,i)=>polygon(ring,i===0?'rgba(216,182,98,.035)':null,i===0?GOLD:WHITE,i===0?.88:.14,i===0?1.8:.8));
+    for(let k=0;k<4;k+=1)for(let i=0;i<rings-1;i+=1)line(all[i][k],all[i+1][k],BLUE,.9,.16);
+    caption.textContent='The higher-dimensional continuation is a choice · length, scale and twist can all vary';
   }
 
-  function drawSlices(width,height,t) {
+  function drawSlices(width,height,t){
     const phase=t*Math.PI*2;
-    const amp=.16+.33*(Math.sin(phase)*.5+.5);
-    const twist=.64*Math.sin(phase*.73);
-    const center=[width*.5,height*.44];
-    const scale=Math.min(width,height)*.20;
-    const rings=13;
+    const amp=.16+.34*(Math.sin(phase)*.5+.5);
+    const twist=.72*Math.sin(phase*.71);
+    const center=[width*.5,height*.445];
+    const scale=Math.min(width,height)*.21;
+    const rings=15;
     const all=[];
-    for (let i=0;i<rings;i+=1) {
-      const q=i/(rings-1)*2-1;
-      const s=1-amp*Math.abs(q);
-      const a=twist*q;
-      const c=Math.cos(a), sn=Math.sin(a);
-      const corners=[[-1,-1],[1,-1],[1,1],[-1,1]].map(([x,y])=>{
+    for(let i=0;i<rings;i+=1){
+      const u=i/(rings-1)*2-1;
+      const s=1-amp*Math.abs(u);
+      const angle=twist*u;
+      const c=Math.cos(angle),sn=Math.sin(angle);
+      all.push([[-1,-1],[1,-1],[1,1],[-1,1]].map(([x,y])=>{
         const xx=(c*x-sn*y)*s;
         const yy=(sn*x+c*y)*s;
-        return project3([xx,yy,q*1.18],center,scale);
-      });
-      all.push(corners);
+        return project3([xx,yy,u*1.18],center,scale);
+      }));
     }
-    const mid=Math.floor(rings/2);
-    all.forEach((ring,i)=>polygon(ring,i===mid?'rgba(216,182,98,.055)':null,i===mid?GOLD:WHITE,i===mid?.96:.12,i===mid?2:.75));
-    for (let k=0;k<4;k+=1) for (let i=0;i<rings-1;i+=1) line(all[i][k],all[i+1][k],BLUE,.75,.13);
-    caption.textContent = 'Same slice · different whole · a square does not tell you what exists beyond that slice';
+    const middle=Math.floor(rings/2);
+    all.forEach((ring,i)=>polygon(ring,i===middle?'rgba(216,182,98,.055)':null,i===middle?GOLD:WHITE,i===middle?.96:.11,i===middle?2.1:.75));
+    for(let k=0;k<4;k+=1)for(let i=0;i<rings-1;i+=1)line(all[i][k],all[i+1][k],BLUE,.75,.12);
+    caption.textContent='The highlighted square stays identical while the 3D object around it changes';
   }
 
-  function render() {
-    if (!active) return;
+  function render(){
+    if(!active)return;
     const {width,height}=fitCanvas();
     ctx.clearRect(0,0,width,height);
-    if (mode==='build') drawBuild(width,height,progress);
-    else if (mode==='freedom') drawFreedom(width,height,progress);
+    if(mode==='build')drawBuild(width,height,progress);
+    else if(mode==='elements')drawElements(width,height,progress);
+    else if(mode==='continuum')drawContinuum(width,height,progress);
+    else if(mode==='freedom')drawFreedom(width,height,progress);
     else drawSlices(width,height,progress);
     timeline.value=String(progress);
   }
 
-  function updateMarkers() {
-    if (mode==='build') {
+  function updateMarkers(){
+    if(mode==='build'||mode==='elements'){
       markers.innerHTML='<span>0D</span><span>1D</span><span>2D</span><span>3D</span><span>4D</span>';
-    } else if (mode==='freedom') {
-      markers.innerHTML='<span>same source</span><span></span><span>continuation varies</span><span></span><span>same rule</span>';
+    } else if(mode==='continuum'){
+      markers.innerHTML='<span>points</span><span>lines</span><span>squares</span><span>cubes</span><span>4D</span>';
+    } else if(mode==='freedom'){
+      markers.innerHTML='<span>same source</span><span></span><span>many continuations</span><span></span><span>same rule</span>';
     } else {
-      markers.innerHTML='<span>one whole</span><span></span><span>same slice</span><span></span><span>another whole</span>';
+      markers.innerHTML='<span>different whole</span><span></span><span>same slice</span><span></span><span>different whole</span>';
     }
   }
 
-  function syncPlayButton() {
+  function syncPlayButton(){
     playButton.textContent=playing?'Ⅱ':'▶';
     playButton.setAttribute('aria-label',playing?'Pause animation':'Play animation');
   }
 
-  function setMode(nextMode) {
-    mode=nextMode;
+  function buildFocusButtons(){
+    focusEl.replaceChildren();
+    const items=[
+      ['all','All'],
+      ['points','Points → edges'],
+      ['lines','Lines → faces'],
+      ['faces','Faces → cells'],
+      ['cells','Cube → 4D'],
+    ];
+    items.forEach(([id,label])=>{
+      const button=document.createElement('button');
+      button.type='button';
+      button.className='learn4d-focus-button'+(id===focus?' is-active':'');
+      button.textContent=label;
+      button.addEventListener('click',()=>{
+        focus=id;
+        focusEl.querySelectorAll('button').forEach((b)=>b.classList.toggle('is-active',b===button));
+        render();
+      });
+      focusEl.appendChild(button);
+    });
+  }
+
+  function setMode(next){
+    mode=next;
     progress=0;
     direction=1;
     playing=!reduceMotion;
     modesEl.querySelectorAll('.learn4d-mode').forEach((button)=>button.classList.toggle('is-active',button.dataset.mode===mode));
+    focusEl.hidden=mode!=='elements';
     updateMarkers();
     syncPlayButton();
     render();
@@ -565,15 +817,17 @@
     button.addEventListener('click',()=>setMode(id));
     modesEl.appendChild(button);
   });
+  buildFocusButtons();
 
-  function open() {
-    if (active) return;
+  function open(){
+    if(active)return;
     active=true;
     document.body.classList.add('learn4d-active');
     progress=0;
     direction=1;
     playing=!reduceMotion;
     lastFrame=performance.now();
+    focusEl.hidden=mode!=='elements';
     syncPlayButton();
     updateMarkers();
     render();
@@ -581,28 +835,23 @@
     raf=requestAnimationFrame(tick);
   }
 
-  function close() {
-    if (!active) return;
+  function close(){
+    if(!active)return;
     active=false;
     document.body.classList.remove('learn4d-active');
     cancelAnimationFrame(raf);
     ctx.clearRect(0,0,canvas.width,canvas.height);
   }
 
-  function tick(now) {
-    if (!active) return;
+  function tick(now){
+    if(!active)return;
     const dt=Math.min(.05,Math.max(0,(now-lastFrame)/1000));
     lastFrame=now;
-    if (playing && !scrubbing) {
-      const duration=modeDurations[mode]||10;
+    if(playing&&!scrubbing){
+      const duration=modeDurations[mode]||12;
       progress+=direction*dt/duration;
-      if (progress>=1) {
-        progress=1;
-        direction=-1;
-      } else if (progress<=0) {
-        progress=0;
-        direction=1;
-      }
+      if(progress>=1){progress=1;direction=-1;}
+      else if(progress<=0){progress=0;direction=1;}
     }
     render();
     raf=requestAnimationFrame(tick);
@@ -610,45 +859,23 @@
 
   launch.addEventListener('click',open);
   closeButton.addEventListener('click',close);
-  playButton.addEventListener('click',()=>{
-    if (!playing) {
-      if (progress>=.999) direction=-1;
-      else if (progress<=.001) direction=1;
-    }
-    playing=!playing;
-    syncPlayButton();
-  });
+  playButton.addEventListener('click',()=>{playing=!playing;syncPlayButton();});
 
-  timeline.addEventListener('pointerdown',()=>{
-    scrubbing=true;
-    playing=false;
-    syncPlayButton();
-  });
-  timeline.addEventListener('input',()=>{
-    progress=Number(timeline.value);
-    render();
-  });
+  timeline.addEventListener('pointerdown',()=>{scrubbing=true;playing=false;syncPlayButton();});
+  timeline.addEventListener('input',()=>{progress=Number(timeline.value);render();});
   const stopScrub=()=>{scrubbing=false;};
   timeline.addEventListener('pointerup',stopScrub);
   timeline.addEventListener('pointercancel',stopScrub);
 
   window.addEventListener('resize',render,{passive:true});
   window.addEventListener('keydown',(event)=>{
-    if (!active) return;
-    if (event.key==='Escape') {
-      close();
-      return;
-    }
-    if (event.key===' ') {
-      event.preventDefault();
-      playing=!playing;
-      syncPlayButton();
-      return;
-    }
-    if (event.key==='ArrowLeft'||event.key==='ArrowRight') {
+    if(!active)return;
+    if(event.key==='Escape'){close();return;}
+    if(event.key===' '){event.preventDefault();playing=!playing;syncPlayButton();return;}
+    if(event.key==='ArrowLeft'||event.key==='ArrowRight'){
       event.preventDefault();
       playing=false;
-      progress=clamp(progress+(event.key==='ArrowRight'?.02:-.02));
+      progress=clamp(progress+(event.key==='ArrowRight'?.015:-.015));
       syncPlayButton();
       render();
     }
