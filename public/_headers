@@ -34,5 +34,8 @@
 /tutorial-link-exit.js
   Cache-Control: no-cache, max-age=0, must-revalidate
 
+/tutorial-inspection-motion.js
+  Cache-Control: no-cache, max-age=0, must-revalidate
+
 /styles.css
   Cache-Control: no-cache, max-age=0, must-revalidate
