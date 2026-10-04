@@ -7,11 +7,12 @@
   const modes = document.querySelector('.learn4d-modes');
   const timeline = document.querySelector('.learn4d-timeline');
   const caption = document.querySelector('.learn4d-caption');
+  const description = document.querySelector('.learn4d-step-description');
   if (!modes || !timeline || !caption) return;
 
   const WHITE = 'rgba(244,246,249,.92)';
   const GOLD = '#d8b662';
-  const BUILD_END = .58;
+  const BUILD_END = .56;
 
   const style = document.createElement('style');
   style.id = 'learn4dBuildRotationStyles';
@@ -153,16 +154,20 @@
       });
       vertices.push({ coord: plane ? rotateInPlane(coord, plane[0], plane[1], angle) : coord, bits });
     }
-    return { vertices, axes, plane, angle, newExtent };
+    return { vertices, axes };
   }
 
   function key(bits, axes) {
     return axes.map((axis) => bits[axis]).join('');
   }
 
+  function setDescription(text) {
+    if (description) description.textContent = text;
+  }
+
   function draw(width, height, t) {
     const { stage, local } = stageInfo(t);
-    const { vertices, axes, plane } = geometry(stage, local);
+    const { vertices, axes } = geometry(stage, local);
     const projected = new Map();
     vertices.forEach((v) => projected.set(key(v.bits, axes), project(v.coord, width, height)));
 
@@ -182,6 +187,9 @@
 
     if (stage === 0) {
       caption.textContent = local < .06 ? '0D · one point' : '0D → 1D · the point traces a line';
+      setDescription(local < .06
+        ? 'Start with a point: it has position, but no length.'
+        : 'Move the point along the new X direction. Its path is a line. A 1D line has no intrinsic rotation plane yet.');
       return;
     }
 
@@ -192,15 +200,23 @@
         '2D → 3D · the square extends along the new Z direction',
         '3D → 4D · the cube extends along the new W direction',
       ][stage];
+      setDescription([
+        '',
+        'Move the whole line along Y. Every point traces a line, and the line sweeps out the square.',
+        'Move the whole square along Z. Its edges sweep faces, while the square sweeps out the cube.',
+        'Move the whole cube along W. Vertices trace W-edges, edges sweep faces, and square faces sweep cubic cells.',
+      ][stage]);
       return;
     }
 
-    const names = {
-      1: 'X–Y',
-      2: 'X–Z',
-      3: 'X–W',
+    const names = { 1: 'X–Y', 2: 'X–Z', 3: 'X–W' };
+    const explanations = {
+      1: '2D reached. Now rotate the square a full 360° in the X–Y plane. It returns exactly to its starting orientation.',
+      2: '3D reached. Now rotate the cube a full 360° in the X–Z plane, a rotation involving the newly added Z direction.',
+      3: '4D reached. Now rotate the tesseract a full 360° in the X–W plane. This is a genuine 4D rotation involving W, not a screen-space spin.',
     };
     caption.textContent = `${stage + 1}D reached · full 360° rotation in the ${names[stage]} plane · returns to the original orientation`;
+    setDescription(explanations[stage]);
   }
 
   function frame() {
