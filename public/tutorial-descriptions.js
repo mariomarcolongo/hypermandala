@@ -8,8 +8,6 @@
 
   const style = document.createElement('style');
   style.textContent = `
-    /* The small line above is a label; the sentence below is the explanation.
-       Keep the hierarchy obvious and readable even on large desktop screens. */
     body.learn4d-active .learn4d-caption {
       font-size: clamp(11px, .58vw, 14px) !important;
       color: rgba(244,246,249,.62) !important;
@@ -66,7 +64,6 @@
   `;
   document.head.appendChild(style);
 
-  /* Remove the older static HUD paragraph if this script is hot-reloaded. */
   document.querySelector('.learn4d-description')?.remove();
 
   const description = document.createElement('div');
@@ -95,29 +92,36 @@
 
   function elementsText(stage) {
     const focus = document.querySelector('.learn4d-focus-button.is-active')?.dataset.focus || 'all';
-    if (focus === 'vertices') {
+
+    if (focus === 'points') {
       return stage === 3
-        ? 'Follow the vertices: every cube vertex traces a new edge through W.'
-        : 'Follow the points: each point traces an edge in the new dimension.';
+        ? 'Every cube vertex gains the new W direction and becomes a W-edge.'
+        : 'Every point gains the new direction and becomes an edge.';
     }
-    if (focus === 'edges') {
+
+    if (focus === 'lines') {
       return stage >= 1
-        ? 'Follow the edges: every existing edge sweeps out a face in the new dimension.'
-        : 'Edges appear only after the first dimensional step.';
+        ? 'Every existing line extends through the new direction and sweeps out one face.'
+        : 'There are no lines yet. The first dimensional step creates the first edge.';
     }
+
     if (focus === 'faces') {
       return stage >= 2
-        ? 'Follow the faces: every square face sweeps out a 3D cell in the new dimension.'
-        : 'Faces appear once the construction reaches 2D.';
+        ? 'Every square face extends through the new direction and sweeps out a 3D cell. The animation highlights them one by one to keep the view readable.'
+        : 'There are no square faces yet. Faces appear when the construction reaches 2D.';
     }
-    if (focus === 'whole') {
-      return `The entire ${objects[stage]} sweeps out a ${results[stage]}.`;
+
+    if (focus === 'cells') {
+      return stage >= 3
+        ? 'The whole cube gains the new W direction and sweeps out the 4D body.'
+        : 'A 3D cell appears only once the construction reaches the cube.';
     }
+
     return [
       'The point gains one new direction and becomes an edge.',
-      'Every point traces an edge, while the line itself sweeps a face.',
-      'Points trace edges, edges sweep faces, and the square sweeps the cube.',
-      'Vertices trace W-edges, edges sweep square faces, faces sweep cubic cells, and the cube sweeps the tesseract.',
+      'Every point becomes an edge, while the whole line becomes a face.',
+      'Every point becomes an edge, every line becomes a face, and the square becomes a cube.',
+      'Every vertex becomes an edge, every edge becomes a face, every face becomes a cubic cell, and the cube becomes a tesseract.',
     ][stage];
   }
 
@@ -180,6 +184,7 @@
   }
 
   modesEl.addEventListener('click', () => requestAnimationFrame(syncDescription));
+  focusEl?.addEventListener('click', () => requestAnimationFrame(syncDescription));
   timeline.addEventListener('input', syncDescription);
 
   const observer = new MutationObserver(syncDescription);
@@ -189,6 +194,15 @@
     attributeFilter: ['class'],
     childList: true,
   });
+
+  if (focusEl) {
+    observer.observe(focusEl, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class'],
+      childList: true,
+    });
+  }
 
   function frame() {
     if (document.body.classList.contains('learn4d-active')) syncDescription();
