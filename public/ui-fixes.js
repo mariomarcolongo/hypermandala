@@ -29,18 +29,21 @@
     }
   }
 
-  function moveShowLessBelowLibrary() {
+  function moveResizeControlsBelowLibrary() {
     const library = document.getElementById('presetControl');
+    const expand = document.getElementById('expandGeometricForms');
     const reduce = document.getElementById('reduceGeometricForms');
-    if (!library || !reduce || reduce.closest('.mandala-dock__library-actions')) {
-      return;
+    if (!library || !expand || !reduce) return;
+
+    let actions = document.querySelector('.mandala-dock__library-actions');
+    if (!actions) {
+      actions = document.createElement('div');
+      actions.className = 'mandala-dock__library-actions';
+      actions.setAttribute('aria-label', 'Geometric form library display');
+      library.insertAdjacentElement('afterend', actions);
     }
 
-    const actions = document.createElement('div');
-    actions.className = 'mandala-dock__library-actions';
-    actions.setAttribute('aria-label', 'Geometric form library display');
-    library.insertAdjacentElement('afterend', actions);
-    actions.appendChild(reduce);
+    actions.append(expand, reduce);
   }
 
   function injectLibraryStyles() {
@@ -50,20 +53,39 @@
     style.id = 'hypermandalaFormsUiFixes';
     style.textContent = `
       .mandala-dock__library-actions {
-        display: none;
+        display: flex;
         justify-content: center;
         margin: 8px 0 3px;
       }
 
-      .mandala-dock.is-expanded .mandala-dock__library-actions {
-        display: flex;
+      .mandala-dock.is-collapsed .mandala-dock__library-actions {
+        display: none;
       }
 
-      .mandala-dock__library-actions .mandala-dock__resize--reduce {
-        display: inline-flex;
+      .mandala-dock__library-actions .mandala-dock__resize {
         align-items: center;
         justify-content: center;
         min-width: 104px;
+      }
+
+      .mandala-dock__library-actions .mandala-dock__resize--expand {
+        display: inline-flex;
+      }
+
+      .mandala-dock__library-actions .mandala-dock__resize--reduce {
+        display: none;
+      }
+
+      .mandala-dock.is-expanded
+        .mandala-dock__library-actions
+        .mandala-dock__resize--expand {
+        display: none;
+      }
+
+      .mandala-dock.is-expanded
+        .mandala-dock__library-actions
+        .mandala-dock__resize--reduce {
+        display: inline-flex;
       }
 
       /* If the selected form belongs to the extended library, keep that one
@@ -181,7 +203,7 @@
     if (prepared) return;
     prepared = true;
 
-    moveShowLessBelowLibrary();
+    moveResizeControlsBelowLibrary();
     injectLibraryStyles();
     savedExperimentalPreset = readSavedExperimentalPreset();
     patchExperimentalPreviewContexts();
