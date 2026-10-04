@@ -8,25 +8,34 @@
 
   const style = document.createElement('style');
   style.textContent = `
+    /* The small line above is a label; the sentence below is the explanation.
+       Keep the hierarchy obvious and readable even on large desktop screens. */
+    body.learn4d-active .learn4d-caption {
+      font-size: clamp(11px, .58vw, 14px) !important;
+      color: rgba(244,246,249,.62) !important;
+      max-width: min(820px, calc(100vw - 40px)) !important;
+    }
+
     .learn4d-step-description {
       position: fixed;
-      top: max(46px, calc(env(safe-area-inset-top) + 42px));
+      top: max(54px, calc(env(safe-area-inset-top) + 50px));
       left: 50%;
       z-index: 9;
       transform: translateX(-50%);
-      max-width: min(680px, calc(100vw - 40px));
-      padding: 6px 10px;
-      border-radius: 10px;
-      background: rgba(7,9,11,.34);
-      color: rgba(244,246,249,.68);
-      font-size: 11px;
-      font-weight: 480;
-      line-height: 1.4;
-      letter-spacing: .008em;
+      width: min(900px, calc(100vw - 48px));
+      padding: 9px 16px;
+      border-radius: 12px;
+      background: rgba(7,9,11,.46);
+      color: rgba(248,249,251,.88);
+      font-size: clamp(14px, .70vw, 17px);
+      font-weight: 500;
+      line-height: 1.45;
+      letter-spacing: .003em;
       text-align: center;
       text-wrap: balance;
-      backdrop-filter: blur(7px);
-      -webkit-backdrop-filter: blur(7px);
+      text-shadow: 0 1px 10px rgba(0,0,0,.42);
+      backdrop-filter: blur(9px);
+      -webkit-backdrop-filter: blur(9px);
       pointer-events: none;
       opacity: 0;
       visibility: hidden;
@@ -40,12 +49,18 @@
     }
 
     @media (max-width: 680px) {
+      body.learn4d-active .learn4d-caption {
+        font-size: 11px !important;
+        max-width: calc(100vw - 24px) !important;
+      }
+
       .learn4d-step-description {
-        top: max(42px, calc(env(safe-area-inset-top) + 38px));
-        max-width: calc(100vw - 24px);
-        padding: 5px 8px;
-        font-size: 10px;
-        line-height: 1.35;
+        top: max(46px, calc(env(safe-area-inset-top) + 42px));
+        width: calc(100vw - 20px);
+        padding: 7px 10px;
+        border-radius: 10px;
+        font-size: 13px;
+        line-height: 1.4;
       }
     }
   `;
@@ -117,7 +132,7 @@
     if (local < .98) {
       return `3 · Connect corresponding ${matchingParts[stage]} between the two identical copies.`;
     }
-    return `Result · the two ${source}${stage === 0 ? 's' : 's'} and their connections form a ${results[stage]} — one dimension higher.`;
+    return `Result · the two ${source}s and their connections form a ${results[stage]} — one dimension higher.`;
   }
 
   function continuumText(stage) {
