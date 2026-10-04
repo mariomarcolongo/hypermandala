@@ -29,6 +29,46 @@
     }
   }
 
+  function retireInsightUi() {
+    /*
+     * The old "4D insight" block exposed several research/diagnostic modes
+     * directly in the main control panel. They add a lot of visual and verbal
+     * complexity, and some are not yet robust enough to be primary UX.
+     *
+     * Keep the underlying experimental renderer code available for future work,
+     * but remove these controls from the public interface for now. The core 4D
+     * experience remains available through projection, rotation planes and
+     * dimension stretch.
+     */
+    document.querySelector('.insight-section')?.remove();
+
+    const explorer = document.getElementById('explorerControls');
+    explorer?.setAttribute('aria-label', 'Explorer controls');
+
+    // Do not let an old saved diagnostic mode stay active invisibly after the
+    // controls are removed. Reset persisted state before app.js restores it.
+    try {
+      const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
+      if (!saved || typeof saved !== 'object') return;
+
+      let changed = false;
+      if (saved.insightMode !== 'standard') {
+        saved.insightMode = 'standard';
+        changed = true;
+      }
+      if (saved.wSlice !== 0.5) {
+        saved.wSlice = 0.5;
+        changed = true;
+      }
+
+      if (changed) {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(saved));
+      }
+    } catch {
+      // Storage may be unavailable in private/restricted contexts.
+    }
+  }
+
   function moveResizeControlsBelowLibrary() {
     const library = document.getElementById('presetControl');
     const expand = document.getElementById('expandGeometricForms');
@@ -203,6 +243,7 @@
     if (prepared) return;
     prepared = true;
 
+    retireInsightUi();
     moveResizeControlsBelowLibrary();
     injectLibraryStyles();
     savedExperimentalPreset = readSavedExperimentalPreset();
