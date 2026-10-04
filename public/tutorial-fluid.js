@@ -24,6 +24,12 @@
             const linkExit = document.createElement('script');
             linkExit.src = './tutorial-link-exit.js?reload=' + Date.now();
             linkExit.async = false;
+            linkExit.onload = () => {
+              const inspectionMotion = document.createElement('script');
+              inspectionMotion.src = './tutorial-inspection-motion.js?reload=' + Date.now();
+              inspectionMotion.async = false;
+              document.body.appendChild(inspectionMotion);
+            };
             document.body.appendChild(linkExit);
           };
           document.body.appendChild(pacing);
