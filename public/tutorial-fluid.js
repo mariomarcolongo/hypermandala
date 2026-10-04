@@ -20,6 +20,12 @@
           const pacing = document.createElement('script');
           pacing.src = './tutorial-emergence-pacing.js?reload=' + Date.now();
           pacing.async = false;
+          pacing.onload = () => {
+            const linkExit = document.createElement('script');
+            linkExit.src = './tutorial-link-exit.js?reload=' + Date.now();
+            linkExit.async = false;
+            document.body.appendChild(linkExit);
+          };
           document.body.appendChild(pacing);
         };
         document.body.appendChild(descriptions);
