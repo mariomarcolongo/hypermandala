@@ -12,6 +12,12 @@
       const descriptions = document.createElement('script');
       descriptions.src = './tutorial-descriptions.js?reload=' + Date.now();
       descriptions.async = false;
+      descriptions.onload = () => {
+        const pacing = document.createElement('script');
+        pacing.src = './tutorial-emergence-pacing.js?reload=' + Date.now();
+        pacing.async = false;
+        document.body.appendChild(pacing);
+      };
       document.body.appendChild(descriptions);
     };
     document.body.appendChild(enhancements);
