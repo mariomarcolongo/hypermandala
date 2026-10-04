@@ -247,7 +247,7 @@
 
     const script = document.createElement('script');
     script.dataset.hypermandalaTutorial = 'true';
-    script.src = './tutorial.js?reload=' + Date.now();
+    script.src = './tutorial-fluid.js?reload=' + Date.now();
     script.async = true;
     document.body.appendChild(script);
   }
