@@ -41,6 +41,51 @@
 
   <title>Hypermandala — Interactive 4D Mandala, Yantra & Geometry Explorer</title>
 
+  <style>
+    /* Additional forms are a library visibility group, not a selection mode.
+       Keeping this separate from the legacy experimental class prevents hiding
+       the extra cards from changing the currently selected form. */
+    #geometricFormsDock .mandala-library .mandala-card--additional {
+      display: none;
+    }
+    #geometricFormsDock.is-expanded .mandala-library .mandala-card--additional {
+      display: grid;
+    }
+    #geometricFormsDock .mandala-library__actions {
+      display: flex;
+      justify-content: center;
+      margin-top: 7px;
+    }
+    #geometricFormsDock .mandala-library__actions .mandala-dock__resize {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 104px;
+    }
+    #geometricFormsDock .mandala-library__actions .mandala-dock__resize--reduce {
+      display: none;
+    }
+    #geometricFormsDock.is-expanded .mandala-library__actions .mandala-dock__resize--expand {
+      display: none;
+    }
+    #geometricFormsDock.is-expanded .mandala-library__actions .mandala-dock__resize--reduce {
+      display: inline-flex;
+    }
+
+    /* Dense plans contain many sub-pixel dark outlines at thumbnail scale.
+       Lift their tonal floor and give them a little more room so the actual
+       colored geometry remains readable instead of collapsing into black. */
+    #geometricFormsDock .mandala-card--additional canvas {
+      opacity: 1;
+      filter: contrast(.72) brightness(1.22) saturate(1.08);
+    }
+    @media (min-width: 761px) {
+      #geometricFormsDock.is-expanded .mandala-card--additional canvas {
+        max-width: 84px;
+      }
+    }
+  </style>
+
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -258,20 +303,6 @@
           aria-label="Close geometric forms"
         >close</button>
         <button
-          id="expandGeometricForms"
-          class="mandala-dock__resize mandala-dock__resize--expand"
-          type="button"
-          aria-label="Show more geometric forms"
-          title="Show more geometric forms"
-        >show more</button>
-        <button
-          id="reduceGeometricForms"
-          class="mandala-dock__resize mandala-dock__resize--reduce"
-          type="button"
-          aria-label="Show fewer geometric forms"
-          title="Show fewer geometric forms"
-        >show less</button>
-        <button
           id="toggleGeometricForms"
           class="mandala-dock__toggle"
           type="button"
@@ -323,50 +354,66 @@
           <canvas id="previewLalibela" width="120" height="120" aria-hidden="true"></canvas>
           <span>Bete Giyorgis</span>
         </button>
-        <button type="button" class="mandala-card mandala-card--experimental" data-preset="chartres">
+        <button type="button" class="mandala-card mandala-card--additional" data-preset="chartres">
           <canvas id="previewChartres" width="120" height="120" aria-hidden="true"></canvas>
           <span>Chartres Labyrinth</span>
         </button>
-        <button type="button" class="mandala-card mandala-card--experimental" data-preset="rosewindow">
+        <button type="button" class="mandala-card mandala-card--additional" data-preset="rosewindow">
           <canvas id="previewRoseWindow" width="120" height="120" aria-hidden="true"></canvas>
           <span>Rose Window</span>
         </button>
-        <button type="button" class="mandala-card mandala-card--experimental" data-preset="sunstone">
+        <button type="button" class="mandala-card mandala-card--additional" data-preset="sunstone">
           <canvas id="previewSunStone" width="120" height="120" aria-hidden="true"></canvas>
           <span>Aztec Sun Stone</span>
         </button>
-        <button type="button" class="mandala-card mandala-card--experimental" data-preset="lotfollah">
+        <button type="button" class="mandala-card mandala-card--additional" data-preset="lotfollah">
           <canvas id="previewLotfollah" width="120" height="120" aria-hidden="true"></canvas>
           <span>Lotfollah Dome</span>
         </button>
-        <button type="button" class="mandala-card mandala-card--experimental" data-preset="chladni">
+        <button type="button" class="mandala-card mandala-card--additional" data-preset="chladni">
           <canvas id="previewChladni" width="120" height="120" aria-hidden="true"></canvas>
           <span>Chladni Mode</span>
         </button>
-        <button type="button" class="mandala-card mandala-card--experimental" data-preset="diatom">
+        <button type="button" class="mandala-card mandala-card--additional" data-preset="diatom">
           <canvas id="previewDiatom" width="120" height="120" aria-hidden="true"></canvas>
           <span>Centric Diatom</span>
         </button>
-        <button type="button" class="mandala-card mandala-card--experimental" data-preset="radiolaria">
+        <button type="button" class="mandala-card mandala-card--additional" data-preset="radiolaria">
           <canvas id="previewRadiolaria" width="120" height="120" aria-hidden="true"></canvas>
           <span>Radiolaria</span>
         </button>
-        <button type="button" class="mandala-card mandala-card--experimental" data-preset="snowflake">
+        <button type="button" class="mandala-card mandala-card--additional" data-preset="snowflake">
           <canvas id="previewSnowflake" width="120" height="120" aria-hidden="true"></canvas>
           <span>Snowflake</span>
         </button>
-        <button type="button" class="mandala-card mandala-card--experimental" data-preset="kolam">
+        <button type="button" class="mandala-card mandala-card--additional" data-preset="kolam">
           <canvas id="previewKolam" width="120" height="120" aria-hidden="true"></canvas>
           <span>Kolam</span>
         </button>
-        <button type="button" class="mandala-card mandala-card--experimental" data-preset="vastu">
+        <button type="button" class="mandala-card mandala-card--additional" data-preset="vastu">
           <canvas id="previewVastu" width="120" height="120" aria-hidden="true"></canvas>
           <span>Vastu Mandala</span>
         </button>
-        <button type="button" class="mandala-card mandala-card--experimental" data-preset="phyllotaxis">
+        <button type="button" class="mandala-card mandala-card--additional" data-preset="phyllotaxis">
           <canvas id="previewPhyllotaxis" width="120" height="120" aria-hidden="true"></canvas>
           <span>Phyllotaxis</span>
         </button>
+      </div>
+      <div class="mandala-library__actions" aria-label="Geometric form library size">
+        <button
+          id="expandGeometricForms"
+          class="mandala-dock__resize mandala-dock__resize--expand"
+          type="button"
+          aria-label="Show more geometric forms"
+          title="Show more geometric forms"
+        >show more</button>
+        <button
+          id="reduceGeometricForms"
+          class="mandala-dock__resize mandala-dock__resize--reduce"
+          type="button"
+          aria-label="Show fewer geometric forms"
+          title="Show fewer geometric forms"
+        >show less</button>
       </div>
       <div class="mandala-dock__options">
         <div class="dock-option">
