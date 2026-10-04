@@ -5,269 +5,311 @@
   window.__hypermandalaTutorialInstalled = true;
 
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const TAU = Math.PI * 2;
+  const GOLD = '#d8b662';
+  const WHITE = 'rgba(244,246,249,.92)';
+  const MUTED = 'rgba(225,229,235,.34)';
+  const BLUE = '#6ca8ff';
+  const GREEN = '#62d48b';
 
-  const chapters = [
-    {
-      id: 'build',
-      label: 'Build',
-      line: 'Move the whole object in a new perpendicular direction. Every part moves with it.',
-    },
-    {
-      id: 'parts',
-      label: 'Every part',
-      line: 'Vertices trace edges. Edges sweep faces. Faces sweep cells. The whole cube sweeps a 4D body.',
-    },
-    {
-      id: 'freedom',
-      label: 'Freedom',
-      line: 'The regular shape is only one choice. Change the new-axis length, scale, or rotation and the higher-dimensional object changes.',
-    },
-    {
-      id: 'slice',
-      label: 'Slices',
-      line: 'A slice tells you what exists here — not what exists beyond it. The same slice can belong to many different wholes.',
-    },
+  const modes = [
+    { id: 'build', label: 'Build' },
+    { id: 'freedom', label: 'Variations' },
+    { id: 'slices', label: 'Slices' },
   ];
 
   const style = document.createElement('style');
-  style.id = 'hypermandalaInlineTutorialStyles';
+  style.id = 'hypermandalaSimpleLearn4DStyles';
   style.textContent = `
+    /* The old comparison view belonged to the retired diagnostic UI. */
+    .reference-view { display: none !important; }
+
     .control-panel__actions .learn-4d-launch {
       border: 0;
       padding: 2px 0;
       background: transparent;
-      color: rgba(231,211,158,.82);
+      color: rgba(231,211,158,.78);
       font-size: 9px;
       text-transform: uppercase;
       letter-spacing: .08em;
       cursor: pointer;
     }
-    .control-panel__actions .learn-4d-launch:hover {
-      color: rgba(250,232,181,.98);
-    }
+    .control-panel__actions .learn-4d-launch:hover { color: rgba(250,232,181,.98); }
 
-    .dimension-tour {
+    .learn4d-stage {
       position: fixed;
       inset: 0;
       z-index: 7;
+      width: 100vw;
+      height: 100dvh;
       pointer-events: none;
       opacity: 0;
-      visibility: hidden;
-      transition: opacity 180ms ease, visibility 0s linear 180ms;
+      transition: opacity 220ms ease;
     }
-    .dimension-tour.is-open {
-      opacity: 1;
-      visibility: visible;
-      transition: opacity 180ms ease, visibility 0s;
-    }
-    .dimension-tour canvas {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      display: block;
-    }
-    .dimension-tour__title {
-      position: absolute;
-      top: max(23px, env(safe-area-inset-top));
-      left: 50%;
-      transform: translateX(-50%);
-      color: rgba(245,246,248,.54);
-      font-size: 9px;
-      font-weight: 760;
-      letter-spacing: .12em;
-      text-transform: uppercase;
-      white-space: nowrap;
-    }
-    .dimension-tour__stage-label {
-      position: absolute;
-      top: max(54px, calc(env(safe-area-inset-top) + 42px));
-      left: 50%;
-      transform: translateX(-50%);
-      color: rgba(245,239,225,.90);
-      font-size: 13px;
-      font-weight: 720;
-      letter-spacing: .035em;
-      white-space: nowrap;
-    }
-    .dimension-tour__close {
-      position: absolute;
-      top: max(17px, env(safe-area-inset-top));
-      right: max(19px, env(safe-area-inset-right));
-      pointer-events: auto;
-      min-width: 44px;
-      height: 34px;
-      padding: 0 10px;
-      border: 1px solid rgba(255,255,255,.09);
-      border-radius: 10px;
-      background: rgba(12,14,17,.72);
-      color: rgba(245,246,248,.62);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      cursor: pointer;
-      font-size: 9px;
-      font-weight: 700;
-      letter-spacing: .055em;
-      text-transform: uppercase;
-    }
-    .dimension-tour__close:hover {
-      background: rgba(255,255,255,.08);
-      color: rgba(245,246,248,.95);
-    }
-    .dimension-tour__bar {
-      position: absolute;
-      left: 50%;
-      bottom: max(22px, env(safe-area-inset-bottom));
-      transform: translateX(-50%);
-      width: min(680px, calc(100vw - 32px));
-      pointer-events: auto;
-      text-align: center;
-    }
-    .dimension-tour__tabs {
-      display: inline-grid;
-      grid-template-columns: repeat(4, minmax(92px, 1fr));
-      gap: 3px;
-      padding: 4px;
-      border: 1px solid rgba(255,255,255,.08);
-      border-radius: 13px;
-      background: rgba(10,12,15,.76);
-      backdrop-filter: blur(16px) saturate(120%);
-      -webkit-backdrop-filter: blur(16px) saturate(120%);
-    }
-    .dimension-tour__tab {
-      min-height: 34px;
-      padding: 0 12px;
-      border: 0;
-      border-radius: 9px;
-      background: transparent;
-      color: rgba(238,239,242,.40);
-      cursor: pointer;
-      font-size: 9px;
-      font-weight: 740;
-      letter-spacing: .045em;
-    }
-    .dimension-tour__tab:hover {
-      color: rgba(238,239,242,.82);
-    }
-    .dimension-tour__tab.is-active {
-      background: rgba(255,255,255,.085);
-      color: rgba(249,249,247,.96);
-    }
-    .dimension-tour__copy {
-      min-height: 34px;
-      margin: 9px auto 0;
-      color: rgba(232,234,238,.52);
-      font-size: 11px;
-      line-height: 1.45;
-      text-wrap: balance;
-    }
-    .dimension-tour__hint {
-      margin-top: 3px;
-      color: rgba(225,227,230,.25);
-      font-size: 8px;
-      letter-spacing: .055em;
-      text-transform: uppercase;
-    }
+    body.learn4d-active .learn4d-stage { opacity: 1; }
 
-    body.learn-4d-mode #mandala,
-    body.learn-4d-mode #solidLayer {
-      opacity: .08;
+    .learn4d-caption {
+      position: fixed;
+      top: max(24px, env(safe-area-inset-top));
+      left: 50%;
+      z-index: 9;
+      transform: translateX(-50%);
+      max-width: min(720px, calc(100vw - 40px));
+      color: rgba(244,246,249,.70);
+      font-size: 12px;
+      font-weight: 560;
+      line-height: 1.35;
+      letter-spacing: .015em;
+      text-align: center;
       pointer-events: none;
+      opacity: 0;
       transition: opacity 180ms ease;
     }
-    body.learn-4d-mode .control-panel,
-    body.learn-4d-mode .mandala-dock,
-    body.learn-4d-mode .dimension-switcher,
-    body.learn-4d-mode .mobile-panel-switcher,
-    body.learn-4d-mode .dimension-readout,
-    body.learn-4d-mode .basis-gizmo,
-    body.learn-4d-mode .hint,
-    body.learn-4d-mode .source,
-    body.learn-4d-mode .about-panel {
+    body.learn4d-active .learn4d-caption { opacity: 1; }
+
+    .learn4d-hud {
+      position: fixed;
+      left: 50%;
+      bottom: max(22px, env(safe-area-inset-bottom));
+      z-index: 10;
+      transform: translateX(-50%);
+      display: grid;
+      gap: 8px;
+      width: min(720px, calc(100vw - 34px));
+      padding: 8px 10px 9px;
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 13px;
+      background: rgba(10,12,15,.70);
+      backdrop-filter: blur(14px) saturate(115%);
+      -webkit-backdrop-filter: blur(14px) saturate(115%);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 180ms ease, visibility 0s linear 180ms;
+    }
+    body.learn4d-active .learn4d-hud {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transition: opacity 180ms ease, visibility 0s;
+    }
+    .learn4d-modes {
+      display: flex;
+      justify-content: center;
+      gap: 4px;
+    }
+    .learn4d-mode,
+    .learn4d-icon {
+      min-height: 29px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: rgba(238,239,242,.38);
+      cursor: pointer;
+      font-size: 8px;
+      font-weight: 730;
+      letter-spacing: .055em;
+      text-transform: uppercase;
+    }
+    .learn4d-mode { padding: 0 10px; }
+    .learn4d-mode:hover,
+    .learn4d-icon:hover { color: rgba(248,249,250,.86); }
+    .learn4d-mode.is-active {
+      background: rgba(255,255,255,.07);
+      color: rgba(248,249,250,.91);
+    }
+    .learn4d-timeline-row {
+      display: grid;
+      grid-template-columns: 34px minmax(0,1fr) 34px;
+      align-items: center;
+      gap: 8px;
+    }
+    .learn4d-icon {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      min-width: 34px;
+      padding: 0;
+      font-size: 12px;
+      text-transform: none;
+    }
+    .learn4d-timeline {
+      width: 100%;
+      height: 26px;
+      margin: 0;
+      appearance: none;
+      -webkit-appearance: none;
+      background: transparent;
+      cursor: ew-resize;
+    }
+    .learn4d-timeline::-webkit-slider-runnable-track {
+      height: 2px;
+      border-radius: 99px;
+      background: rgba(255,255,255,.22);
+    }
+    .learn4d-timeline::-moz-range-track {
+      height: 2px;
+      border-radius: 99px;
+      background: rgba(255,255,255,.22);
+    }
+    .learn4d-timeline::-webkit-slider-thumb {
+      width: 14px;
+      height: 14px;
+      margin-top: -6px;
+      appearance: none;
+      -webkit-appearance: none;
+      border: 1px solid rgba(255,255,255,.74);
+      border-radius: 50%;
+      background: ${GOLD};
+    }
+    .learn4d-timeline::-moz-range-thumb {
+      width: 13px;
+      height: 13px;
+      border: 1px solid rgba(255,255,255,.74);
+      border-radius: 50%;
+      background: ${GOLD};
+    }
+    .learn4d-markers {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      padding: 0 43px;
+      color: rgba(225,229,235,.28);
+      font-size: 7px;
+      font-weight: 700;
+      letter-spacing: .07em;
+      text-align: center;
+      text-transform: uppercase;
+    }
+    .learn4d-markers span:first-child { text-align: left; }
+    .learn4d-markers span:last-child { text-align: right; }
+
+    body.learn4d-active #solidLayer,
+    body.learn4d-active #mandala { opacity: .055; transition: opacity 220ms ease; }
+    body.learn4d-active .brand,
+    body.learn4d-active .dimension-readout,
+    body.learn4d-active .control-panel,
+    body.learn4d-active .mandala-dock,
+    body.learn4d-active .dimension-switcher,
+    body.learn4d-active .mobile-panel-switcher,
+    body.learn4d-active .basis-gizmo,
+    body.learn4d-active .hint,
+    body.learn4d-active .source,
+    body.learn4d-active .about-panel {
       opacity: 0 !important;
       visibility: hidden !important;
       pointer-events: none !important;
-      transition: opacity 150ms ease, visibility 0s linear 150ms !important;
+      transition: opacity 160ms ease !important;
     }
 
     @media (max-width: 680px) {
-      .dimension-tour__title { font-size: 8px; }
-      .dimension-tour__stage-label {
-        top: max(48px, calc(env(safe-area-inset-top) + 38px));
-        font-size: 11px;
-      }
-      .dimension-tour__bar {
-        bottom: max(12px, env(safe-area-inset-bottom));
-        width: calc(100vw - 20px);
-      }
-      .dimension-tour__tabs {
-        width: 100%;
-        grid-template-columns: repeat(4, 1fr);
-      }
-      .dimension-tour__tab {
-        min-width: 0;
-        padding: 0 5px;
-        font-size: 8px;
-      }
-      .dimension-tour__copy {
-        max-width: 92vw;
+      .learn4d-caption {
+        top: max(18px, env(safe-area-inset-top));
         font-size: 10px;
       }
+      .learn4d-hud {
+        bottom: max(10px, env(safe-area-inset-bottom));
+        width: calc(100vw - 18px);
+        padding: 7px 8px 8px;
+      }
+      .learn4d-mode { padding: 0 8px; }
+      .learn4d-markers { padding: 0 42px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .learn4d-stage,
+      .learn4d-caption,
+      .learn4d-hud { transition: none !important; }
     }
   `;
   document.head.appendChild(style);
 
-  const launch = document.createElement('button');
-  launch.type = 'button';
-  launch.className = 'learn-4d-launch';
-  launch.textContent = 'Learn 4D';
-  launch.title = 'See how dimensions grow';
-  document.querySelector('.control-panel__actions')?.prepend(launch);
+  let launch = document.querySelector('.learn-4d-launch');
+  if (!launch) {
+    launch = document.createElement('button');
+    launch.type = 'button';
+    launch.className = 'learn-4d-launch';
+    launch.textContent = 'Learn 4D';
+    launch.title = 'See how dimensions build on each other';
+    document.querySelector('.control-panel__actions')?.prepend(launch);
+  }
 
-  const tour = document.createElement('div');
-  tour.className = 'dimension-tour';
-  tour.innerHTML = `
-    <canvas aria-hidden="true"></canvas>
-    <div class="dimension-tour__title">Dimension builder</div>
-    <div class="dimension-tour__stage-label"></div>
-    <button type="button" class="dimension-tour__close" aria-label="Exit Learn 4D">Exit</button>
-    <div class="dimension-tour__bar">
-      <div class="dimension-tour__tabs" role="tablist" aria-label="Learn 4D concepts"></div>
-      <div class="dimension-tour__copy"></div>
-      <div class="dimension-tour__hint">automatic animation · click a concept · Esc exits</div>
-    </div>
-  `;
-  document.body.appendChild(tour);
-
-  const canvas = tour.querySelector('canvas');
+  const canvas = document.createElement('canvas');
+  canvas.className = 'learn4d-stage';
+  canvas.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(canvas);
   const ctx = canvas.getContext('2d');
-  const labelEl = tour.querySelector('.dimension-tour__stage-label');
-  const tabsEl = tour.querySelector('.dimension-tour__tabs');
-  const copyEl = tour.querySelector('.dimension-tour__copy');
-  const closeButton = tour.querySelector('.dimension-tour__close');
 
-  const C = {
-    text: 'rgba(246,247,249,.92)',
-    faint: 'rgba(226,229,235,.25)',
-    source: 'rgba(226,229,235,.44)',
-    gold: 'rgba(231,194,100,.94)',
-    goldSoft: 'rgba(231,194,100,.10)',
-    blue: 'rgba(108,168,255,.66)',
-    green: 'rgba(98,212,139,.70)',
+  const caption = document.createElement('div');
+  caption.className = 'learn4d-caption';
+  caption.setAttribute('aria-live', 'polite');
+  document.body.appendChild(caption);
+
+  const hud = document.createElement('div');
+  hud.className = 'learn4d-hud';
+  hud.innerHTML = `
+    <div class="learn4d-modes" aria-label="4D lesson view"></div>
+    <div class="learn4d-timeline-row">
+      <button class="learn4d-icon learn4d-play" type="button" aria-label="Pause animation">Ⅱ</button>
+      <input class="learn4d-timeline" type="range" min="0" max="1" step="0.001" value="0" aria-label="Animation timeline" />
+      <button class="learn4d-icon learn4d-close" type="button" aria-label="Close Learn 4D">×</button>
+    </div>
+    <div class="learn4d-markers"><span>0D</span><span>1D</span><span>2D</span><span>3D</span><span>4D</span></div>
+  `;
+  document.body.appendChild(hud);
+
+  const modesEl = hud.querySelector('.learn4d-modes');
+  const timeline = hud.querySelector('.learn4d-timeline');
+  const playButton = hud.querySelector('.learn4d-play');
+  const closeButton = hud.querySelector('.learn4d-close');
+  const markers = hud.querySelector('.learn4d-markers');
+
+  let active = false;
+  let playing = !reduceMotion;
+  let mode = 'build';
+  let progress = 0;
+  let lastFrame = performance.now();
+  let raf = 0;
+  let scrubbing = false;
+
+  const modeDurations = {
+    build: 12,
+    freedom: 10,
+    slices: 10,
   };
 
-  let isOpen = false;
-  let chapterIndex = 0;
-  let startedAt = performance.now();
-  let rafId = 0;
+  const cubeEdges = [
+    [0,1],[1,2],[2,3],[3,0],
+    [4,5],[5,6],[6,7],[7,4],
+    [0,4],[1,5],[2,6],[3,7],
+  ];
+
+  function clamp(value, min = 0, max = 1) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  function lerp(a, b, t) {
+    return a + (b - a) * t;
+  }
 
   function ease(t) {
-    const x = Math.max(0, Math.min(1, t));
+    const x = clamp(t);
     return x * x * (3 - 2 * x);
   }
 
-  function line(a, b, color = C.text, width = 1.4, alpha = 1) {
+  function fitCanvas() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const pixelWidth = Math.max(1, Math.round(width * dpr));
+    const pixelHeight = Math.max(1, Math.round(height * dpr));
+    if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+      canvas.width = pixelWidth;
+      canvas.height = pixelHeight;
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { width, height };
+  }
+
+  function line(a, b, color = WHITE, width = 1.5, alpha = 1) {
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.strokeStyle = color;
@@ -280,17 +322,17 @@
     ctx.restore();
   }
 
-  function dot(p, radius = 4, color = C.text, alpha = 1) {
+  function dot(p, radius = 3.5, color = WHITE, alpha = 1) {
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.arc(p[0], p[1], radius, 0, TAU);
+    ctx.arc(p[0], p[1], radius, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
 
-  function poly(points, fill = null, stroke = C.text, alpha = 1, width = 1.2) {
+  function polygon(points, fill, stroke = null, alpha = 1, width = 1) {
     if (!points.length) return;
     ctx.save();
     ctx.globalAlpha = alpha;
@@ -310,396 +352,401 @@
     ctx.restore();
   }
 
-  function fitCanvas() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const width = innerWidth;
-    const height = innerHeight;
-    const pw = Math.max(1, Math.round(width * dpr));
-    const ph = Math.max(1, Math.round(height * dpr));
-    if (canvas.width !== pw || canvas.height !== ph) {
-      canvas.width = pw;
-      canvas.height = ph;
-    }
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    return [width, height];
+  function rotatePoint(p, center, angle) {
+    const x = p[0] - center[0];
+    const y = p[1] - center[1];
+    const c = Math.cos(angle);
+    const s = Math.sin(angle);
+    return [center[0] + c * x - s * y, center[1] + s * x + c * y];
   }
 
-  function cubeVertices(size = 1) {
-    const out = [];
-    for (let z = 0; z < 2; z += 1) {
-      for (let y = 0; y < 2; y += 1) {
-        for (let x = 0; x < 2; x += 1) {
-          out.push([(x - .5) * size, (y - .5) * size, (z - .5) * size]);
-        }
-      }
-    }
-    return out;
+  function squarePoints(cx, cy, size) {
+    const h = size / 2;
+    return [
+      [cx - h, cy - h],
+      [cx + h, cy - h],
+      [cx + h, cy + h],
+      [cx - h, cy + h],
+    ];
   }
 
-  const cubeEdges = [
-    [0,1],[0,2],[0,4],[1,3],[1,5],[2,3],[2,6],[3,7],
-    [4,5],[4,6],[5,7],[6,7],
-  ];
-
-  const cubeFaces = [
-    [0,2,6,4], [1,5,7,3],
-    [0,4,5,1], [2,3,7,6],
-    [0,1,3,2], [4,6,7,5],
-  ];
-
-  function project3(v, center, scale, rotation = 0) {
-    let [x, y, z] = v;
-    if (rotation) {
-      const c0 = Math.cos(rotation);
-      const s0 = Math.sin(rotation);
-      [x, y] = [c0 * x - s0 * y, s0 * x + c0 * y];
-    }
-    const yaw = -.72;
-    const pitch = .52;
-    let c = Math.cos(yaw);
-    let s = Math.sin(yaw);
-    [x, z] = [c * x - s * z, s * x + c * z];
-    c = Math.cos(pitch);
-    s = Math.sin(pitch);
-    [y, z] = [c * y - s * z, s * y + c * z];
-    const f = 5 / (5 - z);
-    return [center[0] + x * scale * f, center[1] + y * scale * f, z];
+  function cubePoints(cx, cy, size, depth = 1) {
+    const front = squarePoints(cx - size * .10 * depth, cy + size * .08 * depth, size);
+    const dx = size * .28 * depth;
+    const dy = -size * .22 * depth;
+    const back = front.map(([x, y]) => [x + dx, y + dy]);
+    return [...front, ...back];
   }
 
-  function project4(v, center, scale) {
-    const q = [...v];
-    const rotate = (a, b, angle) => {
-      const c = Math.cos(angle);
-      const s = Math.sin(angle);
-      const na = c * q[a] - s * q[b];
-      const nb = s * q[a] + c * q[b];
-      q[a] = na;
-      q[b] = nb;
-    };
-    rotate(0, 3, .52);
-    rotate(1, 3, -.30);
-    rotate(2, 3, .20);
-    rotate(0, 2, -.52);
-    rotate(1, 2, .34);
-    const wf = 5 / (5 - q[3]);
-    return project3([q[0] * wf, q[1] * wf, q[2] * wf], center, scale);
-  }
-
-  function drawCube(points, color = C.text, alpha = .8, width = 1.4) {
+  function drawCube(points, color = WHITE, alpha = .86, width = 1.5) {
     cubeEdges.forEach(([a, b]) => line(points[a], points[b], color, width, alpha));
   }
 
-  function stageTiming(elapsed, durations) {
-    const total = durations.reduce((a, b) => a + b, 0);
-    let t = ((elapsed % total) + total) % total;
-    for (let i = 0; i < durations.length; i += 1) {
-      if (t < durations[i]) return [i, t / durations[i]];
-      t -= durations[i];
-    }
-    return [durations.length - 1, 1];
+  function project3([x, y, z], center, scale) {
+    const yaw = -.68;
+    const pitch = .48;
+    let xx = x;
+    let yy = y;
+    let zz = z;
+    let c = Math.cos(yaw);
+    let s = Math.sin(yaw);
+    [xx, zz] = [c * xx - s * zz, s * xx + c * zz];
+    c = Math.cos(pitch);
+    s = Math.sin(pitch);
+    [yy, zz] = [c * yy - s * zz, s * yy + c * zz];
+    const f = 4.8 / (4.8 - zz);
+    return [center[0] + xx * scale * f, center[1] + yy * scale * f];
   }
 
-  function drawBuild(width, height, elapsed) {
-    const durations = [3000, 3200, 3400, 4300];
-    const [stage, raw] = stageTiming(elapsed, durations);
-    const hold = .14;
-    const local = raw < hold ? 0 : raw > 1 - hold ? 1 : ease((raw - hold) / (1 - hold * 2));
-    const center = [width * .5, height * .47];
-    const base = Math.min(width, height) * .245;
-    const stageNames = ['POINT → LINE', 'LINE → SQUARE', 'SQUARE → CUBE', 'CUBE → TESSERACT'];
-    labelEl.textContent = stageNames[stage];
+  function drawBuild(width, height, t) {
+    const segmentFloat = clamp(t) * 4;
+    const segment = Math.min(3, Math.floor(segmentFloat));
+    const local = ease(segmentFloat - segment);
+    const cx = width * .5;
+    const cy = height * .46;
+    const size = Math.min(width, height) * .31;
 
-    if (stage === 0) {
-      const a = [center[0] - base * .62, center[1]];
-      const b = [a[0] + base * 1.24 * local, center[1]];
-      line(a, b, C.gold, 3.2, .92);
-      dot(a, 5, C.source);
-      dot(b, 5.2, C.text);
+    if (segment === 0) {
+      const half = size * .48 * local;
+      const a = [cx, cy - half];
+      const b = [cx, cy + half];
+      line(a, b, GOLD, 2.4, .92);
+      dot(a, 4, WHITE, .92);
+      dot(b, 4, WHITE, .92);
+      caption.textContent = local < .08 ? '0D · a point' : '0D → 1D · a point moves and traces a line';
       return;
     }
 
-    if (stage === 1) {
-      const half = base * .56;
-      const dx = base * 1.12 * local;
-      const x = center[0] - base * .56;
-      const a = [x, center[1] - half];
-      const b = [x, center[1] + half];
-      const c = [x + dx, center[1] + half];
-      const d = [x + dx, center[1] - half];
-      poly([a, b, c, d], C.goldSoft, C.gold, .92, 1.4);
-      line(a, b, C.source, 2.4, .82);
-      line(d, c, C.text, 2.4, .94);
-      [a, b].forEach((p) => dot(p, 4.2, C.source));
-      [c, d].forEach((p) => dot(p, 4.2, C.text));
+    if (segment === 1) {
+      const h = size * .48;
+      const left = cx - size * .48;
+      const right = lerp(left, cx + size * .48, local);
+      const source = [[left, cy - h], [left, cy + h]];
+      const moved = [[right, cy - h], [right, cy + h]];
+      polygon([source[0], source[1], moved[1], moved[0]], 'rgba(216,182,98,.055)', GOLD, .72, 1.1);
+      line(source[0], source[1], WHITE, 1.8, .56);
+      line(moved[0], moved[1], GOLD, 2.2, .92);
+      line(source[0], moved[0], GOLD, 1.4, .58);
+      line(source[1], moved[1], GOLD, 1.4, .58);
+      [...source, ...moved].forEach((p) => dot(p, 3.5, WHITE, .85));
+      caption.textContent = '1D → 2D · every point of the line moves · the line sweeps a face';
       return;
     }
 
-    if (stage === 2) {
-      const verts = cubeVertices(1.35).map(([x, y, z]) => [x, y, z * local]);
-      const p = verts.map((v) => project3(v, center, base * .82));
-      cubeFaces.forEach((face) => poly(face.map((i) => p[i]), 'rgba(231,194,100,.035)', 'rgba(231,194,100,.20)', .58, 1));
-      cubeEdges.forEach(([a, b]) => {
-        const newEdge = Math.abs(verts[a][2] - verts[b][2]) > .01;
-        line(p[a], p[b], newEdge ? C.gold : C.text, newEdge ? 2.3 : 1.5, newEdge ? .95 : .74);
-      });
-      p.forEach((q, i) => dot(q, 3, i < 4 ? C.source : C.text, .9));
+    if (segment === 2) {
+      const front = squarePoints(cx - size * .08 * local, cy + size * .06 * local, size * .92);
+      const dx = size * .27 * local;
+      const dy = -size * .22 * local;
+      const back = front.map(([x, y]) => [x + dx, y + dy]);
+      polygon(front, 'rgba(216,182,98,.025)', WHITE, .58, 1.2);
+      polygon(back, 'rgba(216,182,98,.045)', GOLD, .88, 1.4);
+      for (let i = 0; i < 4; i += 1) {
+        const j = (i + 1) % 4;
+        polygon([front[i], front[j], back[j], back[i]], 'rgba(108,168,255,.025)', null, .7);
+        line(front[i], back[i], GOLD, 1.8, .76);
+      }
+      front.forEach((p) => dot(p, 3, WHITE, .72));
+      back.forEach((p) => dot(p, 3, GOLD, .88));
+      caption.textContent = '2D → 3D · points trace edges · edges sweep faces · the square sweeps volume';
       return;
     }
 
-    const cube = cubeVertices(1.30);
-    const w = .66 * local;
-    const p = [
-      ...cube.map((v) => project4([v[0], v[1], v[2], -w], center, base * .80)),
-      ...cube.map((v) => project4([v[0], v[1], v[2], w], center, base * .80)),
-    ];
+    const source = cubePoints(cx, cy, size * .86, 1);
+    const targetScale = lerp(1, .54, local);
+    const targetOffset = [size * .08 * local, -size * .055 * local];
+    const target = source.map(([x, y]) => [
+      cx + (x - cx) * targetScale + targetOffset[0],
+      cy + (y - cy) * targetScale + targetOffset[1],
+    ]);
+
+    drawCube(source, WHITE, .50, 1.25);
+
+    const ghostCount = 5;
+    for (let g = 1; g <= ghostCount; g += 1) {
+      const u = (g / (ghostCount + 1)) * local;
+      const s = lerp(1, .54, u);
+      const ghost = source.map(([x, y]) => [
+        cx + (x - cx) * s + size * .08 * u,
+        cy + (y - cy) * s - size * .055 * u,
+      ]);
+      drawCube(ghost, GOLD, .08 + u * .05, .8);
+    }
+
     cubeEdges.forEach(([a, b]) => {
-      line(p[a], p[b], C.source, 1.3, .55);
-      line(p[a + 8], p[b + 8], C.text, 1.55, .90);
+      polygon([source[a], source[b], target[b], target[a]], 'rgba(108,168,255,.018)', null, .9);
     });
-    for (let i = 0; i < 8; i += 1) line(p[i], p[i + 8], C.gold, 2.3, .92);
-    p.forEach((q, i) => dot(q, 2.8, i < 8 ? C.source : C.text, .88));
+    for (let i = 0; i < 8; i += 1) line(source[i], target[i], GOLD, 1.9, .76);
+    drawCube(target, GOLD, .92, 1.6);
+    source.forEach((p) => dot(p, 2.7, WHITE, .64));
+    target.forEach((p) => dot(p, 2.9, GOLD, .92));
+
+    caption.textContent = '3D → 4D · every vertex → edge · every edge → face · every face → cell';
   }
 
-  function tesseract(width, height) {
-    const center = [width * .5, height * .47];
-    const scale = Math.min(width, height) * .20;
-    const cube = cubeVertices(1.34);
-    const all = [
-      ...cube.map((v) => [...v, -.68]),
-      ...cube.map((v) => [...v, .68]),
-    ];
-    return { center, cube, p: all.map((v) => project4(v, center, scale)) };
-  }
-
-  function drawParts(width, height, elapsed) {
-    const { center, p } = tesseract(width, height);
-    const modes = ['vertices', 'edges', 'faces', 'whole'];
-    const mode = modes[Math.floor(elapsed / 2600) % modes.length];
-    const names = {
-      vertices: 'EVERY VERTEX TRACES AN EDGE',
-      edges: 'EVERY EDGE SWEEPS A FACE',
-      faces: 'EVERY FACE SWEEPS A CUBE',
-      whole: 'THE WHOLE CUBE SWEEPS A 4D BODY',
+  function freedomParams(t) {
+    const phase = t * Math.PI * 2;
+    return {
+      depth: .72 + .45 * (Math.sin(phase) * .5 + .5),
+      taper: .38 * (Math.sin(phase * .73 + 1.2) * .5 + .5),
+      twist: .92 * Math.sin(phase * .61),
     };
-    labelEl.textContent = names[mode];
+  }
 
-    cubeEdges.forEach(([a, b]) => {
-      line(p[a], p[b], C.source, 1.1, .22);
-      line(p[a + 8], p[b + 8], C.text, 1.2, .28);
-    });
-    for (let i = 0; i < 8; i += 1) line(p[i], p[i + 8], C.gold, 1.3, .24);
+  function drawFreedom3D(width, height, t) {
+    const { depth, taper, twist } = freedomParams(t);
+    const center = [width * .5, height * .46];
+    const scale = Math.min(width, height) * .22;
+    const rings = 11;
+    const all = [];
 
-    if (mode === 'vertices') {
-      for (let i = 0; i < 8; i += 1) {
-        line(p[i], p[i + 8], C.gold, 3.1, 1);
-        dot(p[i], 4.2, C.source);
-        dot(p[i + 8], 4.2, C.gold);
+    for (let i = 0; i < rings; i += 1) {
+      const u = i / (rings - 1);
+      const z = (u - .5) * 2 * depth;
+      const s = 1 - taper * u;
+      const a = twist * u;
+      const c = Math.cos(a);
+      const sn = Math.sin(a);
+      const corners = [[-1,-1],[1,-1],[1,1],[-1,1]].map(([x, y]) => {
+        const xx = (c * x - sn * y) * s;
+        const yy = (sn * x + c * y) * s;
+        return project3([xx, yy, z], center, scale);
+      });
+      all.push(corners);
+    }
+
+    for (let i = 0; i < rings; i += 1) {
+      polygon(all[i], i === 0 ? 'rgba(216,182,98,.045)' : null, i === 0 ? GOLD : WHITE, i === 0 ? .90 : .17, i === 0 ? 1.8 : .8);
+    }
+    for (let corner = 0; corner < 4; corner += 1) {
+      for (let i = 0; i < rings - 1; i += 1) line(all[i][corner], all[i + 1][corner], BLUE, 1, .22);
+    }
+    caption.textContent = 'Same square · the new dimension can be longer, shorter, tapered or twisted';
+  }
+
+  function drawFreedom4D(width, height, t) {
+    const { depth, taper, twist } = freedomParams(t);
+    const cx = width * .5;
+    const cy = height * .46;
+    const size = Math.min(width, height) * .28;
+    const base = cubePoints(cx, cy, size, 1);
+    const slices = 8;
+    const previous = [];
+
+    for (let i = 0; i < slices; i += 1) {
+      const u = i / (slices - 1);
+      const scaleFactor = (1 - taper * u) * lerp(1, .62, u * depth * .68);
+      const angle = twist * u * .42;
+      let points = base.map(([x, y]) => [
+        cx + (x - cx) * scaleFactor + size * .07 * u * depth,
+        cy + (y - cy) * scaleFactor - size * .05 * u * depth,
+      ]);
+      points = points.map((p) => rotatePoint(p, [cx, cy], angle));
+      drawCube(points, i === 0 ? GOLD : WHITE, i === 0 ? .90 : .13, i === 0 ? 1.8 : .8);
+      if (previous.length) {
+        for (let v = 0; v < 8; v += 1) line(previous[v], points[v], BLUE, .8, .15);
       }
-      return;
+      previous.splice(0, previous.length, ...points);
     }
-
-    if (mode === 'edges') {
-      cubeEdges.forEach(([a, b]) => {
-        poly([p[a], p[b], p[b + 8], p[a + 8]], 'rgba(108,168,255,.055)', C.blue, .74, 1.2);
-      });
-      return;
-    }
-
-    if (mode === 'faces') {
-      const faceIndex = Math.floor(elapsed / 850) % cubeFaces.length;
-      const face = cubeFaces[faceIndex];
-      const a = face.map((i) => p[i]);
-      const b = face.map((i) => p[i + 8]);
-      poly(a, 'rgba(98,212,139,.05)', C.green, .95, 2);
-      poly(b, 'rgba(98,212,139,.05)', C.green, .95, 2);
-      face.forEach((i) => line(p[i], p[i + 8], C.green, 2.2, .95));
-      return;
-    }
-
-    cubeEdges.forEach(([a, b]) => {
-      line(p[a], p[b], C.source, 1.8, .72);
-      line(p[a + 8], p[b + 8], C.text, 1.9, .9);
-    });
-    for (let i = 0; i < 8; i += 1) line(p[i], p[i + 8], C.gold, 2.5, .95);
-    dot(center, 2.5, C.gold, .7);
+    caption.textContent = 'Same freedom in 4D · a cube can continue through W in many different ways';
   }
 
-  function drawSquareContinuation(width, height, elapsed, sliceMode = false) {
-    const center = [width * .5, height * .47];
-    const base = Math.min(width, height) * .19;
-    const phase = (elapsed / 1000) % 12;
-    const modeIndex = Math.floor(phase / 4) % 3;
-    const mode = ['length', 'taper', 'twist'][modeIndex];
-    const phaseT = (phase % 4) / 4;
-    const pulse = .5 - .5 * Math.cos(phaseT * TAU);
-    const rings = [];
-    const steps = 10;
+  function drawFreedom(width, height, t) {
+    if (t < .5) drawFreedom3D(width, height, t * 2);
+    else drawFreedom4D(width, height, (t - .5) * 2);
+  }
 
-    for (let i = 0; i <= steps; i += 1) {
-      const t = i / steps;
-      const signed = t * 2 - 1;
-      const u = sliceMode ? Math.abs(signed) : t;
-      let scale = 1;
-      let angle = 0;
-      let depth = 1;
+  function drawSlices3D(width, height, t) {
+    const phase = t * Math.PI * 2;
+    const amp = .18 + .34 * (Math.sin(phase) * .5 + .5);
+    const twist = .72 * Math.sin(phase * .71);
+    const center = [width * .5, height * .46];
+    const scale = Math.min(width, height) * .21;
+    const rings = 13;
+    const all = [];
 
-      if (mode === 'length') depth = .45 + 1.10 * pulse;
-      if (mode === 'taper') scale = 1 - u * (.12 + .46 * pulse);
-      if (mode === 'twist') angle = (sliceMode ? signed : t) * (.15 + .95 * pulse);
-
-      const z = (sliceMode ? signed : (t - .5) * 2) * 1.24 * depth;
-      const s = .74 * scale;
-      const corners = [[-s,-s],[s,-s],[s,s],[-s,s]].map(([x, y]) => {
-        const c = Math.cos(angle);
-        const sn = Math.sin(angle);
-        return [c * x - sn * y, sn * x + c * y, z];
+    for (let i = 0; i < rings; i += 1) {
+      const u = i / (rings - 1) * 2 - 1;
+      const s = 1 - amp * Math.abs(u);
+      const a = twist * u;
+      const c = Math.cos(a);
+      const sn = Math.sin(a);
+      const corners = [[-1,-1],[1,-1],[1,1],[-1,1]].map(([x, y]) => {
+        const xx = (c * x - sn * y) * s;
+        const yy = (sn * x + c * y) * s;
+        return project3([xx, yy, u * 1.18], center, scale);
       });
-      rings.push(corners.map((v) => project3(v, center, base)));
+      all.push(corners);
     }
 
-    const highlight = sliceMode ? Math.floor(steps / 2) : 0;
-    rings.forEach((ring, i) => {
-      const isHighlight = i === highlight;
-      poly(
-        ring,
-        isHighlight ? C.goldSoft : null,
-        isHighlight ? C.gold : 'rgba(226,229,235,.20)',
-        isHighlight ? 1 : .42,
-        isHighlight ? 2.4 : 1,
-      );
-    });
-    for (let k = 0; k < 4; k += 1) {
-      for (let i = 0; i < rings.length - 1; i += 1) {
-        line(rings[i][k], rings[i + 1][k], mode === 'length' ? C.faint : C.blue, 1.1, .46);
+    const middle = Math.floor(rings / 2);
+    all.forEach((ring, i) => polygon(
+      ring,
+      i === middle ? 'rgba(216,182,98,.06)' : null,
+      i === middle ? GOLD : WHITE,
+      i === middle ? .96 : .13,
+      i === middle ? 2.2 : .8,
+    ));
+    for (let corner = 0; corner < 4; corner += 1) {
+      for (let i = 0; i < rings - 1; i += 1) line(all[i][corner], all[i + 1][corner], BLUE, .8, .15);
+    }
+    caption.textContent = 'The highlighted square stays the same · the 3D object around it can change';
+  }
+
+  function drawSlices4D(width, height, t) {
+    const phase = t * Math.PI * 2;
+    const amp = .16 + .30 * (Math.sin(phase) * .5 + .5);
+    const twist = .54 * Math.sin(phase * .77);
+    const cx = width * .5;
+    const cy = height * .46;
+    const size = Math.min(width, height) * .27;
+    const base = cubePoints(cx, cy, size, 1);
+    const slices = 9;
+    const middle = Math.floor(slices / 2);
+    let previous = null;
+
+    for (let i = 0; i < slices; i += 1) {
+      const u = i / (slices - 1) * 2 - 1;
+      const s = 1 - amp * Math.abs(u);
+      const a = twist * u;
+      let points = base.map(([x, y]) => [
+        cx + (x - cx) * s + size * .055 * u,
+        cy + (y - cy) * s - size * .04 * u,
+      ]);
+      points = points.map((p) => rotatePoint(p, [cx, cy], a));
+      drawCube(points, i === middle ? GOLD : WHITE, i === middle ? .96 : .12, i === middle ? 2 : .8);
+      if (previous) {
+        for (let v = 0; v < 8; v += 1) line(previous[v], points[v], BLUE, .75, .11);
       }
+      previous = points;
     }
-
-    if (sliceMode) {
-      const names = {
-        length: 'SAME SQUARE SLICE · DIFFERENT DEPTH',
-        taper: 'SAME SQUARE SLICE · DIFFERENT OUTSIDE SHAPE',
-        twist: 'SAME SQUARE SLICE · DIFFERENT TWIST',
-      };
-      labelEl.textContent = names[mode];
-    } else {
-      const names = {
-        length: 'SAME SQUARE · DIFFERENT NEW-AXIS LENGTH',
-        taper: 'SAME SQUARE · TAPER AS IT MOVES',
-        twist: 'SAME SQUARE · ROTATE AS IT MOVES',
-      };
-      labelEl.textContent = names[mode];
-    }
+    caption.textContent = 'The highlighted cube stays the same · the 4D object around it can change';
   }
 
-  function drawCubeSlice4D(width, height, elapsed) {
-    const center = [width * .5, height * .47];
-    const base = Math.min(width, height) * .15;
-    const cube = cubeVertices(1.16);
-    const pulse = .5 - .5 * Math.cos((elapsed / 4200) * TAU);
-    const twist = .12 + .72 * pulse;
-    const slices = [];
-    const steps = 8;
-
-    for (let i = 0; i <= steps; i += 1) {
-      const signed = (i / steps) * 2 - 1;
-      const w = signed * .86;
-      const angle = signed * twist;
-      const scale = 1 - .20 * Math.abs(signed) * pulse;
-      const c = Math.cos(angle);
-      const s = Math.sin(angle);
-      const verts = cube.map(([x, y, z]) => {
-        const sx = x * scale;
-        const sy = y * scale;
-        return [c * sx - s * sy, s * sx + c * sy, z * scale, w];
-      });
-      const p = verts.map((v) => project4(v, center, base));
-      slices.push(p);
-      const isMid = i === Math.floor(steps / 2);
-      drawCube(p, isMid ? C.gold : C.faint, isMid ? .95 : .28, isMid ? 2 : 1);
-    }
-    for (let i = 0; i < slices.length - 1; i += 1) {
-      for (let v = 0; v < 8; v += 1) line(slices[i][v], slices[i + 1][v], C.blue, 1, .25);
-    }
-    labelEl.textContent = 'SAME CUBE SLICE · DIFFERENT 4D CONTINUATION';
+  function drawSlices(width, height, t) {
+    if (t < .5) drawSlices3D(width, height, t * 2);
+    else drawSlices4D(width, height, (t - .5) * 2);
   }
 
-  function drawFreedom(width, height, elapsed) {
-    drawSquareContinuation(width, height, elapsed, false);
-  }
-
-  function drawSlices(width, height, elapsed) {
-    const block = Math.floor(elapsed / 7200) % 2;
-    const local = elapsed % 7200;
-    if (block === 0) drawSquareContinuation(width, height, local, true);
-    else drawCubeSlice4D(width, height, local);
-  }
-
-  function render(now) {
-    if (!isOpen) return;
-    const [width, height] = fitCanvas();
+  function render() {
+    if (!active) return;
+    const { width, height } = fitCanvas();
     ctx.clearRect(0, 0, width, height);
-    const elapsed = reduceMotion ? 3200 : now - startedAt;
-    const chapter = chapters[chapterIndex].id;
-
-    if (chapter === 'build') drawBuild(width, height, elapsed);
-    else if (chapter === 'parts') drawParts(width, height, elapsed);
-    else if (chapter === 'freedom') drawFreedom(width, height, elapsed);
-    else drawSlices(width, height, elapsed);
-
-    rafId = requestAnimationFrame(render);
+    if (mode === 'build') drawBuild(width, height, progress);
+    else if (mode === 'freedom') drawFreedom(width, height, progress);
+    else drawSlices(width, height, progress);
+    timeline.value = String(progress);
   }
 
-  function setChapter(index) {
-    chapterIndex = index;
-    startedAt = performance.now();
-    tabsEl.querySelectorAll('.dimension-tour__tab').forEach((button, i) => {
-      button.classList.toggle('is-active', i === index);
-      button.setAttribute('aria-selected', i === index ? 'true' : 'false');
+  function updateMarkers() {
+    if (mode === 'build') {
+      markers.innerHTML = '<span>0D</span><span>1D</span><span>2D</span><span>3D</span><span>4D</span>';
+    } else if (mode === 'freedom') {
+      markers.innerHTML = '<span>same source</span><span></span><span>many continuations</span><span></span><span>same rule in 4D</span>';
+    } else {
+      markers.innerHTML = '<span>3D</span><span></span><span>same slice</span><span></span><span>4D</span>';
+    }
+  }
+
+  function syncPlayButton() {
+    playButton.textContent = playing ? 'Ⅱ' : '▶';
+    playButton.setAttribute('aria-label', playing ? 'Pause animation' : 'Play animation');
+  }
+
+  function setMode(nextMode) {
+    mode = nextMode;
+    progress = 0;
+    playing = !reduceMotion;
+    modesEl.querySelectorAll('.learn4d-mode').forEach((button) => {
+      button.classList.toggle('is-active', button.dataset.mode === mode);
     });
-    copyEl.textContent = chapters[index].line;
+    updateMarkers();
+    syncPlayButton();
+    render();
   }
 
-  chapters.forEach((chapter, index) => {
+  modes.forEach(({ id, label }) => {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'dimension-tour__tab' + (index === 0 ? ' is-active' : '');
-    button.textContent = chapter.label;
-    button.setAttribute('role', 'tab');
-    button.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
-    button.addEventListener('click', () => setChapter(index));
-    tabsEl.appendChild(button);
+    button.className = 'learn4d-mode' + (id === mode ? ' is-active' : '');
+    button.dataset.mode = id;
+    button.textContent = label;
+    button.addEventListener('click', () => setMode(id));
+    modesEl.appendChild(button);
   });
-  copyEl.textContent = chapters[0].line;
 
-  function openTour() {
-    if (isOpen) return;
-    isOpen = true;
-    startedAt = performance.now();
-    document.body.classList.add('learn-4d-mode');
-    tour.classList.add('is-open');
-    cancelAnimationFrame(rafId);
-    rafId = requestAnimationFrame(render);
-    closeButton.focus({ preventScroll: true });
+  function open() {
+    if (active) return;
+    active = true;
+    document.body.classList.add('learn4d-active');
+    progress = 0;
+    playing = !reduceMotion;
+    lastFrame = performance.now();
+    syncPlayButton();
+    updateMarkers();
+    render();
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(tick);
   }
 
-  function closeTour() {
-    if (!isOpen) return;
-    isOpen = false;
-    cancelAnimationFrame(rafId);
-    tour.classList.remove('is-open');
-    document.body.classList.remove('learn-4d-mode');
-    launch.focus({ preventScroll: true });
+  function close() {
+    if (!active) return;
+    active = false;
+    document.body.classList.remove('learn4d-active');
+    cancelAnimationFrame(raf);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
   }
 
-  launch.addEventListener('click', openTour);
-  closeButton.addEventListener('click', closeTour);
-  window.addEventListener('resize', () => {
-    if (isOpen) startedAt = performance.now();
-  }, { passive: true });
+  function tick(now) {
+    if (!active) return;
+    const dt = Math.min(.05, Math.max(0, (now - lastFrame) / 1000));
+    lastFrame = now;
+    if (playing && !scrubbing) {
+      const duration = modeDurations[mode] || 10;
+      progress = (progress + dt / duration) % 1;
+    }
+    render();
+    raf = requestAnimationFrame(tick);
+  }
+
+  launch.addEventListener('click', open);
+  closeButton.addEventListener('click', close);
+  playButton.addEventListener('click', () => {
+    playing = !playing;
+    syncPlayButton();
+  });
+
+  timeline.addEventListener('pointerdown', () => {
+    scrubbing = true;
+    playing = false;
+    syncPlayButton();
+  });
+  timeline.addEventListener('input', () => {
+    progress = Number(timeline.value);
+    render();
+  });
+  const stopScrub = () => { scrubbing = false; };
+  timeline.addEventListener('pointerup', stopScrub);
+  timeline.addEventListener('pointercancel', stopScrub);
+
+  window.addEventListener('resize', render, { passive: true });
   window.addEventListener('keydown', (event) => {
-    if (!isOpen) return;
-    if (event.key === 'Escape') closeTour();
-    if (event.key === 'ArrowRight') setChapter((chapterIndex + 1) % chapters.length);
-    if (event.key === 'ArrowLeft') setChapter((chapterIndex + chapters.length - 1) % chapters.length);
+    if (!active) return;
+    if (event.key === 'Escape') {
+      close();
+      return;
+    }
+    if (event.key === ' ') {
+      event.preventDefault();
+      playing = !playing;
+      syncPlayButton();
+      return;
+    }
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      event.preventDefault();
+      playing = false;
+      progress = clamp(progress + (event.key === 'ArrowRight' ? .02 : -.02));
+      syncPlayButton();
+      render();
+    }
   });
 })();
