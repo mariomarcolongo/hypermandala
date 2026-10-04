@@ -29,6 +29,20 @@
     }
   }
 
+  function moveShowLessBelowLibrary() {
+    const library = document.getElementById('presetControl');
+    const reduce = document.getElementById('reduceGeometricForms');
+    if (!library || !reduce || reduce.closest('.mandala-dock__library-actions')) {
+      return;
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'mandala-dock__library-actions';
+    actions.setAttribute('aria-label', 'Geometric form library display');
+    library.insertAdjacentElement('afterend', actions);
+    actions.appendChild(reduce);
+  }
+
   function injectLibraryStyles() {
     if (document.getElementById('hypermandalaFormsUiFixes')) return;
 
@@ -167,6 +181,7 @@
     if (prepared) return;
     prepared = true;
 
+    moveShowLessBelowLibrary();
     injectLibraryStyles();
     savedExperimentalPreset = readSavedExperimentalPreset();
     patchExperimentalPreviewContexts();
