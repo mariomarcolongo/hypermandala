@@ -449,22 +449,37 @@
   <noscript><div class="noscript">Hypermandala needs JavaScript to render the interactive geometry.</div></noscript>
   <script>
     (async () => {
-      try {
-        await window.__hypermandalaStylesReady;
-        const response = await fetch('./app.js', { cache: 'no-cache' });
+      const loadInlineScript = async (url, sourceUrl) => {
+        const response = await fetch(url, { cache: 'no-cache' });
         if (!response.ok) {
-          throw new Error('Failed to load app: ' + response.status);
+          throw new Error('Failed to load ' + url + ': ' + response.status);
         }
 
-        const source = await response.text();
         const script = document.createElement('script');
-        script.textContent = source + '\n//# sourceURL=/app.js';
+        script.textContent = await response.text() + '\n//# sourceURL=' + sourceUrl;
         document.body.appendChild(script);
+      };
+
+      try {
+        await window.__hypermandalaStylesReady;
+        await loadInlineScript('./ui-fixes.js', '/ui-fixes.js');
+        window.__hypermandalaPrepareUiFixes?.();
+        await loadInlineScript('./app.js', '/app.js');
+        window.__hypermandalaInstallUiFixes?.();
       } catch (error) {
-        console.warn('Fresh asset load failed; retrying with cache-busting URL.', error);
-        const script = document.createElement('script');
-        script.src = './app.js?reload=' + Date.now();
-        document.body.appendChild(script);
+        console.warn('Fresh asset load failed; retrying with cache-busting URLs.', error);
+
+        const fixes = document.createElement('script');
+        fixes.src = './ui-fixes.js?reload=' + Date.now();
+        fixes.onload = () => {
+          window.__hypermandalaPrepareUiFixes?.();
+
+          const app = document.createElement('script');
+          app.src = './app.js?reload=' + Date.now();
+          app.onload = () => window.__hypermandalaInstallUiFixes?.();
+          document.body.appendChild(app);
+        };
+        document.body.appendChild(fixes);
       }
     })();
   </script>
