@@ -25,10 +25,16 @@
             linkExit.src = './tutorial-link-exit.js?reload=' + Date.now();
             linkExit.async = false;
             linkExit.onload = () => {
-              const inspectionMotion = document.createElement('script');
-              inspectionMotion.src = './tutorial-inspection-motion.js?reload=' + Date.now();
-              inspectionMotion.async = false;
-              document.body.appendChild(inspectionMotion);
+              const cleanBackground = document.createElement('script');
+              cleanBackground.src = './tutorial-clean-background.js?reload=' + Date.now();
+              cleanBackground.async = false;
+              cleanBackground.onload = () => {
+                const buildRotation = document.createElement('script');
+                buildRotation.src = './tutorial-build-rotation.js?reload=' + Date.now();
+                buildRotation.async = false;
+                document.body.appendChild(buildRotation);
+              };
+              document.body.appendChild(cleanBackground);
             };
             document.body.appendChild(linkExit);
           };
