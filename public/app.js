@@ -181,12 +181,23 @@
   };
 
   const SRI_COLORS = {
-    bhupura: '#d4a843',
-    lotus16: '#d895a5',
-    lotus8: '#efe0ad',
-    shiva: '#4669ad',
-    shakti: '#c94b40',
-    bindu: '#b92f2f',
+    // Manuscript-inspired traditional palette. Geometry is deliberately
+    // unchanged: these colors only affect Classic rendering.
+    bhupura: '#eadfbd',
+    lotus16: '#d1a13c',
+    lotus8: '#cf8d98',
+    triangles: [
+      '#c96f4d', // D1 · terracotta
+      '#d39b40', // U1 · ochre
+      '#748e68', // U3 · muted green
+      '#c77855', // U2 · warm brick
+      '#d5b451', // D3 · yellow ochre
+      '#7b956f', // D2 · leaf green
+      '#cf844c', // U4 · orange earth
+      '#b96857', // D4 · muted red
+      '#ddc66c', // D5 · warm central yellow
+    ],
+    bindu: '#e2b0a7',
   };
 
   const KALI_COLORS = {
@@ -769,8 +780,14 @@
     if (regionId === 'sri-bhupura') return hexToRgb(SRI_COLORS.bhupura);
     if (regionId === 'sri-lotus16') return hexToRgb(SRI_COLORS.lotus16);
     if (regionId === 'sri-lotus8') return hexToRgb(SRI_COLORS.lotus8);
-    if (regionId?.startsWith('sri-shiva-')) return hexToRgb(SRI_COLORS.shiva);
-    if (regionId?.startsWith('sri-shakti-')) return hexToRgb(SRI_COLORS.shakti);
+    if (
+      regionId?.startsWith('sri-shiva-')
+      || regionId?.startsWith('sri-shakti-')
+    ) {
+      const index = Number(regionId.split('-')[2]);
+      const color = SRI_COLORS.triangles[index] ?? SRI_COLORS.triangles[0];
+      return hexToRgb(color);
+    }
     if (regionId === 'sri-bindu') return hexToRgb(SRI_COLORS.bindu);
 
     if (regionId === 'kali-bhupura') return hexToRgb(KALI_COLORS.bhupura);
