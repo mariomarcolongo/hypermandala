@@ -31,37 +31,21 @@
 
   function retireInsightUi() {
     /*
-     * The old "4D insight" block exposed several research/diagnostic modes
-     * directly in the main control panel. They add a lot of visual and verbal
-     * complexity, and some are not yet robust enough to be primary UX.
-     *
-     * Keep the underlying experimental renderer code available for future work,
-     * but remove these controls from the public interface for now. The core 4D
-     * experience remains available through projection, rotation planes and
-     * dimension stretch.
+     * Keep 4D inspection available without returning to the old crowded
+     * research panel. The public UI now exposes only exact W sections/layers
+     * in a collapsed disclosure. Legacy W-color/reference modes remain internal
+     * and must not be restored invisibly when their buttons are absent.
      */
-    document.querySelector('.insight-section')?.remove();
-
     const explorer = document.getElementById('explorerControls');
-    explorer?.setAttribute('aria-label', 'Explorer controls');
+    explorer?.setAttribute('aria-label', '4D explorer controls');
 
-    // Do not let an old saved diagnostic mode stay active invisibly after the
-    // controls are removed. Reset persisted state before app.js restores it.
     try {
       const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
       if (!saved || typeof saved !== 'object') return;
 
-      let changed = false;
-      if (saved.insightMode !== 'standard') {
+      const visibleModes = new Set(['standard', 'w-slice', 'w-layers']);
+      if (!visibleModes.has(saved.insightMode)) {
         saved.insightMode = 'standard';
-        changed = true;
-      }
-      if (saved.wSlice !== 0.5) {
-        saved.wSlice = 0.5;
-        changed = true;
-      }
-
-      if (changed) {
         localStorage.setItem(SETTINGS_KEY, JSON.stringify(saved));
       }
     } catch {

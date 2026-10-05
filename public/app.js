@@ -488,7 +488,7 @@
     if (['form', 'axis', 'classic'].includes(saved.colorMode)) {
       state.colorMode = saved.colorMode;
     }
-    if (['wire', 'solid', 'solid-edges'].includes(saved.renderMode)) {
+    if (['wire', 'solid', 'solid-edges', 'xray'].includes(saved.renderMode)) {
       state.renderMode = saved.renderMode;
     }
 
@@ -6709,6 +6709,8 @@
   function drawSolidLayer(alpha) {
     if (!solidRenderer || !gl) return false;
 
+    const xray = state.renderMode === 'xray';
+
     if (state.renderMode === 'wire' || alpha <= 0.001) {
       clearSolidLayer();
       return true;
@@ -6736,6 +6738,7 @@
     }
 
     const faceData = [];
+    const transparentTriangles = [];
 
     for (const entry of entries) {
       if ((counts.get(entry.key) || 0) > 1) continue;
@@ -6755,13 +6758,14 @@
 
       for (let i = 1; i < points.length - 1; i += 1) {
         const tri = [points[0], points[i], points[i + 1]];
+        const triData = [];
 
         for (const p of tri) {
           const x = (p.x / state.width) * 2 - 1;
           const y = 1 - (p.y / state.height) * 2;
           const z = clamp(-p.depth / 4.5, -0.98, 0.98);
 
-          faceData.push(
+          triData.push(
             x, y, z,
             rgb.r / 255,
             rgb.g / 255,
@@ -6769,6 +6773,24 @@
             clamp(alpha * entry.visibility, 0, 1),
           );
         }
+
+        if (xray) {
+          transparentTriangles.push({
+            depth: tri.reduce((sum, p) => sum + p.depth, 0) / 3,
+            data: triData,
+          });
+        } else {
+          faceData.push(...triData);
+        }
+      }
+    }
+
+    if (xray) {
+      // Canvas fallback already painter-sorts faces. Mirror that ordering for
+      // WebGL so alpha compositing remains stable while all layers stay visible.
+      transparentTriangles.sort((a, b) => a.depth - b.depth);
+      for (const triangle of transparentTriangles) {
+        faceData.push(...triangle.data);
       }
     }
 
@@ -6812,14 +6834,20 @@
     gl.depthFunc(gl.LEQUAL);
     gl.depthMask(true);
 
-    if (alpha < 0.999) {
+    const translucent = xray || alpha < 0.999;
+    if (translucent) {
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.depthMask(false);
+      if (xray) gl.disable(gl.DEPTH_TEST);
     } else {
       gl.disable(gl.BLEND);
     }
     gl.disable(gl.CULL_FACE);
     gl.drawArrays(gl.TRIANGLES, 0, faceData.length / 7);
+
+    if (xray) gl.enable(gl.DEPTH_TEST);
+    gl.depthMask(true);
     gl.disable(gl.BLEND);
 
     // Default Solid follows the 2D visual grammar: colored faces plus only
@@ -7317,8 +7345,9 @@
       return;
     }
 
-    const solidHandled = drawSolidLayer(1);
-    if (!solidHandled) drawFaces(1);
+    const fillAlpha = state.renderMode === 'xray' ? 0.18 : 1;
+    const solidHandled = drawSolidLayer(fillAlpha);
+    if (!solidHandled) drawFaces(fillAlpha);
 
     // Only the explicit Solid + wireframe mode receives the structural overlay.
     if (state.renderMode === 'solid-edges') {
@@ -7823,7 +7852,7 @@
   }
 
   function setRenderMode(mode) {
-    if (!['wire','solid','solid-edges'].includes(mode)) return;
+    if (!['wire','solid','solid-edges','xray'].includes(mode)) return;
     state.renderMode = mode;
     markSettingsDirty();
     renderButtons.forEach((button) => {

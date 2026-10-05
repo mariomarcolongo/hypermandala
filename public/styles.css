@@ -1441,3 +1441,68 @@ a:focus-visible {
     width: 21px;
   }
 }
+
+/* 4D perception controls: intentionally compact and secondary. */
+
+.perception-details {
+  padding-block: 0;
+}
+
+.perception-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 0;
+  cursor: pointer;
+  list-style: none;
+}
+
+.perception-summary::-webkit-details-marker {
+  display: none;
+}
+
+.perception-summary::after {
+  content: '⌄';
+  color: rgba(238,239,242,.38);
+  font-size: 12px;
+  transition: transform 160ms ease;
+}
+
+.perception-details[open] .perception-summary::after {
+  transform: rotate(180deg);
+}
+
+.perception-body {
+  padding: 0 0 12px;
+}
+
+.inspection-toggle {
+  width: 100%;
+  margin-top: 7px;
+  padding: 7px 10px;
+  border: 1px solid rgba(238,239,242,.10);
+  border-radius: 9px;
+  background: rgba(238,239,242,.025);
+  color: rgba(238,239,242,.52);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.inspection-toggle:hover {
+  border-color: rgba(240,196,92,.28);
+  color: rgba(238,239,242,.76);
+}
+
+.inspection-toggle.is-active {
+  border-color: rgba(240,196,92,.42);
+  background: rgba(240,196,92,.08);
+  color: #f0c45c;
+}
+
+@media (max-width: 760px) {
+  .perception-summary {
+    padding-block: 11px;
+  }
+}
