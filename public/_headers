@@ -8,7 +8,7 @@
   Cache-Control: no-store, max-age=0, must-revalidate
 
 /ui-fixes.js
-  Cache-Control: no-store, max-age=0, must-revalidate
+  Cache-Control: no-store, no-cache, max-age=0, must-revalidate
 
 /tutorial.js
   Cache-Control: no-cache, max-age=0, must-revalidate
@@ -45,4 +45,3 @@
 
 /styles.css
   Cache-Control: no-cache, max-age=0, must-revalidate
-
