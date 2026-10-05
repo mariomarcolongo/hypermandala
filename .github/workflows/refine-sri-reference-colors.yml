@@ -1,0 +1,50 @@
+name: Refine Sri Yantra reference colors
+on:
+  push:
+    paths:
+      - '.github/workflows/refine-sri-reference-colors.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Correct Sri reference color map
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('public/ui-fixes.js')
+          s = p.read_text()
+
+          replacements = {
+            "      green: '#71815f',\n    },": "      green: '#71815f',\n      pale: '#c8ae7d',\n    },",
+            "[0.000000,-0.800253,'orange']": "[0.000000,-0.800253,'green']",
+            "[0.768410,0.183177,'green']": "[0.768410,0.183177,'ochre']",
+            "[0.265493,0.193930,'ochre']": "[0.265493,0.193930,'terracotta']",
+            "[0.197757,-0.196790,'orange']": "[0.197757,-0.196790,'terracotta']",
+            "[-0.197757,-0.196790,'terracotta']": "[-0.197757,-0.196790,'green']",
+            "[-0.094170,-0.047798,'terracotta']": "[-0.094170,-0.047798,'orange']",
+            "[-0.178560,0.018600,'terracotta']": "[-0.178560,0.018600,'orange']",
+            "[0.000000,0.098861,'ochre']": "[0.000000,0.098861,'pale']",
+            "[-0.186070,0.086987,'orange']": "[-0.186070,0.086987,'ochre']",
+            "[0.178560,0.018600,'green']": "[0.178560,0.018600,'terracotta']",
+          }
+
+          for old, new in replacements.items():
+              count = s.count(old)
+              if count != 1:
+                  raise SystemExit(f'Expected exactly one occurrence of {old!r}, found {count}')
+              s = s.replace(old, new)
+
+          p.write_text(s)
+          PY
+      - name: Validate JavaScript
+        run: node --check public/ui-fixes.js
+      - name: Commit corrections
+        run: |
+          git config user.name 'Mario Marcolongo'
+          git config user.email 'mario.marcolongo1@gmail.com'
+          git add public/ui-fixes.js
+          git commit -m 'Correct Sri Yantra reference cell colors'
+          git push
