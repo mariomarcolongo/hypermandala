@@ -1,11 +1,6 @@
 (() => {
   'use strict';
 
-  const sri = document.createElement('script');
-  sri.src = './sri-yantra-traditional-v2.js?reload=' + Date.now();
-  sri.async = false;
-  document.body.appendChild(sri);
-
   const base = document.createElement('script');
   base.src = './tutorial-base.js?reload=' + Date.now();
   base.async = false;
