@@ -1,0 +1,16 @@
+name: Clean up temporary branch
+
+on:
+  push:
+    branches:
+      - noop-temp
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete temporary branch
+        run: git push https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git --delete noop-temp
