@@ -159,28 +159,30 @@
     </section>
 
     <details class="control-section insight-section perception-details">
-      <summary class="perception-summary">
-        <span class="control-section__label">4D inspection</span>
-        <span class="control-section__note">optional · exact W sections</span>
+      <summary
+        class="perception-summary"
+        title="Optional tools for inspecting exact 3D cross-sections through the 4D geometry"
+      >
+        <span class="control-section__label">4D tools</span>
       </summary>
       <div class="perception-body">
+        <div class="perception-tool-label">Cross-section</div>
         <div class="segmented segmented--three insight-modes" id="insightControl">
-          <button type="button" data-insight="standard" class="is-active">Standard</button>
-          <button type="button" data-insight="w-slice" title="Show one exact intrinsic-W 3D section of the hypersolid">W slice</button>
-          <button type="button" data-insight="w-layers" title="Show several exact intrinsic-W 3D sections simultaneously">W layers</button>
+          <button type="button" data-insight="standard" class="is-active">Off</button>
+          <button type="button" data-insight="w-slice" title="Show one exact 3D cross-section at a chosen W position">1 slice</button>
+          <button type="button" data-insight="w-layers" title="Show five exact 3D cross-sections across W">5 slices</button>
         </div>
-        <div class="insight-range" id="wSliceControl">
-          <span>W section</span>
-          <input id="wSliceInput" type="range" min="0" max="1" step="0.01" value="0.5" aria-label="Intrinsic W section position" />
+        <div class="insight-range perception-range" id="wSliceControl">
+          <span>Position in W</span>
+          <input id="wSliceInput" type="range" min="0" max="1" step="0.01" value="0.5" aria-label="Position of the 3D cross-section along W" />
           <output id="wSliceValue">50%</output>
         </div>
-        <div class="insight-actions">
-          <button id="replay4D" type="button" title="Replay the exact 3D to 4D construction">Replay 3D → 4D</button>
-        </div>
-        <p class="insight-note">
-          W slice/layers are exact 3D sections of the intrinsic 4D construction.
-          X-ray is only an inspection aid; it is not claimed as literal 4D vision.
-        </p>
+        <button
+          id="replay4D"
+          class="perception-replay"
+          type="button"
+          title="Replay the construction from the 3D form into its 4D extension"
+        >Replay 3D → 4D</button>
       </div>
     </details>
 
@@ -195,8 +197,8 @@
         type="button"
         class="inspection-toggle"
         data-render="xray"
-        title="Inspection mode: alpha-composite projected layers without depth occlusion. Not a literal simulation of 4D eyesight."
-      >X-ray inspection</button>
+        title="Make projected surfaces translucent so hidden geometry can be seen. This is a transparency aid, not a simulation of 4D eyesight."
+      >Transparent</button>
     </section>
 
     <section class="control-section">
