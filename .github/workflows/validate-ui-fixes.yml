@@ -1,0 +1,14 @@
+name: Validate UI fixes
+on:
+  push:
+    paths:
+      - 'public/ui-fixes.js'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node --check public/ui-fixes.js
