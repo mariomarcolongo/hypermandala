@@ -4,7 +4,7 @@
  * The documented Kali type used by Hypermandala has five nested downward
  * triangles inside a circular enclosure, surrounded by an eight-petalled
  * lotus and a four-gated bhupura. Keep the construction inside the native
- * 2D→3D→4D geometry pipeline and only replace the Kali-specific pieces.
+ * 2D→3D→4D geometry pipeline and only replace Kali-specific behavior.
  */
 (() => {
   'use strict';
@@ -81,30 +81,62 @@
       ));
     });
 
-    // Use the engine's existing convex lotus primitive. The earlier custom
-    // petal generator created degenerate edges; this one stays within the
-    // same polygon assumptions used by the other working yantras.
-    pieces.push(...lotusRingPieces(
-      8, 1.23, 0.46, 0.72,
-      'kali-lotus', 1, 10,
-    ));
+    // Smooth, pointed lotus petals. Build each as one convex polygon with
+    // unique tip vertices. This avoids both the old detached hexagonal blobs
+    // and the degenerate duplicated-tip geometry from the first correction.
+    const kaliPetalFootprint = (angle) => {
+      const radius = 1.19;
+      const radialLength = 0.62;
+      const tangentialWidth = 0.54;
+      const steps = 8;
+      const local = [];
 
-    // The five triangles sit inside a circular enclosure. Model the enclosure
-    // as a thin annulus rather than a filled disk so the central triangular
-    // field remains visible and the 2D topology matches the reference.
+      for (let step = 0; step <= steps; step += 1) {
+        const t = step / steps;
+        const radial = -radialLength * 0.5 + radialLength * t;
+        const width = tangentialWidth * 0.5
+          * Math.pow(Math.sin(Math.PI * t), 0.8);
+        local.push([radius + radial, -width]);
+      }
+
+      // Exclude the two tips on the return side so every polygon vertex is
+      // unique and every prism edge has non-zero length.
+      for (let step = steps - 1; step >= 1; step -= 1) {
+        const t = step / steps;
+        const radial = -radialLength * 0.5 + radialLength * t;
+        const width = tangentialWidth * 0.5
+          * Math.pow(Math.sin(Math.PI * t), 0.8);
+        local.push([radius + radial, width]);
+      }
+
+      return local.map(([x, y]) => rotateXYPoint(x, y, angle));
+    };
+
+    for (let index = 0; index < 8; index += 1) {
+      const angle = (index / 8) * TAU - Math.PI / 2;
+      pieces.push({
+        points: kaliPetalFootprint(angle),
+        regionId: 'kali-lotus',
+        level: 1,
+        paintOrder: 10,
+        radialDistance: 1.19,
+      });
+    }
+
+    // Circular enclosure around the five nested downward triangles.
     for (const sector of polygonRingSectors(
-      1.07, 0.99, 24, Math.PI / 24,
+      1.045, 0.985, 24, Math.PI / 24,
     )) {
       pieces.push({
         points: sector,
         regionId: 'kali-ring',
         level: 2,
         paintOrder: 20,
-        radialDistance: 1.03,
+        radialDistance: 1.015,
       });
     }
 
-    const radii = [0.96, 0.79, 0.63, 0.47, 0.32];
+    const radii = [0.94, 0.77, 0.60, 0.44, 0.29];
     radii.forEach((radius, index) => {
       pieces.push({
         points: polygonFootprint(
@@ -134,18 +166,36 @@
     }
 
     replaceOnce(
+`  function buildKaliYantraPlan() {
+    buildPlanFromPieces(kaliYantraPieces());
+  }`,
+`  function buildKaliYantraPlan() {
+    // Kali uses nested, not interlocking, triangles. The triangle boundaries
+    // are already explicit pieces, so the generic yantra subdivision pass adds
+    // no information and needlessly clips those lines into the lotus/ring.
+    clearPlan();
+    for (const piece of kaliYantraPieces()) {
+      addPlanLoop(
+        piece.points,
+        true,
+        piece.regionId,
+        piece.paintOrder,
+      );
+    }
+  }`,
+      'Kali 2D plan builder',
+    );
+
+    replaceOnce(
 `  function buildKaliYantraForm() {
     buildYantraForm(kaliYantraPieces());
   }`,
 `  function buildKaliYantraForm() {
     const pieces = kaliYantraPieces();
 
-    // Kali's five triangles are nested rather than interlocking. The generic
-    // yantra builder preserves an intersection-subdivision network on every
-    // footprint. That is useful for Sri/Matangi crossings, but unnecessary
-    // here and becomes pathological once the circular enclosure is present.
-    // Build the same contiguous outer→inner hierarchy without those extra
-    // clipped detail segments.
+    // The five Kali triangles are nested rather than interlocking. Preserve
+    // each explicit outline as a structural boundary but do not create the
+    // generic cross-triangle subdivision network used by Sri/Matangi.
     buildCenteredPieceHierarchy(
       pieces,
       (piece, rank, count) => {
@@ -155,7 +205,6 @@
         if (piece.regionId?.includes('bhupura')) return 0.065;
         if (piece.regionId?.includes('lotus')) return 0.075 + t * 0.012;
 
-        // Circular enclosure and nested triangle hierarchy.
         return 0.082 + t * 0.052;
       },
       0.13,
@@ -165,8 +214,38 @@
       'Kali 3D form builder',
     );
 
-    if (changes !== 4) {
-      console.warn('Kali Yantra source patch applied partially:', changes, '/ 4');
+    replaceOnce(
+`  function normalizeSymmetricSurfaceComplex() {
+    surfaceModules.length = 0;
+
+    if (
+      PRESET_META[state.preset]?.kind !== 'symmetric'
+      || !modules.length
+    ) return;`,
+`  function normalizeSymmetricSurfaceComplex() {
+    surfaceModules.length = 0;
+
+    // Kali's corrected plan contains a segmented circular enclosure plus
+    // petal polygons. Feeding all of those footprints into the generic union
+    // partitioner causes a combinatorial freeze when the preset is selected.
+    // The Kali modules are already valid non-overlapping convex prisms at
+    // their own hierarchy levels, so render them directly instead.
+    if (state.preset === 'kaliyantra') return;
+
+    if (
+      PRESET_META[state.preset]?.kind !== 'symmetric'
+      || !modules.length
+    ) return;`,
+      'Kali surface normalization bypass',
+    );
+
+    window.__hypermandalaKaliPatch = {
+      version: '2026-10-06-v3',
+      changes,
+    };
+
+    if (changes !== 6) {
+      console.warn('Kali Yantra source patch applied partially:', changes, '/ 6');
     }
 
     return new Response(source, {
