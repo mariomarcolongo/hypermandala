@@ -90,18 +90,20 @@
     // in the 2D plan, and the annulus is painted over it, producing a single
     // continuous lotus-and-ring construction without crossing outlines.
     //
-    // A simple five-vertex convex petal keeps the 3D/4D prism pipeline stable
-    // while giving the traditional broad base and sharp outward point.
+    // The bronze reference uses relatively squat petals: broad at the ring
+    // and only moderately projecting beyond it. Keep the same connected root
+    // geometry while shortening the radial projection so the lotus stays in
+    // proportion to the circular enclosure and bhupura.
     const kaliPetalFootprint = (angle) => {
       const baseHalfAngle = 22.5 * RAD;
       const baseX = ringOuter * Math.cos(baseHalfAngle);
       const baseY = ringOuter * Math.sin(baseHalfAngle);
-      const outerRadius = 1.53;
+      const outerRadius = 1.45;
       const local = [
         [baseX, -baseY],
-        [1.22, -0.28],
+        [1.19, -0.28],
         [outerRadius, 0],
-        [1.22, 0.28],
+        [1.19, 0.28],
         [baseX, baseY],
       ];
 
@@ -115,7 +117,7 @@
         regionId: 'kali-lotus',
         level: 1,
         paintOrder: 10,
-        radialDistance: 1.28,
+        radialDistance: 1.24,
       });
     }
 
@@ -274,7 +276,7 @@
     );
 
     window.__hypermandalaKaliPatch = {
-      version: '2026-10-06-v6',
+      version: '2026-10-06-v7',
       changes,
     };
 
