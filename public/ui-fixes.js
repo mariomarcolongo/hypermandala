@@ -600,7 +600,7 @@
     injectLibraryStyles();
     savedExperimentalPreset = readSavedExperimentalPreset();
     patchExperimentalPreviewContexts();
-    patchSriYantraAppSource();
+    // Sri Yantra is implemented natively in app.js.
   }
 
   function install() {
