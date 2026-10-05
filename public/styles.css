@@ -1442,7 +1442,7 @@ a:focus-visible {
   }
 }
 
-/* 4D perception controls: intentionally compact and secondary. */
+/* 4D tools stay compact and secondary to the core explorer controls. */
 
 .perception-details {
   padding-block: 0;
@@ -1451,9 +1451,8 @@ a:focus-visible {
 .perception-summary {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 12px 0;
+  min-height: 38px;
+  padding: 0;
   cursor: pointer;
   list-style: none;
 }
@@ -1464,8 +1463,9 @@ a:focus-visible {
 
 .perception-summary::after {
   content: '⌄';
-  color: rgba(238,239,242,.38);
-  font-size: 12px;
+  margin-left: auto;
+  color: rgba(238,239,242,.34);
+  font-size: 11px;
   transition: transform 160ms ease;
 }
 
@@ -1474,35 +1474,98 @@ a:focus-visible {
 }
 
 .perception-body {
-  padding: 0 0 12px;
+  padding: 0 0 10px;
+}
+
+.perception-tool-label {
+  margin: 2px 0 7px;
+  color: rgba(238,239,242,.46);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.perception-range {
+  display: grid;
+  grid-template-columns: auto minmax(70px, 1fr) 34px;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+#wSliceControl.is-disabled {
+  display: none;
+}
+
+.perception-range > span,
+.perception-range > output {
+  color: rgba(238,239,242,.56);
+  font-size: 10px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.perception-range > output {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.perception-range input[type='range'] {
+  min-width: 0;
+  width: 100%;
+}
+
+.perception-replay {
+  margin-top: 9px;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: rgba(238,239,242,.52);
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.perception-replay:hover:not(:disabled) {
+  color: rgba(238,239,242,.80);
+}
+
+.perception-replay:disabled {
+  opacity: .32;
+  cursor: default;
 }
 
 .inspection-toggle {
   width: 100%;
   margin-top: 7px;
-  padding: 7px 10px;
-  border: 1px solid rgba(238,239,242,.10);
-  border-radius: 9px;
-  background: rgba(238,239,242,.025);
-  color: rgba(238,239,242,.52);
+  padding: 6px 10px;
+  border: 1px solid rgba(238,239,242,.09);
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(238,239,242,.48);
   font: inherit;
-  font-size: 11px;
+  font-size: 10px;
   cursor: pointer;
 }
 
 .inspection-toggle:hover {
-  border-color: rgba(240,196,92,.28);
-  color: rgba(238,239,242,.76);
+  border-color: rgba(240,196,92,.24);
+  color: rgba(238,239,242,.74);
 }
 
 .inspection-toggle.is-active {
-  border-color: rgba(240,196,92,.42);
-  background: rgba(240,196,92,.08);
+  border-color: rgba(240,196,92,.38);
+  background: rgba(240,196,92,.07);
   color: #f0c45c;
 }
 
 @media (max-width: 760px) {
   .perception-summary {
-    padding-block: 11px;
+    min-height: 36px;
+  }
+
+  .perception-range {
+    grid-template-columns: auto minmax(80px, 1fr) 32px;
   }
 }
