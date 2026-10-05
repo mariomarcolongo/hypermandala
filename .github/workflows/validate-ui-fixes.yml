@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - 'public/ui-fixes.js'
+      - '.github/workflows/validate-ui-fixes.yml'
   workflow_dispatch:
 permissions:
   contents: read
