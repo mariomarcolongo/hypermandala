@@ -84,37 +84,30 @@
     const ringInner = 0.985;
     const ringOuter = 1.045;
 
-    // Eight pointed convex petals begin exactly at the outside of the circular
-    // enclosure. The previous version extended each petal through the annulus,
-    // so the ring outline visibly crossed the petal fill. Keeping the petal's
-    // inner tip on ringOuter makes the two structures tangent rather than
-    // overlapping while preserving a broad traditional lotus silhouette.
+    // Traditional eight-petalled lotus: each visible petal has a broad root
+    // at the circular enclosure and tapers to a single outward point. The
+    // bronze Kali Yantra reference does not use almond/teardrop petals with
+    // pointed inner tips. Instead the circular enclosure visually sits over
+    // the petal roots, producing the familiar pointed lotus corona.
+    //
+    // Keep every petal convex for the existing prism/4D pipeline. The short
+    // base chord lies inside the annulus and is intentionally painted beneath
+    // the ring, so the root appears tucked under the circular enclosure rather
+    // than detached from it or crossed by a visible ring line.
     const kaliPetalFootprint = (angle) => {
-      const innerRadius = ringOuter;
+      const baseHalfAngle = 15 * RAD;
+      const baseX = ringOuter * Math.cos(baseHalfAngle);
+      const baseY = ringOuter * Math.sin(baseHalfAngle);
       const outerRadius = 1.53;
-      const radius = (innerRadius + outerRadius) * 0.5;
-      const radialLength = outerRadius - innerRadius;
-      const tangentialWidth = 0.48;
-      const steps = 8;
-      const local = [];
-
-      for (let step = 0; step <= steps; step += 1) {
-        const t = step / steps;
-        const radial = -radialLength * 0.5 + radialLength * t;
-        const width = tangentialWidth * 0.5
-          * Math.pow(Math.sin(Math.PI * t), 0.78);
-        local.push([radius + radial, -width]);
-      }
-
-      // Exclude the two tips on the return side so every polygon vertex is
-      // unique and every prism edge has non-zero length.
-      for (let step = steps - 1; step >= 1; step -= 1) {
-        const t = step / steps;
-        const radial = -radialLength * 0.5 + radialLength * t;
-        const width = tangentialWidth * 0.5
-          * Math.pow(Math.sin(Math.PI * t), 0.78);
-        local.push([radius + radial, width]);
-      }
+      const local = [
+        [baseX, -baseY],
+        [1.14, -0.26],
+        [1.34, -0.18],
+        [outerRadius, 0],
+        [1.34, 0.18],
+        [1.14, 0.26],
+        [baseX, baseY],
+      ];
 
       return local.map(([x, y]) => rotateXYPoint(x, y, angle));
     };
@@ -126,7 +119,7 @@
         regionId: 'kali-lotus',
         level: 1,
         paintOrder: 10,
-        radialDistance: (ringOuter + 1.53) * 0.5,
+        radialDistance: 1.29,
       });
     }
 
@@ -271,7 +264,7 @@
     );
 
     window.__hypermandalaKaliPatch = {
-      version: '2026-10-06-v4',
+      version: '2026-10-06-v5',
       changes,
     };
 
