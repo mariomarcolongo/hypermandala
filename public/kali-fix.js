@@ -81,13 +81,20 @@
       ));
     });
 
-    // Smooth, pointed lotus petals. Build each as one convex polygon with
-    // unique tip vertices. This avoids both the old detached hexagonal blobs
-    // and the degenerate duplicated-tip geometry from the first correction.
+    const ringInner = 0.985;
+    const ringOuter = 1.045;
+
+    // Eight pointed convex petals begin exactly at the outside of the circular
+    // enclosure. The previous version extended each petal through the annulus,
+    // so the ring outline visibly crossed the petal fill. Keeping the petal's
+    // inner tip on ringOuter makes the two structures tangent rather than
+    // overlapping while preserving a broad traditional lotus silhouette.
     const kaliPetalFootprint = (angle) => {
-      const radius = 1.19;
-      const radialLength = 0.62;
-      const tangentialWidth = 0.54;
+      const innerRadius = ringOuter;
+      const outerRadius = 1.53;
+      const radius = (innerRadius + outerRadius) * 0.5;
+      const radialLength = outerRadius - innerRadius;
+      const tangentialWidth = 0.48;
       const steps = 8;
       const local = [];
 
@@ -95,7 +102,7 @@
         const t = step / steps;
         const radial = -radialLength * 0.5 + radialLength * t;
         const width = tangentialWidth * 0.5
-          * Math.pow(Math.sin(Math.PI * t), 0.8);
+          * Math.pow(Math.sin(Math.PI * t), 0.78);
         local.push([radius + radial, -width]);
       }
 
@@ -105,7 +112,7 @@
         const t = step / steps;
         const radial = -radialLength * 0.5 + radialLength * t;
         const width = tangentialWidth * 0.5
-          * Math.pow(Math.sin(Math.PI * t), 0.8);
+          * Math.pow(Math.sin(Math.PI * t), 0.78);
         local.push([radius + radial, width]);
       }
 
@@ -119,20 +126,22 @@
         regionId: 'kali-lotus',
         level: 1,
         paintOrder: 10,
-        radialDistance: 1.19,
+        radialDistance: (ringOuter + 1.53) * 0.5,
       });
     }
 
-    // Circular enclosure around the five nested downward triangles.
+    // Circular enclosure around the five nested downward triangles. Convex
+    // sectors keep the 3D prism pipeline robust; the 2D plan builder below
+    // suppresses only their internal radial seams so they read as one annulus.
     for (const sector of polygonRingSectors(
-      1.045, 0.985, 24, Math.PI / 24,
+      ringOuter, ringInner, 32, Math.PI / 32,
     )) {
       pieces.push({
         points: sector,
         regionId: 'kali-ring',
         level: 2,
         paintOrder: 20,
-        radialDistance: 1.015,
+        radialDistance: (ringOuter + ringInner) * 0.5,
       });
     }
 
@@ -170,11 +179,35 @@
     buildPlanFromPieces(kaliYantraPieces());
   }`,
 `  function buildKaliYantraPlan() {
-    // Kali uses nested, not interlocking, triangles. The triangle boundaries
-    // are already explicit pieces, so the generic yantra subdivision pass adds
-    // no information and needlessly clips those lines into the lotus/ring.
+    // Kali uses nested, not interlocking, triangles. Their boundaries are
+    // explicit source geometry, so no generic triangle subdivision is needed.
+    // Ring sectors are filled separately for convexity, but only their inner
+    // and outer chords are exposed as 2D edges. Omitting the shared radial
+    // sector boundaries removes the spoke-like overlap artifacts from the
+    // circular enclosure and its thumbnail.
     clearPlan();
     for (const piece of kaliYantraPieces()) {
+      if (piece.regionId === 'kali-ring' && piece.points.length === 4) {
+        addPlanFace(
+          piece.points,
+          piece.regionId,
+          piece.paintOrder,
+        );
+        addPlanEdge(
+          piece.points[0],
+          piece.points[1],
+          'n',
+          piece.regionId,
+        );
+        addPlanEdge(
+          piece.points[2],
+          piece.points[3],
+          'n',
+          piece.regionId,
+        );
+        continue;
+      }
+
       addPlanLoop(
         piece.points,
         true,
@@ -225,11 +258,9 @@
 `  function normalizeSymmetricSurfaceComplex() {
     surfaceModules.length = 0;
 
-    // Kali's corrected plan contains a segmented circular enclosure plus
-    // petal polygons. Feeding all of those footprints into the generic union
-    // partitioner causes a combinatorial freeze when the preset is selected.
-    // The Kali modules are already valid non-overlapping convex prisms at
-    // their own hierarchy levels, so render them directly instead.
+    // Kali's circular enclosure is already decomposed into safe convex pieces.
+    // Sending those sectors through the generic symmetric footprint union is
+    // unnecessary and can cause a combinatorial freeze when the preset loads.
     if (state.preset === 'kaliyantra') return;
 
     if (
@@ -240,7 +271,7 @@
     );
 
     window.__hypermandalaKaliPatch = {
-      version: '2026-10-06-v3',
+      version: '2026-10-06-v4',
       changes,
     };
 
