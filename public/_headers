@@ -10,12 +10,6 @@
 /ui-fixes.js
   Cache-Control: no-cache, max-age=0, must-revalidate
 
-/sri-yantra-traditional.js
-  Cache-Control: no-cache, max-age=0, must-revalidate
-
-/sri-yantra-traditional-v2.js
-  Cache-Control: no-cache, max-age=0, must-revalidate
-
 /tutorial.js
   Cache-Control: no-cache, max-age=0, must-revalidate
 
