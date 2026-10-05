@@ -1,0 +1,137 @@
+name: Replace Sri Yantra cell color map
+on:
+  push:
+    paths:
+      - '.github/workflows/replace-sri-cell-map.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Replace approximate Sri color anchors with per-cell reference map
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path('public/ui-fixes.js')
+          s = p.read_text()
+
+          exact = """  const SRI_REFERENCE_CELL_ANCHORS = [
+            // One reference anchor per visible triangular subdivision. These
+            // were registered against the historical painted Sri Yantra image,
+            // rather than inferred by symmetry or nearest-color heuristics.
+            [0.000000, 0.812633, 'orange'],
+            [-0.409819, 0.635460, 'orange'],
+            [0.409819, 0.635460, 'orange'],
+            [-0.199217, 0.592694, 'green'],
+            [0.199217, 0.592694, 'green'],
+            [0.000000, 0.556038, 'ochre'],
+            [-0.415511, 0.470506, 'terracotta'],
+            [0.415511, 0.470506, 'terracotta'],
+            [-0.557809, 0.403302, 'ochre'],
+            [-0.278904, 0.403302, 'terracotta'],
+            [0.278904, 0.403302, 'terracotta'],
+            [0.557809, 0.403302, 'ochre'],
+            [-0.136606, 0.366646, 'ochre'],
+            [0.136606, 0.366646, 'ochre'],
+            [-0.421203, 0.336099, 'orange'],
+            [0.000000, 0.336099, 'ochre'],
+            [0.421203, 0.336099, 'orange'],
+            [-0.574885, 0.268895, 'orange'],
+            [-0.273212, 0.268895, 'terracotta'],
+            [0.273212, 0.268895, 'terracotta'],
+            [-0.193525, 0.232238, 'ochre'],
+            [0.193525, 0.232238, 'ochre'],
+            [-0.091071, 0.213910, 'ochre'],
+            [0.091071, 0.213910, 'ochre'],
+            [0.000000, 0.195582, 'ochre'],
+            [-0.768410, 0.183363, 'green'],
+            [-0.421203, 0.183363, 'orange'],
+            [0.421203, 0.183363, 'orange'],
+            [0.768410, 0.183363, 'green'],
+            [-0.187834, 0.158925, 'ochre'],
+            [0.187834, 0.158925, 'ochre'],
+            [-0.119530, 0.122269, 'orange'],
+            [0.119530, 0.122269, 'green'],
+            [-0.267521, 0.116159, 'terracotta'],
+            [0.267521, 0.116159, 'terracotta'],
+            [0.000000, 0.097831, 'terracotta'],
+            [0.187834, 0.085612, 'green'],
+            [-0.324440, 0.073394, 'terracotta'],
+            [0.324440, 0.073394, 'terracotta'],
+            [-0.113839, 0.055065, 'orange'],
+            [0.113839, 0.055065, 'green'],
+            [0.256137, 0.055065, 'terracotta'],
+            [-0.203486, 0.039792, 'terracotta'],
+            [-0.176450, 0.018409, 'orange'],
+            [0.176450, 0.018409, 'terracotta'],
+            [-0.591960, 0.012299, 'green'],
+            [0.591960, 0.012299, 'green'],
+            [0.000000, 0.000081, 'terracotta'],
+            [0.216293, -0.024357, 'terracotta'],
+            [-0.096763, -0.048795, 'terracotta'],
+            [0.096763, -0.048795, 'terracotta'],
+            [-0.273212, -0.061014, 'terracotta'],
+            [0.273212, -0.061014, 'terracotta'],
+            [-0.179296, -0.094615, 'terracotta'],
+            [0.179296, -0.094615, 'terracotta'],
+            [-0.352899, -0.103780, 'terracotta'],
+            [0.352899, -0.103780, 'terracotta'],
+            [-0.273212, -0.152655, 'terracotta'],
+            [0.000000, -0.152655, 'terracotta'],
+            [0.273212, -0.152655, 'terracotta'],
+            [-0.774102, -0.158764, 'ochre'],
+            [-0.421203, -0.158764, 'ochre'],
+            [0.421203, -0.158764, 'ochre'],
+            [0.774102, -0.158764, 'ochre'],
+            [-0.108147, -0.177093, 'green'],
+            [0.108147, -0.177093, 'orange'],
+            [-0.199217, -0.195421, 'green'],
+            [0.199217, -0.195421, 'terracotta'],
+            [-0.574885, -0.244296, 'green'],
+            [-0.273212, -0.244296, 'terracotta'],
+            [0.273212, -0.244296, 'terracotta'],
+            [0.574885, -0.244296, 'green'],
+            [-0.415511, -0.323719, 'orange'],
+            [0.000000, -0.323719, 'ochre'],
+            [0.415511, -0.323719, 'orange'],
+            [-0.130914, -0.360375, 'ochre'],
+            [0.130914, -0.360375, 'ochre'],
+            [-0.563501, -0.403141, 'orange'],
+            [-0.267521, -0.403141, 'terracotta'],
+            [0.267521, -0.403141, 'terracotta'],
+            [0.563501, -0.403141, 'ochre'],
+            [-0.398435, -0.482563, 'orange'],
+            [0.398435, -0.482563, 'orange'],
+            [0.000000, -0.555876, 'ochre'],
+            [-0.193525, -0.586423, 'terracotta'],
+            [0.193525, -0.586423, 'terracotta'],
+            [-0.381359, -0.629189, 'terracotta'],
+            [0.381359, -0.629189, 'orange'],
+            [0.000000, -0.800253, 'green'],
+          ];"""
+
+          pattern = r"  const SRI_REFERENCE_CELL_ANCHORS = \[.*?^  \];"
+          s2, n = re.subn(pattern, exact, s, count=1, flags=re.S | re.M)
+          if n != 1:
+              raise SystemExit(f'Expected one Sri anchor block, replaced {n}')
+
+          # The old pale override was introduced during manual approximation.
+          # The exact cell registration shows that this subdivision belongs to
+          # the warm terracotta family in the supplied historical reference.
+          s2 = s2.replace("      pale: '#c8ae7d',\n", "")
+
+          p.write_text(s2)
+          PY
+      - name: Validate JavaScript
+        run: node --check public/ui-fixes.js
+      - name: Commit exact cell map
+        run: |
+          git config user.name 'Mario Marcolongo'
+          git config user.email 'mario.marcolongo1@gmail.com'
+          git add public/ui-fixes.js
+          git commit -m 'Map Sri Yantra colors cell by cell to historical reference'
+          git push
