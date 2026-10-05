@@ -81,17 +81,17 @@
       ));
     });
 
-    // Use the engine's existing convex lotus primitive. The previous attempt
-    // built each petal with duplicated tip vertices, producing zero-length
-    // edges and degenerate prism faces when Kali was selected.
+    // Use the engine's existing convex lotus primitive. The earlier custom
+    // petal generator created degenerate edges; this one stays within the
+    // same polygon assumptions used by the other working yantras.
     pieces.push(...lotusRingPieces(
       8, 1.23, 0.46, 0.72,
       'kali-lotus', 1, 10,
     ));
 
     // The five triangles sit inside a circular enclosure. Model the enclosure
-    // as a thin annulus, not a filled disk: this matches the reference more
-    // closely and avoids unnecessarily overlapping the whole triangular core.
+    // as a thin annulus rather than a filled disk so the central triangular
+    // field remains visible and the 2D topology matches the reference.
     for (const sector of polygonRingSectors(
       1.07, 0.99, 24, Math.PI / 24,
     )) {
@@ -133,8 +133,40 @@
       changes += 1;
     }
 
-    if (changes !== 3) {
-      console.warn('Kali Yantra source patch applied partially:', changes, '/ 3');
+    replaceOnce(
+`  function buildKaliYantraForm() {
+    buildYantraForm(kaliYantraPieces());
+  }`,
+`  function buildKaliYantraForm() {
+    const pieces = kaliYantraPieces();
+
+    // Kali's five triangles are nested rather than interlocking. The generic
+    // yantra builder preserves an intersection-subdivision network on every
+    // footprint. That is useful for Sri/Matangi crossings, but unnecessary
+    // here and becomes pathological once the circular enclosure is present.
+    // Build the same contiguous outer→inner hierarchy without those extra
+    // clipped detail segments.
+    buildCenteredPieceHierarchy(
+      pieces,
+      (piece, rank, count) => {
+        const t = count <= 1 ? 0 : rank / (count - 1);
+
+        if (piece.regionId?.includes('bindu')) return 0.17;
+        if (piece.regionId?.includes('bhupura')) return 0.065;
+        if (piece.regionId?.includes('lotus')) return 0.075 + t * 0.012;
+
+        // Circular enclosure and nested triangle hierarchy.
+        return 0.082 + t * 0.052;
+      },
+      0.13,
+      false,
+    );
+  }`,
+      'Kali 3D form builder',
+    );
+
+    if (changes !== 4) {
+      console.warn('Kali Yantra source patch applied partially:', changes, '/ 4');
     }
 
     return new Response(source, {
