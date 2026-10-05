@@ -222,9 +222,12 @@ Each family has **Complex** and **Simple** variants, with **Complex as the defau
 
 Three render modes are available:
 
-- **Solid** — the default; opaque colored faces with only the **visible** geometric edges drawn in black, matching the outlined 2D representation.
+- **Solid** — the default; opaque projected surfaces with only the **visible** geometric edges drawn in black, matching the outlined 2D representation. This is the normal material view and remains unchanged.
 - **Solid + wireframe** — the same visible black edges plus the full structural edge overlay, including additional construction lines.
 - **Wire** — structural edges only. The edges remain fully opaque once a dimension has emerged, while new Z/W edges still fade in during dimensional transitions.
+- **X-ray inspection** — optional translucent inspection of projected layers. Transparent triangles are composited back-to-front without depth writes so hidden projected layers remain visible. This is an explanatory tool, **not** a claim that a 4D observer sees through opaque 4D matter.
+
+The collapsed **4D inspection** disclosure exposes exact intrinsic-W sections and several simultaneous W layers. These are 3D sections of the actual 4D construction, not screen-space clipping. A hypothetical 4D observer would have a 3D retinal image: a visible 3D boundary cell can therefore be perceived volumetrically, while other 3D boundary cells may still occlude it. Hypermandala's ordinary screen render remains a 2D visualization of the projected geometry rather than a literal simulation of such a retina.
 
 The solid layer uses **WebGL2 with a real depth buffer**. Projected faces are triangulated and depth-tested per pixel rather than painter-sorted as whole polygons. Coincident shared faces are removed before rendering to prevent z-fighting.
 
