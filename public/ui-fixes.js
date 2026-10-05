@@ -99,63 +99,57 @@
     );
 
     replace(
-      "  function lotusPetalFootprint(",
-      "  function bhupuraPieces(",
-      `  function lotusPetalFootprint(
-    radius,
-    radialLength,
-    tangentialWidth,
-    angle,
-  ) {
-    /*
-     * A closed convex lens rather than a detached teardrop glyph. Because the
-     * petal is an ordinary footprint polygon, the native prism/hyperprism
-     * machinery can lift exactly the same petal through Z and W.
-     */
-    const halfLength = radialLength * 0.5;
-    const halfWidth = tangentialWidth * 0.5;
-    const baseLeft = [-halfLength, -halfWidth * 0.30];
-    const tip = [halfLength, 0];
-    const baseRight = [-halfLength, halfWidth * 0.30];
-    const leftControl = [-radialLength * 0.08, -halfWidth];
-    const rightControl = [-radialLength * 0.08, halfWidth];
-    const local = [];
-    const samples = 6;
-
-    const quadratic = (a, control, b, t) => {
-      const u = 1 - t;
-      return [
-        u * u * a[0] + 2 * u * t * control[0] + t * t * b[0],
-        u * u * a[1] + 2 * u * t * control[1] + t * t * b[1],
-      ];
-    };
-
-    for (let i = 0; i <= samples; i += 1) {
-      local.push(quadratic(baseLeft, leftControl, tip, i / samples));
-    }
-    for (let i = 1; i <= samples; i += 1) {
-      local.push(quadratic(tip, rightControl, baseRight, i / samples));
-    }
-
-    const cx = Math.cos(angle) * radius;
-    const cy = Math.sin(angle) * radius;
-
-    return local.map(([x, y]) => {
-      const p = rotateXYPoint(x, y, angle);
-      return [cx + p[0], cy + p[1]];
-    });
-  }
-
-`,
-      'lotus petal geometry',
-    );
-
-    replace(
       "  function sriYantraPieces() {",
       "  function kaliYantraPieces() {",
       `  function sriYantraPieces() {
     const complex = state.complexity === 'complex';
     const pieces = [];
+
+    const sriPetalFootprint = (radius, radialLength, tangentialWidth, angle) => {
+      const halfLength = radialLength * 0.5;
+      const halfWidth = tangentialWidth * 0.5;
+      const baseLeft = [-halfLength, -halfWidth * 0.30];
+      const tip = [halfLength, 0];
+      const baseRight = [-halfLength, halfWidth * 0.30];
+      const leftControl = [-radialLength * 0.08, -halfWidth];
+      const rightControl = [-radialLength * 0.08, halfWidth];
+      const local = [];
+      const samples = 6;
+      const quadratic = (a, control, b, t) => {
+        const u = 1 - t;
+        return [
+          u * u * a[0] + 2 * u * t * control[0] + t * t * b[0],
+          u * u * a[1] + 2 * u * t * control[1] + t * t * b[1],
+        ];
+      };
+
+      for (let i = 0; i <= samples; i += 1) {
+        local.push(quadratic(baseLeft, leftControl, tip, i / samples));
+      }
+      for (let i = 1; i <= samples; i += 1) {
+        local.push(quadratic(tip, rightControl, baseRight, i / samples));
+      }
+
+      const cx = Math.cos(angle) * radius;
+      const cy = Math.sin(angle) * radius;
+      return local.map(([x, y]) => {
+        const p = rotateXYPoint(x, y, angle);
+        return [cx + p[0], cy + p[1]];
+      });
+    };
+
+    const sriLotusRingPieces = (count, radius, radialLength, tangentialWidth, regionId, level, paintOrder) => (
+      Array.from({ length: count }, (_, index) => {
+        const angle = (index / count) * TAU - Math.PI / 2;
+        return {
+          points: sriPetalFootprint(radius, radialLength, tangentialWidth, angle),
+          regionId,
+          level,
+          paintOrder,
+          radialDistance: radius,
+        };
+      })
+    );
 
     /*
      * Traditional structure is encoded as actual native geometry:
@@ -210,7 +204,7 @@
       }
     }
 
-    pieces.push(...lotusRingPieces(
+    pieces.push(...sriLotusRingPieces(
       16,
       1.49,
       0.34,
@@ -219,7 +213,7 @@
       4,
       12,
     ));
-    pieces.push(...lotusRingPieces(
+    pieces.push(...sriLotusRingPieces(
       8,
       1.19,
       0.40,
@@ -307,11 +301,11 @@
       'Sri native 3D/4D form',
     );
 
-    if (patchCount !== 5) {
+    if (patchCount !== 4) {
       console.warn(
         'Hypermandala Sri patch applied only',
         patchCount,
-        'of 5 sections; keeping the executable source but review app.js markers.',
+        'of 4 sections; keeping the executable source but review app.js markers.',
       );
     }
 
