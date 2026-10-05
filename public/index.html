@@ -472,6 +472,7 @@
         await window.__hypermandalaStylesReady;
         await loadInlineScript('./ui-fixes.js', '/ui-fixes.js');
         window.__hypermandalaPrepareUiFixes?.();
+        await loadInlineScript('./kali-fix.js', '/kali-fix.js');
         await loadInlineScript('./app.js', '/app.js');
         window.__hypermandalaInstallUiFixes?.();
       } catch (error) {
@@ -482,10 +483,18 @@
         fixes.onload = () => {
           window.__hypermandalaPrepareUiFixes?.();
 
-          const app = document.createElement('script');
-          app.src = './app.js?reload=' + Date.now();
-          app.onload = () => window.__hypermandalaInstallUiFixes?.();
-          document.body.appendChild(app);
+          const loadFallbackApp = () => {
+            const app = document.createElement('script');
+            app.src = './app.js?reload=' + Date.now();
+            app.onload = () => window.__hypermandalaInstallUiFixes?.();
+            document.body.appendChild(app);
+          };
+
+          const kali = document.createElement('script');
+          kali.src = './kali-fix.js?reload=' + Date.now();
+          kali.onload = loadFallbackApp;
+          kali.onerror = loadFallbackApp;
+          document.body.appendChild(kali);
         };
         document.body.appendChild(fixes);
       }
