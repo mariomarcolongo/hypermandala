@@ -2,11 +2,9 @@
  * Kali Yantra geometry correction.
  *
  * The documented Kali type used by Hypermandala has five nested downward
- * triangles inside a circular field, surrounded by an eight-petalled lotus
- * and a four-gated bhupura. app.js already has the five triangles and bhupura;
- * this bootstrap patch replaces the detached generic lotus polygons with a
- * continuous lotus/circle composition while keeping the native 2D→3D→4D
- * geometry pipeline unchanged.
+ * triangles inside a circular enclosure, surrounded by an eight-petalled
+ * lotus and a four-gated bhupura. Keep the construction inside the native
+ * 2D→3D→4D geometry pipeline and only replace the Kali-specific pieces.
  */
 (() => {
   'use strict';
@@ -20,6 +18,10 @@
     if (!/(^|\/)app\.js(?:[?#]|$)/.test(url) || !response.ok) {
       return response;
     }
+
+    // app.js is fetched once during bootstrap. Do not leave a global fetch
+    // wrapper installed after the source has been patched.
+    window.fetch = upstreamFetch;
 
     let source = await response.text();
     let changes = 0;
@@ -44,7 +46,7 @@
 `  const KALI_COLORS = {
     bhupura: '#3b2527',
     lotus: '#b7444b',
-    field: '#4d292e',
+    ring: '#6a3035',
     triangle: '#25171a',
     triangleAlt: '#7f252d',
     bindu: '#d8ad4d',
@@ -58,7 +60,7 @@
     if (regionId?.startsWith('kali-triangle-')) {`,
 `    if (regionId === 'kali-bhupura') return hexToRgb(KALI_COLORS.bhupura);
     if (regionId === 'kali-lotus') return hexToRgb(KALI_COLORS.lotus);
-    if (regionId === 'kali-field') return hexToRgb(KALI_COLORS.field);
+    if (regionId === 'kali-ring') return hexToRgb(KALI_COLORS.ring);
     if (regionId?.startsWith('kali-triangle-')) {`,
       'classic region mapping',
     );
@@ -79,49 +81,28 @@
       ));
     });
 
-    // Eight broad, pointed lotus petals. Their inner halves sit beneath the
-    // circular field, so the visible plan reads as one lotus rather than eight
-    // detached polygonal satellites.
-    const petalRadius = 1.17;
-    const petalLength = 0.64;
-    const petalWidth = 0.78;
-    const petalSteps = 10;
+    // Use the engine's existing convex lotus primitive. The previous attempt
+    // built each petal with duplicated tip vertices, producing zero-length
+    // edges and degenerate prism faces when Kali was selected.
+    pieces.push(...lotusRingPieces(
+      8, 1.23, 0.46, 0.72,
+      'kali-lotus', 1, 10,
+    ));
 
-    for (let index = 0; index < 8; index += 1) {
-      const angle = (index / 8) * TAU - Math.PI / 2;
-      const petal = [];
-
-      for (let step = 0; step <= petalSteps; step += 1) {
-        const t = step / petalSteps;
-        const radial = -petalLength * 0.50 + petalLength * t;
-        const width = 0.50 * petalWidth * Math.pow(Math.sin(Math.PI * t), 0.72);
-        petal.push(rotateXYPoint(petalRadius + radial, -width, angle));
-      }
-      for (let step = petalSteps; step >= 0; step -= 1) {
-        const t = step / petalSteps;
-        const radial = -petalLength * 0.50 + petalLength * t;
-        const width = 0.50 * petalWidth * Math.pow(Math.sin(Math.PI * t), 0.72);
-        petal.push(rotateXYPoint(petalRadius + radial, width, angle));
-      }
-
+    // The five triangles sit inside a circular enclosure. Model the enclosure
+    // as a thin annulus, not a filled disk: this matches the reference more
+    // closely and avoids unnecessarily overlapping the whole triangular core.
+    for (const sector of polygonRingSectors(
+      1.07, 0.99, 24, Math.PI / 24,
+    )) {
       pieces.push({
-        points: petal,
-        regionId: 'kali-lotus',
-        level: 1,
-        paintOrder: 10 + index,
+        points: sector,
+        regionId: 'kali-ring',
+        level: 2,
+        paintOrder: 20,
+        radialDistance: 1.03,
       });
     }
-
-    // Historical Kali Yantra examples place the five triangles inside a
-    // circular field, with the eight-petalled lotus outside that circle.
-    // Drawing the field after the petals masks their inner bases and produces
-    // the continuous lotus-and-circle silhouette seen in the references.
-    pieces.push({
-      points: polygonFootprint(0, 0, 1.03, 64, -Math.PI / 2),
-      regionId: 'kali-field',
-      level: 2,
-      paintOrder: 20,
-    });
 
     const radii = [0.96, 0.79, 0.63, 0.47, 0.32];
     radii.forEach((radius, index) => {
