@@ -81,31 +81,27 @@
       ));
     });
 
-    const ringInner = 0.985;
+    const ringInner = 0.96;
     const ringOuter = 1.045;
 
-    // Traditional eight-petalled lotus: each visible petal has a broad root
-    // at the circular enclosure and tapers to a single outward point. The
-    // bronze Kali Yantra reference does not use almond/teardrop petals with
-    // pointed inner tips. Instead the circular enclosure visually sits over
-    // the petal roots, producing the familiar pointed lotus corona.
+    // Traditional connected eight-petalled lotus. Each petal owns exactly one
+    // 45-degree root sector, so neighbouring petals meet at the circular
+    // enclosure instead of floating apart. The closing root chord is hidden
+    // in the 2D plan, and the annulus is painted over it, producing a single
+    // continuous lotus-and-ring construction without crossing outlines.
     //
-    // Keep every petal convex for the existing prism/4D pipeline. The short
-    // base chord lies inside the annulus and is intentionally painted beneath
-    // the ring, so the root appears tucked under the circular enclosure rather
-    // than detached from it or crossed by a visible ring line.
+    // A simple five-vertex convex petal keeps the 3D/4D prism pipeline stable
+    // while giving the traditional broad base and sharp outward point.
     const kaliPetalFootprint = (angle) => {
-      const baseHalfAngle = 15 * RAD;
+      const baseHalfAngle = 22.5 * RAD;
       const baseX = ringOuter * Math.cos(baseHalfAngle);
       const baseY = ringOuter * Math.sin(baseHalfAngle);
       const outerRadius = 1.53;
       const local = [
         [baseX, -baseY],
-        [1.14, -0.26],
-        [1.34, -0.18],
+        [1.22, -0.28],
         [outerRadius, 0],
-        [1.34, 0.18],
-        [1.14, 0.26],
+        [1.22, 0.28],
         [baseX, baseY],
       ];
 
@@ -119,13 +115,14 @@
         regionId: 'kali-lotus',
         level: 1,
         paintOrder: 10,
-        radialDistance: 1.29,
+        radialDistance: 1.28,
       });
     }
 
     // Circular enclosure around the five nested downward triangles. Convex
-    // sectors keep the 3D prism pipeline robust; the 2D plan builder below
-    // suppresses only their internal radial seams so they read as one annulus.
+    // sectors keep the 3D prism pipeline robust. In the 2D plan only the inner
+    // circular edge is stroked: the outer edge is the shared lotus root and is
+    // deliberately left unstroked so it cannot cut across the petals.
     for (const sector of polygonRingSectors(
       ringOuter, ringInner, 32, Math.PI / 32,
     )) {
@@ -172,12 +169,6 @@
     buildPlanFromPieces(kaliYantraPieces());
   }`,
 `  function buildKaliYantraPlan() {
-    // Kali uses nested, not interlocking, triangles. Their boundaries are
-    // explicit source geometry, so no generic triangle subdivision is needed.
-    // Ring sectors are filled separately for convexity, but only their inner
-    // and outer chords are exposed as 2D edges. Omitting the shared radial
-    // sector boundaries removes the spoke-like overlap artifacts from the
-    // circular enclosure and its thumbnail.
     clearPlan();
     for (const piece of kaliYantraPieces()) {
       if (piece.regionId === 'kali-ring' && piece.points.length === 4) {
@@ -186,18 +177,37 @@
           piece.regionId,
           piece.paintOrder,
         );
-        addPlanEdge(
-          piece.points[0],
-          piece.points[1],
-          'n',
-          piece.regionId,
-        );
+
+        // polygonRingSectors() stores the outer chord first and the inner
+        // chord second. Stroke only the inner circle: the outer ring boundary
+        // is shared with the lotus roots and would otherwise cross them.
         addPlanEdge(
           piece.points[2],
           piece.points[3],
           'n',
           piece.regionId,
         );
+        continue;
+      }
+
+      if (piece.regionId === 'kali-lotus') {
+        addPlanFace(
+          piece.points,
+          piece.regionId,
+          piece.paintOrder,
+        );
+
+        // Draw the two petal flanks and tip, but not the closing base chord.
+        // The annulus fills that root area, so the lotus reads as attached to
+        // the circular enclosure instead of as eight separate polygons.
+        for (let i = 0; i < piece.points.length - 1; i += 1) {
+          addPlanEdge(
+            piece.points[i],
+            piece.points[i + 1],
+            'n',
+            piece.regionId,
+          );
+        }
         continue;
       }
 
@@ -264,7 +274,7 @@
     );
 
     window.__hypermandalaKaliPatch = {
-      version: '2026-10-06-v5',
+      version: '2026-10-06-v6',
       changes,
     };
 
