@@ -1,0 +1,62 @@
+name: Fix Sri Yantra 2D parity
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-sri-2d-parity.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch Sri Yantra 2D to match native 3D cells
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('public/app.js')
+          s = path.read_text()
+
+          old_filter = ").filter((item) => item.depth > 0 && item.cell.length === 3);"
+          new_filter = ").filter((item) => item.depth > 0);"
+          if s.count(old_filter) != 1:
+              raise SystemExit(f'cell filter mismatch: {s.count(old_filter)}')
+          s = s.replace(old_filter, new_filter, 1)
+
+          old_field = """    // Slate field visible between the traditional 43 triangular chambers.\n    addPlanRegularPolygon(0, 0, 0.995, 96, 0, true, 'sri-field', 30);\n\n"""
+          if s.count(old_field) != 1:
+              raise SystemExit(f'2D field mismatch: {s.count(old_field)}')
+          s = s.replace(old_field, '', 1)
+
+          s = s.replace(
+              'function sriTriangleChambers() {',
+              'function sriTriangleCellData() {',
+              1,
+          )
+          s = s.replace(
+              'for (const item of sriTriangleChambers()) {',
+              'for (const item of sriTriangleCellData()) {',
+              1,
+          )
+
+          # The full planar face arrangement is the native geometry consumed by
+          # the 3D builder. Do not independently force a 43-face filter here: it
+          # produces holes and makes 2D disagree with 3D.
+          marker = "  function sriTriangleCellData() {\n"
+          replacement = """  // Use the same complete subdivision network that underlies the native\n  // 3D Sri Yantra. Keeping 2D and 3D on one cell set prevents holes, color\n  // discontinuities, and dimension-transition mismatches.\n  function sriTriangleCellData() {\n"""
+          if marker not in s:
+              raise SystemExit('Sri cell-data marker missing')
+          s = s.replace(marker, replacement, 1)
+
+          path.write_text(s)
+          PY
+      - name: Validate JavaScript
+        run: node --check public/app.js
+      - name: Commit fix
+        run: |
+          git config user.name "Mario Marcolongo"
+          git config user.email "mario.marcolongo1@gmail.com"
+          git add public/app.js
+          git commit -m "Fix Sri Yantra 2D and 3D geometry parity"
+          git push
