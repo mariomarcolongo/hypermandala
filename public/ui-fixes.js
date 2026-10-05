@@ -1,8 +1,10 @@
 /*
  * UI compatibility fixes for the expandable geometric-form library.
  *
- * Keep these hooks isolated from the geometry engine: they only adjust
- * thumbnail rendering and panel/selection behavior.
+ * Keep these hooks isolated from the geometry engine where possible. The
+ * Sri Yantra source patch below is a narrow bootstrap compatibility layer:
+ * it rewrites only Sri-specific literals/functions before app.js executes,
+ * so the result still runs through the native Hypermandala geometry engine.
  */
 (() => {
   'use strict';
@@ -185,6 +187,305 @@
     });
   }
 
+  function patchSriYantraAppSource() {
+    if (window.__hypermandalaSriSourcePatchInstalled) return;
+    window.__hypermandalaSriSourcePatchInstalled = true;
+
+    const originalFetch = window.fetch.bind(window);
+
+    window.fetch = async function patchedFetch(input, init) {
+      const response = await originalFetch(input, init);
+      const url = typeof input === 'string' ? input : input?.url || '';
+
+      if (!/(^|\/)app\.js(?:[?#]|$)/.test(url)) return response;
+
+      // app.js is loaded once during bootstrap. Restore native fetch before
+      // evaluating it so every later network request behaves normally.
+      window.fetch = originalFetch;
+      if (!response.ok) return response;
+
+      let source = await response.text();
+      let changes = 0;
+
+      const replaceRequired = (before, after, label) => {
+        if (!source.includes(before)) {
+          console.warn('Sri Yantra source patch skipped:', label);
+          return;
+        }
+        source = source.replace(before, after);
+        changes += 1;
+      };
+
+      replaceRequired(
+`  const SRI_COLORS = {
+    // Manuscript-inspired traditional palette. Geometry is deliberately
+    // unchanged: these colors only affect Classic rendering.
+    bhupura: '#eadfbd',
+    lotus16: '#d1a13c',
+    lotus8: '#cf8d98',
+    triangles: [
+      '#c96f4d', // D1 · terracotta
+      '#d39b40', // U1 · ochre
+      '#748e68', // U3 · muted green
+      '#c77855', // U2 · warm brick
+      '#d5b451', // D3 · yellow ochre
+      '#7b956f', // D2 · leaf green
+      '#cf844c', // U4 · orange earth
+      '#b96857', // D4 · muted red
+      '#ddc66c', // D5 · warm central yellow
+    ],
+    bindu: '#e2b0a7',
+  };`,
+`  const SRI_COLORS = {
+    // Historical painted-reference palette. Geometry remains independent of
+    // color so the same plan still performs the native 3D and 4D lifts.
+    bhupura: '#eadfbd',
+    lotus16: '#d0a23b',
+    lotus8: '#ce8e98',
+    trivalaya: '#777b76',
+    cells: {
+      terracotta: '#c46e4d',
+      orange: '#c6652f',
+      ochre: '#c99a32',
+      green: '#71815f',
+    },
+    bindu: '#e1b2a8',
+  };`,
+        'palette',
+      );
+
+      replaceRequired(
+`    if (regionId === 'sri-bhupura') return hexToRgb(SRI_COLORS.bhupura);
+    if (regionId === 'sri-lotus16') return hexToRgb(SRI_COLORS.lotus16);
+    if (regionId === 'sri-lotus8') return hexToRgb(SRI_COLORS.lotus8);
+    if (
+      regionId?.startsWith('sri-shiva-')
+      || regionId?.startsWith('sri-shakti-')
+    ) {
+      const index = Number(regionId.split('-')[2]);
+      const color = SRI_COLORS.triangles[index] ?? SRI_COLORS.triangles[0];
+      return hexToRgb(color);
+    }
+    if (regionId === 'sri-bindu') return hexToRgb(SRI_COLORS.bindu);`,
+`    if (regionId === 'sri-bhupura') return hexToRgb(SRI_COLORS.bhupura);
+    if (regionId === 'sri-lotus16') return hexToRgb(SRI_COLORS.lotus16);
+    if (regionId === 'sri-lotus8') return hexToRgb(SRI_COLORS.lotus8);
+    if (regionId === 'sri-trivalaya') return hexToRgb(SRI_COLORS.trivalaya);
+    if (regionId?.startsWith('sri-cell-')) {
+      const key = regionId.slice('sri-cell-'.length);
+      return hexToRgb(SRI_COLORS.cells[key] ?? SRI_COLORS.cells.terracotta);
+    }
+    if (
+      regionId?.startsWith('sri-shiva-')
+      || regionId?.startsWith('sri-shakti-')
+    ) return hexToRgb(SRI_COLORS.cells.terracotta);
+    if (regionId === 'sri-bindu') return hexToRgb(SRI_COLORS.bindu);`,
+        'classic region mapping',
+      );
+
+      replaceRequired(
+`    pieces.push(...lotusRingPieces(
+      16, 1.58, 0.34, 0.22,
+      'sri-lotus16', 1, 10,
+    ));
+    pieces.push(...lotusRingPieces(
+      8, 1.28, 0.42, 0.36,
+      'sri-lotus8', 2, 20,
+    ));`,
+`    // Radially disjoint lotus enclosures. The petals remain closed polygons,
+    // therefore they still extrude and W-lift with the native engine.
+    pieces.push(...lotusRingPieces(
+      16, 1.67, 0.30, 0.40,
+      'sri-lotus16', 1, 10,
+    ));
+    pieces.push(...lotusRingPieces(
+      8, 1.30, 0.36, 0.72,
+      'sri-lotus8', 2, 20,
+    ));`,
+        'lotus geometry',
+      );
+
+      replaceRequired(
+`            regionId: 'sri-lotus8',
+            level: 3,
+            paintOrder: order,`,
+`            regionId: 'sri-trivalaya',
+            level: 3,
+            paintOrder: order,`,
+        'trivalaya color region',
+      );
+
+      replaceRequired(
+`  function buildSriYantraPlan() {
+    buildPlanFromPieces(sriYantraPieces());
+  }`,
+`  const SRI_REFERENCE_CELL_ANCHORS = [
+    [-0.768410, 0.183177, 'green'], [-0.771983,-0.157103,'green'],
+    [-0.588562, 0.013134, 'green'], [-0.562883,-0.400310,'orange'],
+    [-0.413870,-0.321390,'orange'], [-0.422596,-0.156880,'ochre'],
+    [-0.378727,-0.626663,'orange'], [-0.190370,-0.587001,'terracotta'],
+    [-0.265520,-0.400310,'terracotta'], [0.000000,-0.800253,'orange'],
+    [0.378727,-0.626663,'terracotta'], [0.190370,-0.587001,'terracotta'],
+    [0.562883,-0.400310,'orange'], [0.413870,-0.321390,'orange'],
+    [0.265520,-0.400310,'terracotta'], [0.771983,-0.157103,'green'],
+    [0.588562,0.013134,'green'], [0.422596,-0.156880,'ochre'],
+    [0.768410,0.183177,'green'], [0.558853,0.401837,'ochre'],
+    [0.418803,0.334893,'terracotta'], [0.421167,0.183400,'orange'],
+    [0.265493,0.193930,'ochre'], [0.278193,0.401837,'terracotta'],
+    [0.135389,0.368602,'ochre'], [0.194110,0.230940,'ochre'],
+    [0.000000,0.334893,'ochre'], [0.093147,0.211790,'ochre'],
+    [0.000000,0.193930,'ochre'], [-0.093147,0.211790,'ochre'],
+    [-0.135389,0.368602,'terracotta'], [-0.194110,0.230940,'ochre'],
+    [-0.265493,0.193930,'terracotta'], [-0.278193,0.401837,'terracotta'],
+    [-0.418803,0.334893,'orange'], [-0.421167,0.183400,'orange'],
+    [-0.558853,0.401837,'ochre'], [-0.198710,0.589944,'green'],
+    [-0.409793,0.635560,'orange'], [0.000000,0.812633,'orange'],
+    [0.409793,0.635560,'green'], [0.198710,0.589944,'green'],
+    [0.273060,-0.151890,'terracotta'], [0.197757,-0.196790,'orange'],
+    [0.132687,-0.358770,'ochre'], [0.106391,-0.179530,'orange'],
+    [0.000000,-0.321390,'ochre'], [0.000000,-0.151890,'terracotta'],
+    [-0.106391,-0.179530,'green'], [-0.197757,-0.196790,'terracotta'],
+    [-0.132687,-0.358770,'ochre'], [-0.273060,-0.151890,'terracotta'],
+    [-0.197730,-0.106203,'terracotta'], [-0.272009,-0.061667,'terracotta'],
+    [-0.160968,-0.087141,'terracotta'], [-0.216865,-0.025918,'terracotta'],
+    [-0.094170,-0.047798,'orange'], [-0.178560,0.018600,'orange'],
+    [0.000000,-0.000853,'terracotta'], [0.000000,0.098861,'ochre'],
+    [-0.121043,0.121953,'ochre'], [-0.186070,0.086987,'orange'],
+    [0.121043,0.121953,'ochre'], [0.094170,-0.047798,'terracotta'],
+    [0.178560,0.018600,'green'], [0.186070,0.086987,'green'],
+    [0.160968,-0.087141,'terracotta'], [0.216865,-0.025918,'terracotta'],
+    [0.197730,-0.106203,'terracotta'], [0.272009,-0.061667,'terracotta'],
+    [0.000000,-0.552947,'ochre'], [-0.344526,0.023812,'ochre'],
+    [-0.264956,0.114009,'terracotta'], [0.000000,0.552170,'green'],
+    [0.344526,0.023812,'terracotta'], [0.264956,0.114009,'ochre'],
+  ];
+
+  function sriCellRegionId(point) {
+    let best = SRI_REFERENCE_CELL_ANCHORS[0];
+    let bestDistance = Infinity;
+
+    for (const anchor of SRI_REFERENCE_CELL_ANCHORS) {
+      const dx = point[0] - anchor[0];
+      const dy = point[1] - anchor[1];
+      const distance = dx * dx + dy * dy;
+      if (distance < bestDistance) {
+        best = anchor;
+        bestDistance = distance;
+      }
+    }
+
+    return 'sri-cell-' + best[2];
+  }
+
+  function sriTriangleCellData() {
+    const triangles = sriTriangleSpecs();
+    const network = yantraSubdivisionNetwork(triangles);
+    const cells = yantraNetworkCells(network);
+
+    return cells.map((cell) => {
+      const centroid = yantraPolygonCentroid(cell);
+      const covering = yantraContainingTriangles(centroid, triangles);
+      return {
+        cell,
+        centroid,
+        depth: covering.length,
+        regionId: sriCellRegionId(centroid),
+      };
+    }).filter((item) => item.depth > 0);
+  }
+
+  function buildSriYantraPlan() {
+    clearPlan();
+    const pieces = sriYantraPieces();
+
+    for (const piece of pieces) {
+      const parentTriangle =
+        piece.regionId?.startsWith('sri-shiva-')
+        || piece.regionId?.startsWith('sri-shakti-');
+      if (parentTriangle) continue;
+
+      addPlanLoop(
+        piece.points,
+        true,
+        piece.regionId,
+        piece.paintOrder,
+      );
+    }
+
+    // Color the visible planar subdivisions, not the nine overlapping source
+    // triangles. This is what allows the painted reference disposition to be
+    // represented without changing the underlying Sri triangle coordinates.
+    for (const item of sriTriangleCellData()) {
+      addPlanLoop(
+        item.cell,
+        true,
+        item.regionId,
+        40 + item.depth,
+      );
+    }
+  }`,
+        'Sri 2D cell renderer',
+      );
+
+      replaceRequired(
+`      cellData.push({
+        cell,
+        centroid,
+        depth,
+        visiblePiece,
+      });`,
+`      cellData.push({
+        cell,
+        centroid,
+        depth,
+        visiblePiece,
+        regionId: state.preset === 'sriyantra'
+          ? sriCellRegionId(centroid)
+          : visiblePiece.regionId,
+      });`,
+        '3D Sri cell semantics',
+      );
+
+      replaceRequired(
+`          item.visiblePiece.regionId,
+          [],
+          {
+            hierarchyT: 0.24 + 0.66 * (item.depth / maxDepth),
+            polarity: regionPolarity(item.visiblePiece.regionId),`,
+`          item.regionId,
+          [],
+          {
+            hierarchyT: 0.24 + 0.66 * (item.depth / maxDepth),
+            polarity: regionPolarity(item.regionId),`,
+        'separated Sri cell color',
+      );
+
+      replaceRequired(
+`        item.visiblePiece.regionId,
+        [],
+        {
+          hierarchyT: 0.24 + 0.66 * (item.depth / maxDepth),
+          polarity: regionPolarity(item.visiblePiece.regionId),`,
+`        item.regionId,
+        [],
+        {
+          hierarchyT: 0.24 + 0.66 * (item.depth / maxDepth),
+          polarity: regionPolarity(item.regionId),`,
+        'compact Sri cell color',
+      );
+
+      if (changes !== 8) {
+        console.warn('Sri Yantra source patch applied', changes, 'of 8 expected changes');
+      }
+
+      return new Response(source, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+      });
+    };
+  }
+
   function activePreset() {
     return document.querySelector('.mandala-card.is-active[data-preset]')
       ?.dataset.preset || null;
@@ -245,6 +546,7 @@
     injectLibraryStyles();
     savedExperimentalPreset = readSavedExperimentalPreset();
     patchExperimentalPreviewContexts();
+    patchSriYantraAppSource();
   }
 
   function install() {
