@@ -5980,6 +5980,19 @@
       || !modules.length
     ) return;
 
+    /*
+     * Sri Yantra is intentionally composed from many thin semantic pieces:
+     * three bhupura ramparts, trivalaya sectors, two lotus rings and the
+     * nine-triangle line network. Running the generic symmetric union
+     * normalizer over all of those overlapping footprints causes a
+     * combinatorial polygon-partition explosion and can freeze the UI when
+     * the preset is selected. The native modules are already valid prisms /
+     * hyperprisms, so render them directly just as they were authored. This
+     * keeps the ordinary axis controls, projections and 2D→3D→4D pipeline
+     * without attempting an unnecessary global boolean union.
+     */
+    if (state.preset === 'sriyantra') return;
+
     const sources = modules.map(extractSymmetricPrismSource);
     if (sources.some((source) => !source)) {
       // Fall back to the original mesh rather than approximating a family
