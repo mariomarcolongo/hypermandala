@@ -2760,7 +2760,10 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     return 'sri-cell-' + best[2];
   }
 
-  function sriTriangleChambers() {
+  // Use the same complete subdivision network that underlies the native
+  // 3D Sri Yantra. Keeping 2D and 3D on one cell set prevents holes, color
+  // discontinuities, and dimension-transition mismatches.
+  function sriTriangleCellData() {
     const triangles = sriTriangleSpecs();
     const network = yantraSubdivisionNetwork(triangles);
     return yantraNetworkCells(network).map((cell) => {
@@ -2772,7 +2775,7 @@ const SRI_REFERENCE_CELL_ANCHORS = [
         depth: covering.length,
         regionId: sriCellRegionId(centroid),
       };
-    }).filter((item) => item.depth > 0 && item.cell.length === 3);
+    }).filter((item) => item.depth > 0);
   }
 
   function buildSriYantraPlan() {
@@ -2788,10 +2791,7 @@ const SRI_REFERENCE_CELL_ANCHORS = [
       addPlanLoop(piece.points, true, piece.regionId, piece.paintOrder);
     }
 
-    // Slate field visible between the traditional 43 triangular chambers.
-    addPlanRegularPolygon(0, 0, 0.995, 96, 0, true, 'sri-field', 30);
-
-    for (const item of sriTriangleChambers()) {
+    for (const item of sriTriangleCellData()) {
       addPlanLoop(item.cell, true, item.regionId, 40 + item.depth);
     }
 
