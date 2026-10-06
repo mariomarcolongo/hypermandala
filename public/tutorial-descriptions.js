@@ -1,8 +1,131 @@
 (() => {
   'use strict';
 
+  function installExplorer4DUx() {
+    if (window.__hypermandala4DUxInstalled) return;
+    window.__hypermandala4DUxInstalled = true;
+
+    const details = document.querySelector('.perception-details');
+    const sliceButton = document.querySelector('[data-insight="w-slice"]');
+    const layerButton = document.querySelector('[data-insight="w-layers"]');
+    const dimension4Button = document.querySelector('[data-dimension="4"]');
+    const sectionSpaceButtons = [
+      ...document.querySelectorAll('[data-w-section-space]'),
+    ];
+    const sweepButton = document.getElementById('wSliceSweep');
+    const wDepthButton = document.getElementById('wDepthToggle');
+    const hypercellButton = document.getElementById('hypercellToggle');
+    const solidLayer = document.getElementById('solidLayer');
+    const sectionSpaceControl = document.getElementById('wSectionSpaceControl');
+
+    if (!details || !sliceButton || !dimension4Button) return;
+
+    const style = document.createElement('style');
+    style.id = 'hypermandala4DUxStyles';
+    style.textContent = `
+      #solidLayer {
+        transition: opacity 140ms ease;
+      }
+
+      #solidLayer.hyper4d-section-context {
+        opacity: .46;
+      }
+
+      .hyper4d-explanation {
+        margin: -1px 0 2px;
+        color: rgba(238,239,242,.46);
+        font-size: 9px;
+        line-height: 1.35;
+      }
+    `;
+    document.head.appendChild(style);
+
+    if (sectionSpaceControl && !document.querySelector('.hyper4d-explanation')) {
+      const explanation = document.createElement('div');
+      explanation.className = 'hyper4d-explanation';
+      explanation.textContent =
+        'View-space W differs from intrinsic W after an XW, YW or ZW rotation.';
+      sectionSpaceControl.insertAdjacentElement('afterend', explanation);
+    }
+
+    function usable4D() {
+      return (
+        dimension4Button.classList.contains('is-active')
+        && !sliceButton.disabled
+      );
+    }
+
+    function ensureSingleSlice() {
+      if (!usable4D()) return false;
+      if (!sliceButton.classList.contains('is-active')) sliceButton.click();
+      return sliceButton.classList.contains('is-active');
+    }
+
+    function setDisabled(element, disabled) {
+      if (!element || element.disabled === disabled) return;
+      element.disabled = disabled;
+    }
+
+    function sync4DUx() {
+      const enabled = usable4D();
+
+      sectionSpaceButtons.forEach((button) => setDisabled(button, !enabled));
+      setDisabled(sweepButton, !enabled);
+
+      const slicing = Boolean(
+        sliceButton.classList.contains('is-active')
+        || layerButton?.classList.contains('is-active')
+      );
+      const independentCue = Boolean(
+        wDepthButton?.classList.contains('is-active')
+        || hypercellButton?.classList.contains('is-active')
+      );
+      solidLayer?.classList.toggle(
+        'hyper4d-section-context',
+        slicing && !independentCue,
+      );
+    }
+
+    sectionSpaceButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        ensureSingleSlice();
+        requestAnimationFrame(sync4DUx);
+      }, true);
+    });
+
+    sweepButton?.addEventListener('click', () => {
+      ensureSingleSlice();
+      requestAnimationFrame(sync4DUx);
+    }, true);
+
+    details.addEventListener('toggle', () => requestAnimationFrame(sync4DUx));
+    document.getElementById('insightControl')?.addEventListener(
+      'click',
+      () => requestAnimationFrame(sync4DUx),
+    );
+    wDepthButton?.addEventListener('click', () => requestAnimationFrame(sync4DUx));
+    hypercellButton?.addEventListener('click', () => requestAnimationFrame(sync4DUx));
+    dimension4Button.addEventListener('click', () => {
+      requestAnimationFrame(sync4DUx);
+      setTimeout(sync4DUx, 900);
+      setTimeout(sync4DUx, 2200);
+    });
+
+    const observer = new MutationObserver(() => sync4DUx());
+    observer.observe(document.getElementById('explorerControls') || details, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class', 'disabled'],
+    });
+
+    sync4DUx();
+  }
+
+  installExplorer4DUx();
+
   const hud = document.querySelector('.learn4d-hud');
   const modesEl = document.querySelector('.learn4d-modes');
+  const focusEl = document.querySelector('.learn4d-focus');
   const timeline = document.querySelector('.learn4d-timeline');
   if (!hud || !modesEl || !timeline || document.querySelector('.learn4d-step-description')) return;
 
