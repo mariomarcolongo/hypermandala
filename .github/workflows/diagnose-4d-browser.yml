@@ -3,6 +3,10 @@ on:
   push:
     paths:
       - '.github/workflows/diagnose-4d-browser.yml'
+      - 'public/4d-tools-fix.js'
+      - 'public/tutorial-descriptions.js'
+      - 'public/index.html'
+      - 'public/app.js'
 permissions:
   contents: read
 jobs:
@@ -36,8 +40,12 @@ jobs:
           const browserType = process.env.BROWSER === 'webkit' ? webkit : chromium;
           const browser = await browserType.launch({ headless: true });
           const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+          const pageErrors = [];
           page.on('console', msg => console.log('CONSOLE', msg.type(), msg.text()));
-          page.on('pageerror', err => console.log('PAGEERROR', err.stack || err.message));
+          page.on('pageerror', err => {
+            pageErrors.push(err.message);
+            console.log('PAGEERROR', err.stack || err.message);
+          });
           await page.goto('http://127.0.0.1:8765/', { waitUntil: 'networkidle' });
           console.log('BROWSER', process.env.BROWSER);
           console.log('PATCH', await page.evaluate(() => window.__hypermandala4DInspectionPatch || null));
@@ -64,30 +72,50 @@ jobs:
           const changed = (a, b) => a.solid !== b.solid || a.overlay !== b.overlay;
 
           const baseline = await snapshot('baseline');
-          await page.locator('[data-insight="w-slice"]').click();
-          const slice = await snapshot('slice');
-          await page.locator('#wSliceSweep').click();
-          await page.waitForTimeout(1200);
+
+          // View-space must now self-activate the single slice.
+          const viewButton = page.locator('[data-w-section-space="view"]');
+          console.log('VIEW_DISABLED_BEFORE', await viewButton.isDisabled());
+          await viewButton.click();
+          await page.waitForTimeout(150);
+          const sliceButton = page.locator('[data-insight="w-slice"]');
+          console.log('SLICE_AFTER_VIEW', await sliceButton.getAttribute('class'));
+          if (!(await sliceButton.getAttribute('class') || '').includes('is-active')) {
+            throw new Error('View-space W did not self-activate 1 slice');
+          }
+          const slice = await snapshot('view-space-slice');
+
+          // Turn slice off, then verify Sweep also self-activates it.
+          await page.locator('[data-insight="standard"]').click();
+          const sweepButton = page.locator('#wSliceSweep');
+          console.log('SWEEP_DISABLED_BEFORE', await sweepButton.isDisabled());
+          await sweepButton.click();
+          await page.waitForTimeout(900);
+          if (!(await sliceButton.getAttribute('class') || '').includes('is-active')) {
+            throw new Error('Sweep did not self-activate 1 slice');
+          }
           const sweep = await snapshot('sweep');
+
           await page.locator('#wDepthToggle').click();
           const wdepth = await snapshot('wdepth');
           await page.locator('#hypercellToggle').click();
           const hypercell = await snapshot('hypercell');
-          await page.locator('[data-w-section-space="view"]').click();
-          const view = await snapshot('view-space');
 
           const changes = {
             slice: changed(baseline, slice),
             sweep: changed(slice, sweep),
             wdepth: changed(sweep, wdepth),
             hypercell: changed(wdepth, hypercell),
-            viewSpace: changed(hypercell, view),
           };
           console.log('CHANGES', changes);
           const failures = Object.entries(changes)
-            .filter(([name, didChange]) => name !== 'viewSpace' && !didChange)
+            .filter(([, didChange]) => !didChange)
             .map(([name]) => name);
           if (failures.length) throw new Error('No visible render change for: ' + failures.join(', '));
+
+          if (pageErrors.length) {
+            throw new Error('Browser page errors: ' + pageErrors.join(' | '));
+          }
 
           await browser.close();
           JS
