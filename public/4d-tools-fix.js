@@ -15,7 +15,7 @@
 (() => {
   'use strict';
 
-  const PATCH_VERSION = '2026-10-06-v1';
+  const PATCH_VERSION = '2026-10-06-v3';
 
   function inject4DToolsUi() {
     if (document.getElementById('hypermandala4DInspectionTools')) return;
@@ -261,12 +261,9 @@
     const mobile = isMobileLayout();
     const stageTop = mobile ? state.viewTopInset : 0;
     const stageBottom = mobile
-      ? Math.max(0, state.viewBottomInset)
-      : 0;
-    const stageHeight = Math.max(
-      1,
-      state.height - stageTop - stageBottom,
-    );
+      ? Math.max(stageTop + 180, state.height - state.viewBottomInset)
+      : state.height;
+    const stageHeight = Math.max(180, stageBottom - stageTop);
     const scale = Math.min(state.width, stageHeight)
       * (mobile ? 0.27 : 0.245)
       * state.zoom;
@@ -526,7 +523,10 @@
         ? 'rgba(246,221,151,.98)'
         : 'rgba(220,224,232,.76)';
 
-      if (state.wSectionSpace === 'view') {
+      if (
+        state.wSectionSpace === 'view'
+        && state.insightMode === 'w-slice'
+      ) {
         drawViewSpaceWSection(fraction, alpha, width, color);
       } else {
         drawIntrinsicWSection(fraction, alpha, width, color);
@@ -697,7 +697,7 @@
 
     const sectionEnabled = (
       insightEnabled
-      && ['w-slice', 'w-layers'].includes(state.insightMode)
+      && state.insightMode === 'w-slice'
     );
     wSectionSpaceButtons.forEach((button) => {
       button.disabled = !sectionEnabled;
