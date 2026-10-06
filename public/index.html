@@ -464,7 +464,8 @@
         }
 
         const script = document.createElement('script');
-        script.textContent = await response.text() + '\n//# sourceURL=' + sourceUrl;
+        script.textContent = await response.text() + '\
+//# sourceURL=' + sourceUrl;
         document.body.appendChild(script);
       };
 
@@ -473,6 +474,7 @@
         await loadInlineScript('./ui-fixes.js', '/ui-fixes.js');
         window.__hypermandalaPrepareUiFixes?.();
         await loadInlineScript('./kali-fix.js', '/kali-fix.js');
+        await loadInlineScript('./4d-tools-fix.js', '/4d-tools-fix.js');
         await loadInlineScript('./app.js', '/app.js');
         window.__hypermandalaInstallUiFixes?.();
       } catch (error) {
@@ -490,10 +492,18 @@
             document.body.appendChild(app);
           };
 
+          const loadFallback4DTools = () => {
+            const tools4d = document.createElement('script');
+            tools4d.src = './4d-tools-fix.js?reload=' + Date.now();
+            tools4d.onload = loadFallbackApp;
+            tools4d.onerror = loadFallbackApp;
+            document.body.appendChild(tools4d);
+          };
+
           const kali = document.createElement('script');
           kali.src = './kali-fix.js?reload=' + Date.now();
-          kali.onload = loadFallbackApp;
-          kali.onerror = loadFallbackApp;
+          kali.onload = loadFallback4DTools;
+          kali.onerror = loadFallback4DTools;
           document.body.appendChild(kali);
         };
         document.body.appendChild(fixes);

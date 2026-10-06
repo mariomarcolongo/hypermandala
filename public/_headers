@@ -14,6 +14,9 @@
 /kali-fix.js
   Cache-Control: no-store, no-cache, max-age=0, must-revalidate
 
+/4d-tools-fix.js
+  Cache-Control: no-store, no-cache, max-age=0, must-revalidate
+
 /tutorial.js
   Cache-Control: no-cache, max-age=0, must-revalidate
 
