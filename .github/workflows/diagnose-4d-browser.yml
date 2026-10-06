@@ -23,7 +23,7 @@ jobs:
           SERVER_PID=$!
           trap 'kill $SERVER_PID || true' EXIT
           sleep 1
-          cat > /tmp/test.mjs <<'JS'
+          cat > test-4d-browser.mjs <<'JS'
           import { chromium } from 'playwright';
           const browser = await chromium.launch({ headless: true });
           const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
@@ -70,4 +70,4 @@ jobs:
           await page.waitForTimeout(1000);
           await browser.close();
           JS
-          node /tmp/test.mjs
+          node test-4d-browser.mjs
