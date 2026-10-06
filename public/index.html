@@ -99,6 +99,46 @@
       ));
     })();
   </script>
+
+  <style id="hypermandalaLayoutBalanceFix">
+    /* Keep the desktop Explorer compact enough that it cannot cover the
+       projected-basis map. Extra controls scroll inside the panel instead. */
+    @media (min-width: 961px) {
+      #explorerControls.control-panel {
+        max-height: min(74dvh, calc(100dvh - 190px));
+        overscroll-behavior: contain;
+      }
+
+      #basisGizmo.basis-gizmo {
+        display: block;
+        z-index: 4;
+      }
+    }
+
+    /* The old responsive rule hid the coordinate map below 960 px. On
+       laptop/tablet widths there is still enough free space above the
+       bottom-anchored Explorer, so keep a slightly smaller map there. */
+    @media (min-width: 761px) and (max-width: 960px) {
+      #basisGizmo.basis-gizmo {
+        display: block;
+        top: 18px;
+        right: 16px;
+        bottom: auto;
+        width: 96px;
+        z-index: 4;
+      }
+
+      #basisGizmo.basis-gizmo canvas {
+        width: 96px;
+        height: 96px;
+      }
+
+      #basisGizmo.basis-gizmo span {
+        margin-top: -4px;
+        font-size: 7px;
+      }
+    }
+  </style>
 </head>
 <body>
   <canvas id="solidLayer" aria-hidden="true"></canvas>
