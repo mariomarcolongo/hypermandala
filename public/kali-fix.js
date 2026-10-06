@@ -144,12 +144,16 @@
     // inner lotus and a tighter sixteen-petalled outer lotus. Keep the outer
     // extent close to the existing implementation, changing mainly the petal
     // silhouette and base continuity rather than the overall yantra scale.
+    // Leave narrow radial separators between the triangle enclosure, the
+    // eight-petal lotus, and the sixteen-petal lotus. The previous revision
+    // placed the inner petal tips and outer petal roots at exactly radius 1.40,
+    // which caused their strokes/fills to overlap at the shared boundary.
     pieces.push(...sriLotusRingPieces(
-      16, 1.40, 1.52, 1.63,
+      16, 1.42, 1.53, 1.63,
       'sri-lotus16', 1, 10,
     ));
     pieces.push(...sriLotusRingPieces(
-      8, 1.115, 1.28, 1.40,
+      8, 1.14, 1.28, 1.37,
       'sri-lotus8', 2, 20,
     ));`,
       'Sri connected lotus geometry',
@@ -370,7 +374,7 @@
       changes,
     };
     window.__hypermandalaSriPatch = {
-      version: '2026-10-06-v1',
+      version: '2026-10-06-v2',
       applied: changes >= 7,
     };
 
