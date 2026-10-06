@@ -1,0 +1,73 @@
+name: Diagnose 4D tools in browser
+on:
+  push:
+    paths:
+      - '.github/workflows/diagnose-4d-browser.yml'
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install browser test dependency
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install chromium
+      - name: Run local interaction test
+        run: |
+          python3 -m http.server 8765 --directory public >/tmp/server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true' EXIT
+          sleep 1
+          cat > /tmp/test.mjs <<'JS'
+          import { chromium } from 'playwright';
+          const browser = await chromium.launch({ headless: true });
+          const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+          page.on('console', msg => console.log('CONSOLE', msg.type(), msg.text()));
+          page.on('pageerror', err => console.log('PAGEERROR', err.stack || err.message));
+          await page.goto('http://127.0.0.1:8765/', { waitUntil: 'networkidle' });
+          console.log('PATCH', await page.evaluate(() => window.__hypermandala4DInspectionPatch || null));
+          await page.locator('[data-dimension="4"]').click();
+          await page.waitForTimeout(5000);
+          const details = page.locator('.perception-details');
+          await details.locator('summary').click();
+          console.log('DETAILS_OPEN', await details.evaluate(el => el.open));
+          const state = async (selector) => {
+            const el = page.locator(selector);
+            console.log(selector, {
+              count: await el.count(),
+              disabled: await el.count() ? await el.isDisabled().catch(() => null) : null,
+              cls: await el.count() ? await el.getAttribute('class') : null,
+              pressed: await el.count() ? await el.getAttribute('aria-pressed') : null,
+            });
+          };
+          for (const sel of [
+            '[data-insight="w-slice"]',
+            '[data-insight="w-layers"]',
+            '[data-w-section-space="view"]',
+            '#wSliceSweep',
+            '#wDepthToggle',
+            '#hypercellToggle',
+            '#hypercellNext',
+            '#replay4D'
+          ]) await state(sel);
+
+          await page.locator('[data-insight="w-slice"]').click();
+          console.log('SLICE_ACTIVE', await page.locator('[data-insight="w-slice"]').getAttribute('class'));
+          await state('#wSliceSweep');
+          await page.locator('#wSliceSweep').click();
+          console.log('SWEEP_AFTER', await page.locator('#wSliceSweep').getAttribute('aria-pressed'));
+          await page.locator('#wDepthToggle').click();
+          console.log('WDEPTH_AFTER', await page.locator('#wDepthToggle').getAttribute('aria-pressed'));
+          await page.locator('#hypercellToggle').click();
+          console.log('CELL_AFTER', await page.locator('#hypercellToggle').getAttribute('aria-pressed'));
+          await page.locator('[data-w-section-space="view"]').click();
+          console.log('VIEW_ACTIVE', await page.locator('[data-w-section-space="view"]').getAttribute('class'));
+          await page.waitForTimeout(1000);
+          await browser.close();
+          JS
+          node /tmp/test.mjs
