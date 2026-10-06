@@ -6,6 +6,7 @@ on:
       - 'public/4d-tools-fix.js'
       - 'public/tutorial-descriptions.js'
       - 'public/index.html'
+      - 'public/styles.css'
       - 'public/app.js'
 permissions:
   contents: read
@@ -55,6 +56,68 @@ jobs:
           const details = page.locator('.perception-details');
           await details.locator('summary').click();
           console.log('DETAILS_OPEN', await details.evaluate(el => el.open));
+
+          const assertExplorerLayout = async (label) => {
+            const layout = await page.evaluate(() => {
+              const panel = document.getElementById('explorerControls');
+              const basis = document.getElementById('basisGizmo');
+              const panelRect = panel.getBoundingClientRect();
+              const basisRect = basis.getBoundingClientRect();
+              const basisStyle = getComputedStyle(basis);
+              const basisVisible = (
+                basisStyle.display !== 'none'
+                && basisStyle.visibility !== 'hidden'
+                && Number(basisStyle.opacity || 1) > 0
+                && basisRect.width > 0
+                && basisRect.height > 0
+              );
+              const overlap = !(
+                panelRect.right <= basisRect.left
+                || basisRect.right <= panelRect.left
+                || panelRect.bottom <= basisRect.top
+                || basisRect.bottom <= panelRect.top
+              );
+              return {
+                viewport: [innerWidth, innerHeight],
+                panel: {
+                  top: panelRect.top,
+                  right: panelRect.right,
+                  bottom: panelRect.bottom,
+                  left: panelRect.left,
+                  width: panelRect.width,
+                  height: panelRect.height,
+                },
+                basis: {
+                  top: basisRect.top,
+                  right: basisRect.right,
+                  bottom: basisRect.bottom,
+                  left: basisRect.left,
+                  width: basisRect.width,
+                  height: basisRect.height,
+                  display: basisStyle.display,
+                },
+                basisVisible,
+                overlap,
+              };
+            });
+            console.log('LAYOUT', label, layout);
+            if (!layout.basisVisible) {
+              throw new Error(`${label}: projected basis is hidden`);
+            }
+            if (layout.overlap) {
+              throw new Error(`${label}: Explorer overlaps projected basis`);
+            }
+            if (layout.panel.height >= layout.viewport[1] * 0.8) {
+              throw new Error(`${label}: Explorer is still excessively tall`);
+            }
+          };
+
+          await assertExplorerLayout('desktop');
+          await page.setViewportSize({ width: 900, height: 800 });
+          await page.waitForTimeout(200);
+          await assertExplorerLayout('compact-desktop');
+          await page.setViewportSize({ width: 1440, height: 1000 });
+          await page.waitForTimeout(200);
 
           const hash = async (selector) => {
             const buffer = await page.locator(selector).screenshot();
