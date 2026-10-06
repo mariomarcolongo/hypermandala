@@ -1,17 +1,17 @@
 /*
- * Kali Yantra geometry correction.
+ * Yantra geometry corrections.
  *
- * The documented Kali type used by Hypermandala has five nested downward
- * triangles inside a circular enclosure, surrounded by an eight-petalled
- * lotus and a four-gated bhupura. Keep the construction inside the native
- * 2D→3D→4D geometry pipeline and only replace Kali-specific behavior.
+ * Kali keeps its connected eight-petalled lotus and stable nested-triangle
+ * hierarchy. Sri uses two traditional connected lotus coronas around the
+ * triangle field: sixteen smaller outer petals and eight broader inner petals.
+ * Keep all changes inside the native 2D→3D→4D geometry pipeline.
  */
 (() => {
   'use strict';
 
   const upstreamFetch = window.fetch.bind(window);
 
-  window.fetch = async function patchKaliYantraSource(input, init) {
+  window.fetch = async function patchYantraSource(input, init) {
     const response = await upstreamFetch(input, init);
     const url = typeof input === 'string' ? input : input?.url || '';
 
@@ -28,7 +28,7 @@
 
     const replaceOnce = (before, after, label) => {
       if (!source.includes(before)) {
-        console.warn('Kali Yantra source patch skipped:', label);
+        console.warn('Yantra source patch skipped:', label);
         return;
       }
       source = source.replace(before, after);
@@ -51,7 +51,7 @@
     triangleAlt: '#7f252d',
     bindu: '#d8ad4d',
   };`,
-      'palette',
+      'Kali palette',
     );
 
     replaceOnce(
@@ -62,7 +62,97 @@
     if (regionId === 'kali-lotus') return hexToRgb(KALI_COLORS.lotus);
     if (regionId === 'kali-ring') return hexToRgb(KALI_COLORS.ring);
     if (regionId?.startsWith('kali-triangle-')) {`,
-      'classic region mapping',
+      'Kali classic region mapping',
+    );
+
+    // The native Sri lotus helper makes small detached hexagonal/almond pieces.
+    // Replace only Sri's two lotus calls with broad-rooted convex petals whose
+    // roots occupy each full angular sector. Adjacent petals therefore meet at
+    // the base, while the seven-vertex profile gives a rounded painted-lotus
+    // silhouette rather than a floating polygon tile. The polygons stay convex
+    // so the same footprints remain safe for the native 3D/4D prism pipeline.
+    replaceOnce(
+`    pieces.push(...lotusRingPieces(
+      16, 1.51, 0.24, 0.46,
+      'sri-lotus16', 1, 10,
+    ));
+    pieces.push(...lotusRingPieces(
+      8, 1.25, 0.24, 0.78,
+      'sri-lotus8', 2, 20,
+    ));`,
+`    const sriLotusPetalFootprint = (
+      count,
+      rootRadius,
+      shoulderRadius,
+      capRadius,
+      angle,
+    ) => {
+      const halfSector = Math.PI / count;
+      const shoulderAngle = halfSector * 0.72;
+      const capAngle = halfSector * 0.34;
+
+      const rootX = rootRadius * Math.cos(halfSector);
+      const rootY = rootRadius * Math.sin(halfSector);
+      const shoulderX = shoulderRadius * Math.cos(shoulderAngle);
+      const shoulderY = shoulderRadius * Math.sin(shoulderAngle);
+      const capX = capRadius * 0.985 * Math.cos(capAngle);
+      const capY = capRadius * 0.985 * Math.sin(capAngle);
+
+      const local = [
+        [rootX, -rootY],
+        [shoulderX, -shoulderY],
+        [capX, -capY],
+        [capRadius, 0],
+        [capX, capY],
+        [shoulderX, shoulderY],
+        [rootX, rootY],
+      ];
+
+      return local.map(([x, y]) => rotateXYPoint(x, y, angle));
+    };
+
+    const sriLotusRingPieces = (
+      count,
+      rootRadius,
+      shoulderRadius,
+      capRadius,
+      regionId,
+      level,
+      paintOrder,
+    ) => {
+      const ringPieces = [];
+      for (let index = 0; index < count; index += 1) {
+        const angle = (index / count) * TAU - Math.PI / 2;
+        ringPieces.push({
+          points: sriLotusPetalFootprint(
+            count,
+            rootRadius,
+            shoulderRadius,
+            capRadius,
+            angle,
+          ),
+          regionId,
+          level,
+          paintOrder,
+          radialDistance: (rootRadius + capRadius) * 0.5,
+        });
+      }
+      return ringPieces;
+    };
+
+    // Painted Sri Yantra references typically show a broad eight-petalled
+    // inner lotus and a tighter sixteen-petalled outer lotus. Keep the outer
+    // extent close to the existing implementation, changing mainly the petal
+    // silhouette and base continuity rather than the overall yantra scale.
+    pieces.push(...sriLotusRingPieces(
+      16, 1.40, 1.52, 1.63,
+      'sri-lotus16', 1, 10,
+    ));
+    pieces.push(...sriLotusRingPieces(
+      8, 1.115, 1.28, 1.40,
+      'sri-lotus8', 2, 20,
+    ));`,
+      'Sri connected lotus geometry',
     );
 
     const functionPattern = /  function kaliYantraPieces\(\) \{[\s\S]*?\n    return pieces;\n  \}/;
@@ -276,12 +366,16 @@
     );
 
     window.__hypermandalaKaliPatch = {
-      version: '2026-10-06-v7',
+      version: '2026-10-06-v8',
       changes,
     };
+    window.__hypermandalaSriPatch = {
+      version: '2026-10-06-v1',
+      applied: changes >= 7,
+    };
 
-    if (changes !== 6) {
-      console.warn('Kali Yantra source patch applied partially:', changes, '/ 6');
+    if (changes !== 7) {
+      console.warn('Yantra source patch applied partially:', changes, '/ 7');
     }
 
     return new Response(source, {
