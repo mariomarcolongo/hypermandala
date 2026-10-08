@@ -34,7 +34,6 @@ def check_plate_mode() -> None:
     h = 1e-5
     inward_slope = (chladni_radial(1.0) - chladni_radial(1.0 - h)) / h
 
-    # The clamped-edge eigenvalue also satisfies J'_m I_m - J_m I'_m = 0.
     j = bessel(order, lam)
     i = bessel(order, lam, True)
     j_prime = (bessel(order - 1, lam) - bessel(order + 1, lam)) * 0.5
@@ -66,10 +65,17 @@ def check_4d_rotations() -> None:
         rotated = rotate_plane(source, a, b, 0.173 + index * 0.271)
         assert abs(sum(value * value for value in rotated) - norm2) < 1e-12
 
-    # A full turn must return a point to its starting coordinates.
     full = rotate_plane(source, 0, 3, 2 * math.pi)
     for actual, expected in zip(full, source):
         assert abs(actual - expected) < 1e-12
+
+
+def check_rotation_noncommutativity() -> None:
+    point = [0.7, -0.4, 1.1, 0.9]
+    first = rotate_plane(rotate_plane(point, 0, 3, 0.61), 1, 3, -0.47)
+    second = rotate_plane(rotate_plane(point, 1, 3, -0.47), 0, 3, 0.61)
+    distance = math.sqrt(sum((a - b) ** 2 for a, b in zip(first, second)))
+    assert distance > 1e-3
 
 
 def check_4d_perspective() -> None:
@@ -119,8 +125,6 @@ def clip_ndc_depth(view_z: float, camera_z: float = 9.0) -> float:
 
 
 def check_projective_depth() -> None:
-    # Larger view-space Z is closer to the +Z camera and must produce a
-    # smaller OpenGL depth value (LESS wins).
     far_point = clip_ndc_depth(-3.0)
     middle_point = clip_ndc_depth(0.0)
     near_point = clip_ndc_depth(3.0)
@@ -128,8 +132,6 @@ def check_projective_depth() -> None:
     assert -1 < near_point < 1
     assert -1 < far_point < 1
 
-    # Reconstructing homogeneous clip X/Y must preserve the already-computed
-    # screen NDC coordinates after WebGL's perspective divide.
     ndc_x, ndc_y = 0.37, -0.42
     distance = 9.0 - 1.7
     assert abs((ndc_x * distance) / distance - ndc_x) < 1e-15
@@ -138,7 +140,6 @@ def check_projective_depth() -> None:
 
 def check_source_guards() -> None:
     app = (ROOT / "public/app.js").read_text()
-    tools = (ROOT / "public/4d-tools-fix.js").read_text()
     index = (ROOT / "public/index.html").read_text()
     readme = (ROOT / "README.md").read_text()
 
@@ -153,6 +154,15 @@ def check_source_guards() -> None:
         "const cameraW = 9;",
         "const factor = cameraW / (cameraW - p[3]);",
         "Math.atan(1 / Math.sqrt(2))",
+        "function hypercellEdgeSets(module)",
+        "function renderSectionSurface(polygons",
+        "source3?.faces",
+        "state.screenProjection",
+        "state.isometricView",
+        "faces: faces3.map",
+        "capTriangles = triangulateProjectedPolygon",
+        "vertexRgb = (",
+        "bayer[16]",
     ]
     for needle in required_app:
         assert needle in app, needle
@@ -162,24 +172,26 @@ def check_source_guards() -> None:
         "gl_Position = vec4(aPosition, 1.0);",
         "faceData.length / 7",
         "edgeData.length / 7",
+        "transparentTriangles.sort",
     ]
     for needle in forbidden_app:
         assert needle not in app, needle
 
-    section = tools[
-        tools.find("function intersectFaceWithViewW"):
-        tools.find("function drawViewSpaceWSection")
-    ]
-    assert "pair crossings consecutively" in section
-    assert "bestA" not in section
     assert "exact 2D plans" not in index
+    assert "exact 2D geometric plans" not in index
     assert "exact 2D plans" not in readme
-    assert "true 3D Isometric" in readme
+    assert "exact 2D geometric plans" not in readme
+    assert "4D → 3D projection" in index
+    assert "3D → 2D camera" in index
+    assert "Isometric orientation" in index
+    assert "4d-tools-fix.js" not in index
+    assert "Fourth-coordinate semantics" in readme
 
 
 def main() -> None:
     check_plate_mode()
     check_4d_rotations()
+    check_rotation_noncommutativity()
     check_4d_perspective()
     check_true_3d_isometric()
     check_projective_depth()
