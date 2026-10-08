@@ -78,6 +78,57 @@ def check_rotation_noncommutativity() -> None:
     assert distance > 1e-3
 
 
+def determinant(matrix):
+    a = [row[:] for row in matrix]
+    result = 1.0
+    for column in range(4):
+        pivot = max(range(column, 4), key=lambda row: abs(a[row][column]))
+        if abs(a[pivot][column]) < 1e-14:
+            return 0.0
+        if pivot != column:
+            a[pivot], a[column] = a[column], a[pivot]
+            result *= -1.0
+        value = a[column][column]
+        result *= value
+        for row in range(column + 1, 4):
+            factor = a[row][column] / value
+            for k in range(column + 1, 4):
+                a[row][k] -= factor * a[column][k]
+    return result
+
+
+def check_composed_so4_rotation() -> None:
+    # Match the production order exactly: XW, YW, ZW, XY, XZ, YZ.
+    config = [
+        (0, 3, 0.37),
+        (1, 3, -0.61),
+        (2, 3, 0.29),
+        (0, 1, 0.43),
+        (0, 2, -0.52),
+        (1, 2, 0.71),
+    ]
+
+    def composed(point):
+        result = point[:]
+        for a, b, angle in config:
+            result = rotate_plane(result, a, b, angle)
+        return result
+
+    basis = [
+        composed([1.0, 0.0, 0.0, 0.0]),
+        composed([0.0, 1.0, 0.0, 0.0]),
+        composed([0.0, 0.0, 1.0, 0.0]),
+        composed([0.0, 0.0, 0.0, 1.0]),
+    ]
+
+    for i in range(4):
+        for j in range(4):
+            dot = sum(basis[i][k] * basis[j][k] for k in range(4))
+            expected = 1.0 if i == j else 0.0
+            assert abs(dot - expected) < 1e-12, (i, j, dot)
+
+    assert abs(determinant(basis) - 1.0) < 1e-12, determinant(basis)
+
 def check_4d_perspective() -> None:
     camera_w = 9.0
     point = [1.2, -0.7, 0.4, 2.25]
@@ -163,6 +214,11 @@ def check_source_guards() -> None:
         "capTriangles = triangulateProjectedPolygon",
         "vertexRgb = (",
         "bayer[16]",
+        "function validate4DTransform()",
+        "window.HypermandalaAPI = Object.freeze",
+        "projectPoint4DTo3D",
+        "projectTransformed4DTo3D",
+        "perceptionYaw",
     ]
     for needle in required_app:
         assert needle in app, needle
@@ -186,12 +242,33 @@ def check_source_guards() -> None:
     assert "Isometric orientation" in index
     assert "4d-tools-fix.js" not in index
     assert "Fourth-coordinate semantics" in readme
+    assert "Immersive perception without geometric distortion" in readme
+
+    immersive = (ROOT / "public/immersive.js").read_text()
+    for marker in [
+        "requestSession('immersive-vr'",
+        "new XRWebGLLayer",
+        "DeviceOrientationEvent",
+        "projectPoint4DTo3D",
+        "projectTransformed4DTo3D",
+        "(viewPoint[0] - eye) * factor + eye",
+    ]:
+        assert marker in immersive, marker
+    for marker in [
+        'id="stereoToggle"',
+        'id="motionParallaxToggle"',
+        'id="trajectoryToggle"',
+        'id="enterVr"',
+        "./immersive.js",
+    ]:
+        assert marker in index, marker
 
 
 def main() -> None:
     check_plate_mode()
     check_4d_rotations()
     check_rotation_noncommutativity()
+    check_composed_so4_rotation()
     check_4d_perspective()
     check_true_3d_isometric()
     check_projective_depth()

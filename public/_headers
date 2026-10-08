@@ -49,3 +49,6 @@
 
 /styles.css
   Cache-Control: no-cache, max-age=0, must-revalidate
+
+/immersive.js
+  Cache-Control: no-store, no-cache, max-age=0, must-revalidate
