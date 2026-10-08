@@ -39,6 +39,57 @@
   color: rgba(238,239,242,.42);
 }
 
+/* Camera controls must use one visual grammar. Isometric remains an orientation
+   toggle (not a third projection type), but it is drawn with the same nested
+   segmented-control geometry and typography as Perspective / Orthographic. */
+#screenProjectionControl {
+  margin-bottom: 4px;
+}
+
+#isometricView {
+  display: block;
+  width: 100%;
+  min-height: 31px;
+  margin-top: 0;
+  padding: 3px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(255,255,255,.04);
+  color: rgba(238,239,242,.58);
+  font-size: 0;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+  transition: color 160ms ease, background 160ms ease, opacity 160ms ease;
+}
+
+#isometricView::after {
+  content: 'Isometric';
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 25px;
+  padding: 0 8px;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  line-height: 1.15;
+}
+
+#isometricView:hover {
+  border-color: transparent;
+  color: var(--text);
+}
+
+#isometricView.is-active::after {
+  background: rgba(255,255,255,.095);
+  color: var(--text);
+}
+
 /* Four peer rendering modes read better as a balanced 2×2 matrix than as
    four cramped labels in one narrow row. */
 .segmented--four {
@@ -171,6 +222,15 @@
   #renderControl.segmented--four button {
     min-height: 40px;
     font-size: 9px;
+  }
+
+  #isometricView {
+    min-height: 44px;
+  }
+
+  #isometricView::after {
+    min-height: 38px;
+    font-size: 10px;
   }
 
   .view-tools-summary {
