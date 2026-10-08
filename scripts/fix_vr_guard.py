@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# One-shot helper used only to migrate the permanent regression guard alongside the source patch.
 path = Path(__file__).resolve().parent / 'verify_mobile_xr.py'
 text = path.read_text()
 old = '    "const geometryInterval = perception.xrMobile ? 33 : 0;",\n'
