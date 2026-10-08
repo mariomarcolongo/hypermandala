@@ -1,6 +1,22 @@
 /* Hypermandala Explorer harmonization.
    This layer normalizes the control taxonomy without changing geometry. */
 
+/* Core view choices first, optional inspection/perception second, transforms last. */
+#explorerControls {
+  display: flex;
+  flex-direction: column;
+}
+
+#explorerControls > .control-panel__title { order: 0; }
+#explorerControls > .control-section:has(#projectionControl) { order: 10; }
+#explorerControls > .control-section:has(#screenProjectionControl) { order: 20; }
+#explorerControls > .control-section:has(#renderControl) { order: 30; }
+#explorerControls > .control-section:has(#colorControl) { order: 40; }
+#explorerControls > .perception-details { order: 50; }
+#explorerControls > .view-tools-details { order: 60; }
+#explorerControls > .control-section:has(#rotationRows) { order: 70; }
+#explorerControls > .scale-section { order: 80; }
+
 .segmented--four {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
