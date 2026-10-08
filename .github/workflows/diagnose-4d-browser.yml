@@ -1,9 +1,15 @@
 name: Diagnose 4D tools in browser
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/diagnose-4d-browser.yml'
+      - 'public/tutorial-descriptions.js'
+      - 'public/index.html'
+      - 'public/styles.css'
+      - 'public/app.js'
   push:
     paths:
       - '.github/workflows/diagnose-4d-browser.yml'
-      - 'public/4d-tools-fix.js'
       - 'public/tutorial-descriptions.js'
       - 'public/index.html'
       - 'public/styles.css'
@@ -26,7 +32,7 @@ jobs:
         run: |
           npm install --no-save playwright@1.55.0
           npx playwright install --with-deps ${{ matrix.browser }}
-      - name: Run local interaction and visual test
+      - name: Run local interaction and geometry test
         env:
           BROWSER: ${{ matrix.browser }}
         run: |
@@ -49,7 +55,10 @@ jobs:
           });
           await page.goto('http://127.0.0.1:8765/', { waitUntil: 'networkidle' });
           console.log('BROWSER', process.env.BROWSER);
-          console.log('PATCH', await page.evaluate(() => window.__hypermandala4DInspectionPatch || null));
+          console.log('NATIVE_4D_TOOLS', await page.locator('#hypermandala4DInspectionTools').count());
+          if (await page.locator('#hypermandala4DInspectionTools').count() !== 1) {
+            throw new Error('Native 4D tools are missing or duplicated');
+          }
 
           await page.locator('[data-dimension="4"]').click();
           await page.waitForTimeout(5000);
@@ -79,37 +88,16 @@ jobs:
               );
               return {
                 viewport: [innerWidth, innerHeight],
-                panel: {
-                  top: panelRect.top,
-                  right: panelRect.right,
-                  bottom: panelRect.bottom,
-                  left: panelRect.left,
-                  width: panelRect.width,
-                  height: panelRect.height,
-                },
-                basis: {
-                  top: basisRect.top,
-                  right: basisRect.right,
-                  bottom: basisRect.bottom,
-                  left: basisRect.left,
-                  width: basisRect.width,
-                  height: basisRect.height,
-                  display: basisStyle.display,
-                },
+                panel: { top: panelRect.top, right: panelRect.right, bottom: panelRect.bottom, left: panelRect.left, width: panelRect.width, height: panelRect.height },
+                basis: { top: basisRect.top, right: basisRect.right, bottom: basisRect.bottom, left: basisRect.left, width: basisRect.width, height: basisRect.height, display: basisStyle.display },
                 basisVisible,
                 overlap,
               };
             });
             console.log('LAYOUT', label, layout);
-            if (!layout.basisVisible) {
-              throw new Error(`${label}: projected basis is hidden`);
-            }
-            if (layout.overlap) {
-              throw new Error(`${label}: Explorer overlaps projected basis`);
-            }
-            if (layout.panel.height >= layout.viewport[1] * 0.8) {
-              throw new Error(`${label}: Explorer is still excessively tall`);
-            }
+            if (!layout.basisVisible) throw new Error(`${label}: projected basis is hidden`);
+            if (layout.overlap) throw new Error(`${label}: Explorer overlaps projected basis`);
+            if (layout.panel.height >= layout.viewport[1] * 0.8) throw new Error(`${label}: Explorer is excessively tall`);
           };
 
           await assertExplorerLayout('desktop');
@@ -119,43 +107,62 @@ jobs:
           await page.setViewportSize({ width: 1440, height: 1000 });
           await page.waitForTimeout(200);
 
+          for (const complexity of ['simple', 'complex']) {
+            await page.locator('[data-complexity="' + complexity + '"]').click();
+            const presetNames = await page.locator('[data-preset]').evaluateAll((els) => els.map((el) => el.dataset.preset));
+            for (const preset of presetNames) {
+              await page.locator('[data-preset="' + preset + '"]').evaluate((el) => el.click());
+              await page.waitForTimeout(25);
+              const validation = await page.evaluate(() => window.__hypermandalaDebug.validateCurrentGeometry());
+              console.log('GEOMETRY', complexity, preset, validation);
+              if (!validation.ok) {
+                throw new Error(complexity + '/' + preset + ': ' + validation.issues.join(' | '));
+              }
+            }
+          }
+          await page.locator('[data-preset="square"]').evaluate((el) => el.click());
+          await page.locator('[data-complexity="complex"]').click();
+
+          await page.locator('[data-projection="orthographic"]').click();
+          await page.locator('[data-screen-projection="perspective"]').click();
+          await page.locator('#isometricView').click();
+          let projectionState = await page.evaluate(() => window.__hypermandalaDebug.projectionState());
+          if (projectionState.projection4D !== 'orthographic' || projectionState.projection3D !== 'perspective' || !projectionState.isometricView) {
+            throw new Error('Projection stages are not independent: ' + JSON.stringify(projectionState));
+          }
+          await page.locator('[data-projection="perspective"]').click();
+          await page.locator('[data-screen-projection="perspective"]').click();
+          await page.locator('#isometricView').click();
+
           const hash = async (selector) => {
             const buffer = await page.locator(selector).screenshot();
             return createHash('sha256').update(buffer).digest('hex').slice(0, 16);
           };
           const snapshot = async (label) => {
             await page.waitForTimeout(250);
-            const result = {
-              solid: await hash('#solidLayer'),
-              overlay: await hash('#mandala'),
-            };
+            const result = { solid: await hash('#solidLayer'), overlay: await hash('#mandala') };
             console.log('VISUAL', label, result);
             return result;
           };
           const changed = (a, b) => a.solid !== b.solid || a.overlay !== b.overlay;
-
           const baseline = await snapshot('baseline');
 
-          // View-space must now self-activate the single slice.
           const viewButton = page.locator('[data-w-section-space="view"]');
           console.log('VIEW_DISABLED_BEFORE', await viewButton.isDisabled());
           await viewButton.click();
           await page.waitForTimeout(150);
           const sliceButton = page.locator('[data-insight="w-slice"]');
-          console.log('SLICE_AFTER_VIEW', await sliceButton.getAttribute('class'));
           if (!(await sliceButton.getAttribute('class') || '').includes('is-active')) {
-            throw new Error('View-space W did not self-activate 1 slice');
+            throw new Error('View-space W did not self-activate one section');
           }
-          const slice = await snapshot('view-space-slice');
+          const slice = await snapshot('view-space-section');
 
-          // Turn slice off, then verify Sweep also self-activates it.
           await page.locator('[data-insight="standard"]').click();
           const sweepButton = page.locator('#wSliceSweep');
-          console.log('SWEEP_DISABLED_BEFORE', await sweepButton.isDisabled());
           await sweepButton.click();
           await page.waitForTimeout(900);
           if (!(await sliceButton.getAttribute('class') || '').includes('is-active')) {
-            throw new Error('Sweep did not self-activate 1 slice');
+            throw new Error('Sweep did not self-activate one section');
           }
           const sweep = await snapshot('sweep');
 
@@ -171,14 +178,9 @@ jobs:
             hypercell: changed(wdepth, hypercell),
           };
           console.log('CHANGES', changes);
-          const failures = Object.entries(changes)
-            .filter(([, didChange]) => !didChange)
-            .map(([name]) => name);
+          const failures = Object.entries(changes).filter(([, didChange]) => !didChange).map(([name]) => name);
           if (failures.length) throw new Error('No visible render change for: ' + failures.join(', '));
-
-          if (pageErrors.length) {
-            throw new Error('Browser page errors: ' + pageErrors.join(' | '));
-          }
+          if (pageErrors.length) throw new Error('Browser page errors: ' + pageErrors.join(' | '));
 
           await browser.close();
           JS

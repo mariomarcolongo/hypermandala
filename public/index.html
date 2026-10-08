@@ -153,6 +153,12 @@
     <strong id="dimensionValue">2D</strong>
     <span id="dimensionStatus">mandala plan</span>
   </div>
+  <div class="w-semantics-readout" id="wSemanticsReadout" aria-live="polite">
+    <span class="w-semantics-readout__label">W meaning</span>
+    <strong id="wMeaning">spatial extrusion</strong>
+    <span id="dimensionRank">intrinsic rank 2D</span>
+    <span id="viewWExtent"></span>
+  </div>
 
   <nav class="mobile-panel-switcher" aria-label="Explorer panels">
     <button
@@ -190,12 +196,19 @@
     </div>
 
     <section class="control-section">
-      <div class="control-section__label">Projection</div>
-      <div class="segmented segmented--three" id="projectionControl">
-        <button type="button" data-projection="perspective" class="is-active">Perspective</button>
-        <button type="button" data-projection="orthographic">Ortho</button>
-        <button type="button" data-projection="isometric" title="True 3D isometric view with equal X/Y/Z foreshortening after the 4D→3D projection">Isometric</button>
+      <div class="control-section__label">4D → 3D projection</div>
+      <div class="segmented hyper4d-two" id="projectionControl">
+        <button type="button" data-projection="perspective" class="is-active" title="Central perspective along W">W perspective</button>
+        <button type="button" data-projection="orthographic" title="Orthographically forget W after the 4D rotation">W orthographic</button>
       </div>
+    </section>
+    <section class="control-section">
+      <div class="control-section__label">3D → 2D camera</div>
+      <div class="segmented hyper4d-two" id="screenProjectionControl">
+        <button type="button" data-screen-projection="perspective" class="is-active">Perspective</button>
+        <button type="button" data-screen-projection="orthographic">Orthographic</button>
+      </div>
+      <button id="isometricView" type="button" class="inspection-toggle hyper4d-wide" aria-pressed="false" title="Fix the 3D camera to the standard isometric orientation; this does not change the 4D→3D projection">Isometric orientation</button>
     </section>
 
     <details class="control-section insight-section perception-details">
@@ -217,6 +230,21 @@
           <input id="wSliceInput" type="range" min="0" max="1" step="0.01" value="0.5" aria-label="Position of the 3D cross-section along W" />
           <output id="wSliceValue">50%</output>
         </div>
+        <div id="hypermandala4DInspectionTools" class="hyper4d-tools">
+          <div class="perception-tool-label">Section frame</div>
+          <div class="segmented hyper4d-two" id="wSectionSpaceControl">
+            <button type="button" data-w-section-space="intrinsic" class="is-active" title="Slice the unrotated object with one common intrinsic W = constant hyperplane">Intrinsic W</button>
+            <button type="button" data-w-section-space="view" title="Rotate in 4D first, then slice the transformed object at view-space W = constant">View-space W</button>
+          </div>
+          <div class="hyper4d-explanation">View-space W differs from intrinsic W after an XW, YW or ZW rotation.</div>
+          <button id="wSliceSweep" class="inspection-toggle hyper4d-wide" type="button" aria-pressed="false" title="Animate the selected W cross-section continuously through the 4D object">Sweep section</button>
+          <div class="perception-tool-label">Fourth-coordinate cue</div>
+          <button id="wDepthToggle" class="inspection-toggle hyper4d-wide" type="button" aria-pressed="false" title="Color geometry continuously by its current post-rotation W coordinate">W-coordinate color</button>
+          <div id="wDepthLegend" class="w-depth-legend" aria-hidden="true"><span>W−</span><i></i><span>0</span><i></i><span>W+</span></div>
+          <div class="perception-tool-label">3D boundary cell</div>
+          <button id="hypercellToggle" class="inspection-toggle hyper4d-wide" type="button" aria-pressed="false" title="Isolate one genuine 3D boundary cell of the current 4D prism decomposition">Isolate one cell</button>
+          <div class="hyper4d-cell-nav" id="hypercellNav"><button id="hypercellPrev" type="button" aria-label="Previous 3D boundary cell">‹</button><output id="hypercellLabel" aria-live="polite">all cells</output><button id="hypercellNext" type="button" aria-label="Next 3D boundary cell">›</button></div>
+        </div>
         <button
           id="replay4D"
           class="perception-replay"
@@ -237,8 +265,8 @@
         type="button"
         class="inspection-toggle"
         data-render="xray"
-        title="Make projected surfaces translucent so hidden geometry can be seen. This is a transparency aid, not a simulation of 4D eyesight."
-      >Transparent</button>
+        title="Depth-correct screen-door surfaces plus the complete structural wireframe. This is an inspection aid, not a simulation of 4D eyesight."
+      >X-ray</button>
     </section>
 
     <section class="control-section">
@@ -284,12 +312,13 @@
         <span class="control-section__note">drag → XZ/YZ · A auto</span>
       </div>
       <div id="rotationRows" class="control-rows"></div>
+      <div class="rotation-order-note">Applied in listed order. 4D plane rotations do not commute.</div>
     </section>
 
     <section class="control-section scale-section">
       <div class="control-section__head">
-        <span class="control-section__label">Dimension stretch</span>
-        <span class="control-section__note">1 normal · 0 collapse</span>
+        <span class="control-section__label">Intrinsic dimension stretch</span>
+        <span class="control-section__note">before rotation · 1 normal · 0 collapse</span>
       </div>
       <div id="scaleRows" class="control-rows"></div>
     </section>
@@ -469,7 +498,7 @@
       <h1>Hypermandala: interactive 4D mandala, yantra and geometry explorer</h1>
       <p>
         Hypermandala explores mandalas, yantras and geometric forms as dimensional
-        structures: exact 2D geometric plans unfold into interactive 3D forms and
+        structures: geometric 2D plans unfold into interactive 3D forms and
         experimental four-dimensional extensions.
       </p>
       <p>
@@ -514,7 +543,6 @@
         await loadInlineScript('./ui-fixes.js', '/ui-fixes.js');
         window.__hypermandalaPrepareUiFixes?.();
         await loadInlineScript('./kali-fix.js', '/kali-fix.js');
-        await loadInlineScript('./4d-tools-fix.js', '/4d-tools-fix.js');
         await loadInlineScript('./app.js', '/app.js');
         window.__hypermandalaInstallUiFixes?.();
       } catch (error) {
@@ -532,18 +560,11 @@
             document.body.appendChild(app);
           };
 
-          const loadFallback4DTools = () => {
-            const tools4d = document.createElement('script');
-            tools4d.src = './4d-tools-fix.js?reload=' + Date.now();
-            tools4d.onload = loadFallbackApp;
-            tools4d.onerror = loadFallbackApp;
-            document.body.appendChild(tools4d);
-          };
 
           const kali = document.createElement('script');
           kali.src = './kali-fix.js?reload=' + Date.now();
-          kali.onload = loadFallback4DTools;
-          kali.onerror = loadFallback4DTools;
+          kali.onload = loadFallbackApp;
+          kali.onerror = loadFallbackApp;
           document.body.appendChild(kali);
         };
         document.body.appendChild(fixes);
