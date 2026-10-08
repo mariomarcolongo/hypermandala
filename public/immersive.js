@@ -114,6 +114,7 @@
     xrMenuTargets: [],
     xrMenuHover: null,
     xrMenuDirty: true,
+    xrMenuTextureDirty: true,
     xrHoldAction: null,
     xrHoldStarted: 0,
     xrHoldLast: 0,
@@ -1109,6 +1110,7 @@
     perception.xrMenuCanvas = canvas;
     perception.xrMenuCtx = menuCtx;
     perception.xrMenuDirty = true;
+    perception.xrMenuTextureDirty = true;
   }
 
   function roundedMenuRect(ctx2d, x, y, w, h, radius) {
@@ -1259,6 +1261,7 @@
     }
 
     perception.xrMenuDirty = false;
+    perception.xrMenuTextureDirty = true;
   }
 
   function placeXRMenuFromPose(pose) {
@@ -1437,11 +1440,11 @@
     gl.uniform2f(perception.xrUiLocations.size, 0.56, 0.78);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, perception.xrUiTexture);
-    if (perception.xrMenuDirty) paintXRMenu();
-    if (perception.xrMenuCanvas) {
+    if (perception.xrMenuTextureDirty && perception.xrMenuCanvas) {
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, perception.xrMenuCanvas);
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+      perception.xrMenuTextureDirty = false;
     }
     gl.uniform1i(perception.xrUiLocations.texture, 0);
     gl.disable(gl.DEPTH_TEST);
