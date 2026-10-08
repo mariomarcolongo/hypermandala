@@ -129,6 +129,7 @@ def check_composed_so4_rotation() -> None:
 
     assert abs(determinant(basis) - 1.0) < 1e-12, determinant(basis)
 
+
 def check_4d_perspective() -> None:
     camera_w = 9.0
     point = [1.2, -0.7, 0.4, 2.25]
@@ -249,7 +250,7 @@ def check_source_guards() -> None:
         "requestSession('immersive-vr'",
         "new XRWebGLLayer",
         "DeviceOrientationEvent",
-        "projectPoint4DTo3D",
+        "transformPoint4D",
         "projectTransformed4DTo3D",
         "(viewPoint[0] - eye) * factor + eye",
     ]:
