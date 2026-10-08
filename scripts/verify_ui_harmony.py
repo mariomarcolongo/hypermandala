@@ -33,12 +33,13 @@ def main() -> None:
         ".tool-group",
         "#explorerControls > .control-section:has(#projectionControl) { order: 10; }",
         "#explorerControls > .control-section:has(#screenProjectionControl) { order: 20; }",
-        "#explorerControls > .control-section:has(#renderControl) { order: 30; }",
-        "#explorerControls > .control-section:has(#colorControl) { order: 40; }",
-        "#explorerControls > .perception-details { order: 50; }",
-        "#explorerControls > .view-tools-details { order: 60; }",
-        "#explorerControls > .control-section:has(#rotationRows) { order: 70; }",
-        "#explorerControls > .scale-section { order: 80; }",
+        "#explorerControls > .control-section:has(#rotationRows) { order: 30; }",
+        "#explorerControls > .scale-section { order: 40; }",
+        "#explorerControls > .control-section:has(#renderControl) { order: 50; }",
+        "#explorerControls > .control-section:has(#colorControl) { order: 60; }",
+        "#explorerControls > .perception-details { order: 70; }",
+        "#explorerControls > .view-tools-details { order: 80; }",
+        "#explorerControls > .rotation-section .control-section__label",
     ]
     for marker in harmony_markers:
         assert marker in harmony, marker
