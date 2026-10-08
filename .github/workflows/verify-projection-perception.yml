@@ -8,6 +8,7 @@ on:
       - 'public/index.html'
       - 'public/ui-harmony.css'
       - 'scripts/verify_math_rigor.py'
+      - 'scripts/verify_mobile_xr.py'
       - '.github/workflows/verify-projection-perception.yml'
   push:
     branches: [main]
@@ -17,6 +18,7 @@ on:
       - 'public/index.html'
       - 'public/ui-harmony.css'
       - 'scripts/verify_math_rigor.py'
+      - 'scripts/verify_mobile_xr.py'
       - '.github/workflows/verify-projection-perception.yml'
 
 jobs:
@@ -31,6 +33,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Verify mobile XR runtime guards
+        run: python3 scripts/verify_mobile_xr.py
       - name: Install Playwright
         run: |
           npm init -y >/dev/null 2>&1
@@ -96,7 +100,7 @@ jobs:
             }
             await iso.click();
 
-            // Stereo uses the physical perspective camera and must avoid the right Explorer panel.
+            // Flat-screen stereo uses the physical perspective camera and must avoid the right Explorer panel.
             const stereo = page.locator('#stereoToggle');
             await page.waitForFunction(() => !document.querySelector('#stereoToggle')?.disabled);
             await stereo.click();
@@ -132,6 +136,31 @@ jobs:
 
             if ((await page.locator('#motionParallaxToggle').textContent()).trim() !== 'Observer orbit') {
               throw new Error('Orientation-only perception cue is still mislabeled as motion parallax');
+            }
+
+            // XR fit is based on the actual post-4D projected bounds, not a hard-coded world scale.
+            const xrFit = await page.evaluate(() => window.__hypermandalaPerceptionDebug.xrFitProjectedPoints([
+              [-2, -1, 0],
+              [2, 1, 0],
+            ]));
+            const expectedRadius = Math.sqrt(5);
+            if (xrFit.center.some(value => Math.abs(value) > 1e-9)) throw new Error('XR fit center is incorrect');
+            if (Math.abs(xrFit.radius - expectedRadius) > 1e-9) throw new Error('XR fit radius is incorrect');
+            if (Math.abs(xrFit.scale * xrFit.radius - 0.56) > 1e-9) throw new Error('XR fit target radius is incorrect');
+
+            // Identity viewer pose at (1,2,3) must place the world-locked mandala 1.55 m straight ahead.
+            const xrModel = await page.evaluate(() => window.__hypermandalaPerceptionDebug.xrRecenterForMatrix([
+              1,0,0,0,
+              0,1,0,0,
+              0,0,1,0,
+              1,2,3,1,
+            ]));
+            if (!xrModel || xrModel.length !== 16) throw new Error('XR recenter did not produce a model matrix');
+            if (Math.abs(xrModel[12] - 1) > 1e-6 || Math.abs(xrModel[13] - 2) > 1e-6 || Math.abs(xrModel[14] - 1.45) > 1e-6) {
+              throw new Error(`XR recenter translation is incorrect: ${xrModel.slice(12, 15)}`);
+            }
+            if (Math.abs(xrModel[0] - 1) > 1e-6 || Math.abs(xrModel[5] - 1) > 1e-6 || Math.abs(xrModel[10] - 1) > 1e-6) {
+              throw new Error('XR recenter did not preserve viewer orientation');
             }
 
             await page.setViewportSize({ width: 760, height: 700 });
