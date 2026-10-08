@@ -25,6 +25,19 @@ jobs:
         with:
           node-version: 22
 
+      - name: Adapt deterministic migration to both reset sites
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/apply_immersive_integration.py')
+          s = p.read_text()
+          old = '''    if count != 1:\n        raise RuntimeError(f"{label}: expected exactly one match, found {count}")\n    return text.replace(old, new, 1)'''
+          new = '''    if label == "reset perception offsets":\n        if count != 2:\n            raise RuntimeError(f"{label}: expected exactly two matches, found {count}")\n        return text.replace(old, new)\n    if count != 1:\n        raise RuntimeError(f"{label}: expected exactly one match, found {count}")\n    return text.replace(old, new, 1)'''
+          if s.count(old) != 1:
+              raise SystemExit('migration helper shape changed')
+          p.write_text(s.replace(old, new, 1))
+          PY
+
       - name: Integrate immersive perception layer
         run: python3 scripts/apply_immersive_integration.py
 
@@ -41,6 +54,7 @@ jobs:
 
       - name: Commit integrated source
         run: |
+          git checkout -- scripts/apply_immersive_integration.py
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add public/app.js public/index.html public/styles.css public/_headers README.md scripts/verify_math_rigor.py
