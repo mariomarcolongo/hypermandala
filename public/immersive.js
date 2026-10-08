@@ -998,6 +998,11 @@
     // It remains world-locked afterwards, preserving genuine head-motion parallax.
     const distance = 1.55;
     const model = identityXRMatrix();
+    // Match the viewer orientation at recenter time so the mandala's local
+    // screen plane is front-facing even in a floor/world reference space.
+    model[0] = matrix[0]; model[1] = matrix[1]; model[2] = matrix[2];
+    model[4] = matrix[4]; model[5] = matrix[5]; model[6] = matrix[6];
+    model[8] = matrix[8]; model[9] = matrix[9]; model[10] = matrix[10];
     model[12] = matrix[12] + forwardX * distance;
     model[13] = matrix[13] + forwardY * distance;
     model[14] = matrix[14] + forwardZ * distance;
@@ -1458,6 +1463,19 @@
       const layout = stereoLayout(perception.swapped);
       return stereoProject(viewPoint, eyeSign, layout.leftViewport, currentState());
     },
+    xrFitProjectedPoints: (points) => fitXRProjectedPoints(points),
+    xrRecenterForMatrix: (matrix) => {
+      perception.xrRecenterPending = true;
+      recenterXRFromPose({ transform: { matrix } });
+      return perception.xrModelMatrix ? Array.from(perception.xrModelMatrix) : null;
+    },
+    xrRuntimeState: () => ({
+      mobile: perception.xrMobile,
+      framebufferScale: perception.xrFramebufferScale,
+      geometryCached: Boolean(perception.xrGeometry),
+      geometryKey: perception.xrGeometryKey,
+      scale: perception.xrScale,
+    }),
   });
 
   function frame(now) {
