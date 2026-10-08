@@ -5,6 +5,7 @@ on:
       - fix/mobile-xr-performance-framing
     paths:
       - 'scripts/apply_mobile_xr_fix.py'
+      - 'scripts/fix_mobile_xr_migration.py'
       - '.github/workflows/apply-mobile-xr-fix.yml'
 permissions:
   contents: write
@@ -16,6 +17,8 @@ jobs:
         with:
           ref: fix/mobile-xr-performance-framing
           fetch-depth: 0
+      - name: Repair migration boundaries
+        run: python3 scripts/fix_mobile_xr_migration.py
       - name: Apply mobile XR repair
         run: python3 scripts/apply_mobile_xr_fix.py
       - name: Verify syntax and invariants
