@@ -1,0 +1,35 @@
+name: Refine projection perception audit
+on:
+  push:
+    branches:
+      - fix/projection-perception-audit
+    paths:
+      - 'scripts/refine_projection_perception_audit.py'
+      - '.github/workflows/refine-projection-perception-audit.yml'
+permissions:
+  contents: write
+jobs:
+  refine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/projection-perception-audit
+          fetch-depth: 0
+      - name: Apply final refinements
+        run: python3 scripts/refine_projection_perception_audit.py
+      - name: Verify syntax and rigor
+        run: |
+          node --check public/immersive.js
+          python3 scripts/verify_math_rigor.py
+          python3 scripts/verify_ui_harmony.py
+      - name: Commit source refinements
+        run: |
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add public/immersive.js README.md scripts/verify_math_rigor.py .github/workflows/verify-projection-perception.yml
+          git commit -m 'Tighten stereo fusion and contour stability'
+          git push origin HEAD:fix/projection-perception-audit
