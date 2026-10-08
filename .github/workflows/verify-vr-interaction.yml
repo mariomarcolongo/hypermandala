@@ -1,0 +1,142 @@
+name: Verify VR interaction
+
+on:
+  pull_request:
+    paths:
+      - 'public/app.js'
+      - 'public/immersive.js'
+      - 'scripts/verify_mobile_xr.py'
+      - '.github/workflows/verify-vr-interaction.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'public/app.js'
+      - 'public/immersive.js'
+      - 'scripts/verify_mobile_xr.py'
+      - '.github/workflows/verify-vr-interaction.yml'
+
+jobs:
+  vr-controls:
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, webkit]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify source guards
+        run: |
+          node --check public/app.js
+          node --check public/immersive.js
+          python3 scripts/verify_mobile_xr.py
+      - name: Install Playwright
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Verify VR control bridge
+        env:
+          BROWSER: ${{ matrix.browser }}
+        run: |
+          python3 -m http.server 4173 --directory public >/tmp/hypermandala-vr-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true' EXIT
+          node <<'NODE'
+          const { chromium, webkit } = require('playwright');
+          const engine = { chromium, webkit }[process.env.BROWSER];
+          if (!engine) throw new Error('Unknown browser ' + process.env.BROWSER);
+
+          (async () => {
+            const browser = await engine.launch({ headless: true });
+            const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+            const errors = [];
+            page.on('pageerror', error => errors.push(String(error)));
+            await page.goto('http://127.0.0.1:4173/', { waitUntil: 'networkidle' });
+            await page.waitForFunction(() => Boolean(
+              window.HypermandalaAPI?.vrControls
+              && window.__hypermandalaPerceptionDebug?.xrExecuteControl
+            ));
+
+            await page.locator('[data-dimension="4"]').click();
+            await page.waitForFunction(() => {
+              const state = window.HypermandalaAPI.stateSnapshot();
+              return state.dimension === 4 && !state.transition;
+            }, null, { timeout: 10000 });
+
+            const result = await page.evaluate(() => {
+              const controls = window.HypermandalaAPI.vrControls;
+              controls.setRotation('xw', 17);
+              controls.setRotation('yw', -11);
+              controls.setRotation('zw', 23);
+              controls.setRotation('xy', 7);
+              controls.setRotation('xz', -5);
+              controls.setRotation('yz', 13);
+              controls.setWSlice(0.27);
+              controls.setWSectionSpace('view');
+              controls.toggleWDepth();
+              controls.toggleHypercell();
+              controls.setRenderMode('xray');
+              controls.setColorMode('axis');
+              controls.setProjection('orthographic');
+              controls.setScreenProjection('orthographic');
+              controls.setIsometricView(true);
+              return window.HypermandalaAPI.stateSnapshot();
+            });
+
+            const expectedRotations = { xw: 17, yw: -11, zw: 23, xy: 7, xz: -5, yz: 13 };
+            for (const [key, value] of Object.entries(expectedRotations)) {
+              if (Math.abs(result.rotations[key] - value) > 1e-9) {
+                throw new Error(`VR rotation ${key} did not update core state`);
+              }
+            }
+            if (result.insightMode !== 'w-slice' || Math.abs(result.wSlice - 0.27) > 1e-9) {
+              throw new Error('VR W slice did not update the core inspection state');
+            }
+            if (result.wSectionSpace !== 'view' || !result.wDepthColor || result.hypercellMode !== 'isolate') {
+              throw new Error('VR W inspection toggles did not update core state');
+            }
+            if (result.renderMode !== 'xray' || result.colorMode !== 'axis') {
+              throw new Error('VR appearance controls did not update core render state');
+            }
+            if (result.projection !== 'orthographic' || result.screenProjection !== 'orthographic' || !result.isometricView) {
+              throw new Error('VR projection controls did not update core projection state');
+            }
+
+            const runtime = await page.evaluate(() => {
+              const debug = window.__hypermandalaPerceptionDebug;
+              debug.xrExecuteControl('scale:+');
+              debug.xrExecuteControl('move:x:+');
+              debug.xrExecuteControl('move:y:-');
+              debug.xrExecuteControl('move:z:+');
+              debug.xrExecuteControl('page:rotation');
+              debug.xrExecuteControl('rot:xw:+');
+              return debug.xrRuntimeState();
+            });
+            if (Math.abs(runtime.objectScale - 1.1) > 1e-9) throw new Error('VR object scale action failed');
+            if (runtime.objectOffset.length !== 3 || runtime.objectOffset[0] <= 0 || runtime.objectOffset[1] >= 0 || runtime.objectOffset[2] <= 0) {
+              throw new Error('VR object translation actions failed');
+            }
+            if (runtime.menuPage !== 'rotation') throw new Error('VR menu page action failed');
+
+            let state = await page.evaluate(() => window.HypermandalaAPI.stateSnapshot());
+            if (Math.abs(state.rotations.xw - 21) > 1e-9) throw new Error('VR menu rotation action did not reach core state');
+
+            const reset = await page.evaluate(() => {
+              window.HypermandalaAPI.vrControls.reset4D();
+              return window.HypermandalaAPI.stateSnapshot();
+            });
+            if (Object.values(reset.rotations).some(value => Math.abs(value) > 1e-9)) throw new Error('VR reset did not clear rotations');
+            if (Object.values(reset.auto).some(Boolean)) throw new Error('VR reset did not stop autorotation');
+            if (reset.insightMode !== 'standard' || Math.abs(reset.wSlice - 0.5) > 1e-9) throw new Error('VR reset did not restore W inspection');
+            if (reset.wDepthColor || reset.hypercellMode !== 'all') throw new Error('VR reset left inspection toggles enabled');
+
+            if (errors.length) throw new Error('Page errors: ' + errors.join(' | '));
+            await browser.close();
+          })().catch(error => {
+            console.error(error);
+            process.exit(1);
+          });
+          NODE
