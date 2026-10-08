@@ -108,7 +108,7 @@ jobs:
             if (rightEdge > panel.x - 8) {
               throw new Error(`Stereo intrudes under Explorer: right=${rightEdge}, panel=${panel.x}`);
             }
-            if (stereoState.layout.pairWidth > 580.1) {
+            if (stereoState.layout.pairWidth > 460.1) {
               throw new Error('Parallel stereo pair is too wide for comfortable fusion');
             }
             if (!stereoState.hasWebGL) throw new Error('Stereo WebGL renderer unavailable');
@@ -125,7 +125,7 @@ jobs:
             stereoState = await page.evaluate(() => window.__hypermandalaPerceptionDebug.stereoState());
             const crossRightEdge = stereoState.layout.rightViewport.x + stereoState.layout.rightViewport.width;
             if (crossRightEdge > panel.x - 8) throw new Error('Cross-eye stereo intrudes under Explorer');
-            if (stereoState.layout.pairWidth > 720.1) throw new Error('Cross-eye pair exceeded compact layout cap');
+            if (stereoState.layout.pairWidth > 560.1) throw new Error('Cross-eye pair exceeded compact layout cap');
             const crossShot = await page.locator('#stereoLayer').screenshot();
             const crossHash = crypto.createHash('sha256').update(crossShot).digest('hex');
             if (crossHash === stereoHash) throw new Error('Cross-eye swap did not change the rendered eye ordering/layout');
