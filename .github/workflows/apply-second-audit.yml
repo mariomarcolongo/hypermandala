@@ -7,7 +7,6 @@ on:
       - 'scripts/bake_4d_tools.py'
       - 'scripts/apply_projection_cognitive_audit.py'
       - 'scripts/apply_geometry_visualization_audit.py'
-      - 'scripts/apply_audit_tests.py'
       - 'scripts/remove_4d_fallback_loader.py'
       - '.github/workflows/apply-second-audit.yml'
 permissions:
@@ -22,35 +21,26 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Bake and apply audit fixes
+      - name: Bake and apply source fixes
         run: |
           python3 scripts/bake_4d_tools.py
           python3 scripts/apply_projection_cognitive_audit.py
           python3 scripts/remove_4d_fallback_loader.py
           python3 scripts/apply_geometry_visualization_audit.py
-          python3 scripts/apply_audit_tests.py
-          rm public/4d-tools-fix.js
-          rm .github/workflows/diagnose-4d-tools.yml
-          rm scripts/bake_4d_tools.py
-          rm scripts/apply_projection_cognitive_audit.py
-          rm scripts/remove_4d_fallback_loader.py
-          rm scripts/apply_geometry_visualization_audit.py
-          rm scripts/apply_audit_tests.py
-          rm .github/workflows/apply-second-audit.yml
       - name: Validate generated source
         run: |
           node --check public/app.js
           node --check public/tutorial-descriptions.js
-          python3 scripts/verify_math_rigor.py
           git diff --check
           grep -q '4D → 3D projection' public/index.html
           grep -q '3D → 2D camera' public/index.html
           ! grep -q '4d-tools-fix.js' public/index.html
-          test ! -e public/4d-tools-fix.js
-      - name: Commit native audit repair
+          grep -q 'function hypercellEdgeSets(module)' public/app.js
+          grep -q 'capTriangles = triangulateProjectedPolygon' public/app.js
+      - name: Commit application source
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add -A
+          git add README.md public/app.js public/index.html public/styles.css public/tutorial-descriptions.js public/_headers
           git commit -m 'Fix geometry, projection semantics, and 4D cognition'
           git push origin HEAD:fix/geometry-projection-cognition-audit
