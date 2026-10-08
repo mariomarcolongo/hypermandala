@@ -435,7 +435,7 @@ The interface continuously labels the meaning of **W**. The symmetric free-geome
 Stereo, observer-orbit cues, 4D point trajectories and WebXR are **view modes**, not new geometry. The intrinsic vertices, topology, region identity, W semantics and six-plane SO(4) rotation remain unchanged.
 
 - **Stereo pair** uses parallel off-axis eye views with the mandala center on the zero-parallax fusion plane; eye swapping supports cross-eye viewing without toe-in distortion.
-- **Motion parallax** perturbs only the ordinary 3D camera after the 4D→3D projection. Pointer motion works on desktop; compatible mobile browsers may use device orientation after explicit permission.
+- **Observer orbit** changes only the ordinary 3D camera orientation after the 4D→3D projection. Pointer motion works on desktop; compatible mobile browsers may use device orientation after explicit permission. True translational head parallax is provided by WebXR when supported.
 - **4D trajectories** record actual transformed four-coordinate points. Spatial hyperprisms trace the symbolic center plus an actual W−/W+ mirror pair when such a pair exists in the mesh.
 - **Immersive VR** is progressive enhancement through WebXR. A headset supplies independent left/right eye view and projection matrices for the same exact 4D→3D geometry; unsupported browsers simply keep the normal explorer.
 

@@ -500,7 +500,7 @@
     const gap = swapped ? 16 : 12;
     // Parallel viewing must remain especially compact because image-center
     // separation greater than the viewer's IPD requires eye divergence.
-    const maxPairWidth = swapped ? 720 : 580;
+    const maxPairWidth = swapped ? 560 : 460;
     const pairWidth = Math.max(0, Math.min(safe.width, maxPairWidth));
     const eyeWidth = Math.max(0, (pairWidth - gap) * 0.5);
     const eyeHeight = Math.max(0, Math.min(safe.height, eyeWidth * 1.12));
@@ -707,8 +707,11 @@
           const rgb = appState.renderMode === 'solid-edges'
             ? { r: 24, g: 25, b: 28 }
             : appearanceRgb(module, edge.axis, w, maxAbsW, appState);
-          pushStereoVertex(lines, transformed.view[edge.a], rgb, 0.96);
-          pushStereoVertex(lines, transformed.view[edge.b], rgb, 0.96);
+          const depthBias = appState.renderMode === 'solid-edges' ? 0.0081 : 0;
+          const a = transformed.view[edge.a];
+          const b = transformed.view[edge.b];
+          pushStereoVertex(lines, [a[0], a[1], a[2] + depthBias], rgb, 0.96);
+          pushStereoVertex(lines, [b[0], b[1], b[2] + depthBias], rgb, 0.96);
         }
       }
     }

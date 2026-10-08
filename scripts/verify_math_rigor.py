@@ -328,6 +328,7 @@ def check_source_guards() -> None:
         "id = 'stereoLayer'",
         "Cross-eye",
         "Observer orbit",
+        "const depthBias = appState.renderMode === 'solid-edges' ? 0.0081 : 0;",
     ]:
         assert marker in immersive, marker
     assert "Math.max(0.3, cameraZ - viewPoint[2])" not in immersive
