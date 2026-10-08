@@ -1227,15 +1227,15 @@
       try {
         const granted = await ensureOrientationPermission();
         if (!granted) {
-          setStatus('Motion parallax enabled for pointer input; device orientation permission was not granted.');
+          setStatus('Observer orbit enabled for pointer input; device orientation permission was not granted.');
           return;
         }
       } catch {
-        setStatus('Motion parallax enabled for pointer input; device orientation is unavailable.');
+        setStatus('Observer orbit enabled for pointer input; device orientation is unavailable.');
         return;
       }
     }
-    setStatus(perception.parallax ? 'Motion parallax moves only the 3D observer.' : 'Motion parallax off.');
+    setStatus(perception.parallax ? 'Observer orbit changes only the ordinary 3D camera orientation.' : 'Observer orbit off.');
   });
 
   trajectoryToggle?.addEventListener('click', () => {
