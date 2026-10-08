@@ -26,10 +26,22 @@ def main() -> None:
     for marker in required:
         assert marker in immersive, marker
 
-    assert ".segmented--four" in harmony
-    assert "#renderControl.segmented--four" in harmony
-    assert ".view-tools-details" in harmony
-    assert ".tool-group" in harmony
+    harmony_markers = [
+        ".segmented--four",
+        "#renderControl.segmented--four",
+        ".view-tools-details",
+        ".tool-group",
+        "#explorerControls > .control-section:has(#projectionControl) { order: 10; }",
+        "#explorerControls > .control-section:has(#screenProjectionControl) { order: 20; }",
+        "#explorerControls > .control-section:has(#renderControl) { order: 30; }",
+        "#explorerControls > .control-section:has(#colorControl) { order: 40; }",
+        "#explorerControls > .perception-details { order: 50; }",
+        "#explorerControls > .view-tools-details { order: 60; }",
+        "#explorerControls > .control-section:has(#rotationRows) { order: 70; }",
+        "#explorerControls > .scale-section { order: 80; }",
+    ]
+    for marker in harmony_markers:
+        assert marker in harmony, marker
 
     print("UI harmony regression checks passed.")
 
