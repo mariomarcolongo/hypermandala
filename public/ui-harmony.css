@@ -65,7 +65,7 @@
 }
 
 #isometricView::after {
-  content: 'Isometric';
+  content: 'Isometric orientation';
   display: flex;
   align-items: center;
   justify-content: center;
@@ -88,6 +88,25 @@
 #isometricView.is-active::after {
   background: rgba(255,255,255,.095);
   color: var(--text);
+}
+
+
+/* Stereo is a focused perceptual mode. Keep the Explorer available, but remove
+   unrelated chrome so neither eye image is obscured by decorative/status UI. */
+body.stereo-active .brand,
+body.stereo-active .dimension-readout,
+body.stereo-active .w-semantics-readout,
+body.stereo-active .basis-gizmo,
+body.stereo-active .hint,
+body.stereo-active .source,
+body.stereo-active .about-panel,
+body.stereo-active .mandala-dock {
+  opacity: 0;
+  pointer-events: none;
+}
+
+body.stereo-active #perceptionOverlay {
+  z-index: 3;
 }
 
 /* Four peer rendering modes read better as a balanced 2×2 matrix than as

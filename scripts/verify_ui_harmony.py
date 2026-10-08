@@ -15,13 +15,18 @@ def main() -> None:
         "makeLabel('Stereoscopic view')",
         "makeLabel('Observer motion')",
         "makeLabel('4D motion')",
-        "ctx.rect(viewport.x, viewport.y, viewport.width, viewport.height)",
-        "const drawFaces = appState.renderMode !== 'wire'",
-        "const drawStructuralEdges = appState.renderMode !== 'solid'",
+        "function stereoSafeRect()",
+        "function stereoLayout(",
+        "function renderStereoGlEye(",
+        "appState.renderMode !== 'wire'",
+        "appState.renderMode !== 'solid'",
         "appState.screenProjection === 'perspective'",
         "if (appState.colorMode === 'axis')",
         "if (appState.colorMode === 'form')",
         "xrayInsideRendering",
+        "stereoCanvas.id = 'stereoLayer'",
+        "stereoSwap.textContent = 'Cross-eye'",
+        "parallaxToggle.textContent = 'Observer orbit'",
     ]
     for marker in required:
         assert marker in immersive, marker
@@ -43,8 +48,9 @@ def main() -> None:
         "#screenProjectionControl",
         "#isometricView",
         "#isometricView::after",
-        "content: 'Isometric';",
+        "content: 'Isometric orientation';",
         "#isometricView.is-active::after",
+        "body.stereo-active .mandala-dock",
     ]
     for marker in harmony_markers:
         assert marker in harmony, marker

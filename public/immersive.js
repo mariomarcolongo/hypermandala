@@ -4,7 +4,8 @@
  * Observation tools never mutate intrinsic vertices, topology, hierarchy or W
  * semantics. The UI is reorganized by task: Rendering, 4D inspection and
  * Perception. Stereo/WebXR operate after the exact 4D transform/projection;
- * motion parallax moves only the ordinary 3D camera; trajectories record
+ * observer-orbit cues move only the ordinary 3D camera; WebXR supplies
+ * true head-tracked binocular parallax; trajectories record
  * transformed points in R4.
  *
  * Copyright (C) 2026 Mario Marcolongo and contributors.
@@ -32,8 +33,23 @@
 
   if (!overlay || !xrCanvas) return;
 
+  const stereoCanvas = document.createElement('canvas');
+  stereoCanvas.id = 'stereoLayer';
+  stereoCanvas.setAttribute('aria-hidden', 'true');
+  stereoCanvas.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;z-index:2;pointer-events:none;display:none';
+  overlay.parentNode.insertBefore(stereoCanvas, overlay);
+  const stereoGl = stereoCanvas.getContext('webgl', { alpha: false, antialias: true, premultipliedAlpha: false });
+
   const ctx = overlay.getContext('2d', { alpha: true, desynchronized: true });
   if (!ctx) return;
+  if (stereoSwap) {
+    stereoSwap.textContent = 'Cross-eye';
+    stereoSwap.setAttribute('aria-label', 'Cross-eye stereo');
+  }
+  if (parallaxToggle) {
+    parallaxToggle.textContent = 'Observer orbit';
+    parallaxToggle.setAttribute('aria-label', 'Observer orbit');
+  }
 
   const COLORS = Object.freeze({
     background: '#070809',
@@ -183,7 +199,7 @@
       stereoGroup.dataset.toolGroup = 'stereo';
       stereoGroup.append(
         makeLabel('Stereoscopic view'),
-        makeCopy('Perspective-camera binocular views of the same 4D→3D projection.'),
+        makeCopy('Human-eye perspective stereo of the same 4D→3D projection. Cross-eye uses a compact centered pair with fusion markers.'),
         makePair(stereoToggle, stereoSwap),
       );
 
@@ -192,7 +208,7 @@
       motionGroup.dataset.toolGroup = 'camera-motion';
       motionGroup.append(
         makeLabel('Observer motion'),
-        makeCopy('Motion parallax changes only the 3D observer. WebXR uses the headset pose and two real eye views.'),
+        makeCopy('Observer orbit changes only camera orientation. WebXR supplies true head-tracked binocular parallax with two physical eye views.'),
         makePair(parallaxToggle, enterVr),
       );
 
@@ -440,15 +456,73 @@
     }
   }
 
+  const STEREO_CAMERA_Z = 9;
+  const STEREO_SCALE = 0.31;
+  let stereoProgram = null;
+  let stereoTriangleBuffer = null;
+  let stereoLineBuffer = null;
+  let stereoLocations = null;
+  let lastStereoLayout = null;
+
+  function stereoSafeRect() {
+    const margin = 18;
+    const top = 72;
+    const bottomMargin = 96;
+    let left = margin;
+    let right = Math.max(left + 1, innerWidth - margin);
+    const bottom = Math.max(top + 1, innerHeight - bottomMargin);
+
+    const panel = byId('explorerControls');
+    if (panel) {
+      const style = getComputedStyle(panel);
+      const rect = panel.getBoundingClientRect();
+      const visible = style.display !== 'none'
+        && style.visibility !== 'hidden'
+        && Number(style.opacity || 1) > 0
+        && rect.width > 1
+        && rect.height > 1;
+      const overlapsStage = rect.bottom > top && rect.top < bottom;
+      if (visible && overlapsStage && rect.left > innerWidth * 0.42) {
+        right = Math.min(right, rect.left - 18);
+      }
+    }
+
+    return {
+      x: left,
+      y: top,
+      width: Math.max(0, right - left),
+      height: Math.max(0, bottom - top),
+    };
+  }
+
+  function stereoLayout(swapped = perception.swapped) {
+    const safe = stereoSafeRect();
+    const gap = swapped ? 16 : 12;
+    // Parallel viewing must remain especially compact because image-center
+    // separation greater than the viewer's IPD requires eye divergence.
+    const maxPairWidth = swapped ? 560 : 460;
+    const pairWidth = Math.max(0, Math.min(safe.width, maxPairWidth));
+    const eyeWidth = Math.max(0, (pairWidth - gap) * 0.5);
+    const eyeHeight = Math.max(0, Math.min(safe.height, eyeWidth * 1.12));
+    const pairX = safe.x + (safe.width - pairWidth) * 0.5;
+    const pairY = safe.y + (safe.height - eyeHeight) * 0.5;
+    return {
+      safe,
+      gap,
+      pairWidth,
+      leftViewport: { x: pairX, y: pairY, width: eyeWidth, height: eyeHeight },
+      rightViewport: { x: pairX + eyeWidth + gap, y: pairY, width: eyeWidth, height: eyeHeight },
+    };
+  }
+
   function stereoProject(viewPoint, eyeSign, viewport, appState) {
     const eye = eyeSign * 0.085;
-    const cameraZ = 9;
-    const distance = Math.max(0.3, cameraZ - viewPoint[2]);
-    const factor = cameraZ / distance;
-    // Parallel off-axis stereo with zero parallax at view-space Z=0.
+    const distance = STEREO_CAMERA_Z - viewPoint[2];
+    const factor = STEREO_CAMERA_Z / distance;
+    // Exact parallel off-axis pinhole stereo with zero parallax on Z=0.
     const x = (viewPoint[0] - eye) * factor + eye;
     const y = viewPoint[1] * factor;
-    const scale = Math.min(viewport.width, viewport.height) * 0.245 * appState.zoom;
+    const scale = Math.min(viewport.width, viewport.height) * STEREO_SCALE * appState.zoom;
     return {
       x: viewport.x + viewport.width * 0.5 + x * scale,
       y: viewport.y + viewport.height * 0.5 + y * scale,
@@ -462,130 +536,326 @@
     return { p4, view };
   }
 
-  function renderStereoEye(scene, appState, viewport, eyeSign) {
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(viewport.x, viewport.y, viewport.width, viewport.height);
-    ctx.clip();
+  function stereoCross2D(a, b, c) {
+    return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+  }
 
-    const drawFaces = appState.renderMode !== 'wire';
-    const drawStructuralEdges = appState.renderMode !== 'solid';
-    const faces = [];
+  function stereoPointInsideTriangle(p, a, b, c, orientation) {
+    const epsilon = 1e-8;
+    return orientation * stereoCross2D(a, b, p) > epsilon
+      && orientation * stereoCross2D(b, c, p) > epsilon
+      && orientation * stereoCross2D(c, a, p) > epsilon;
+  }
+
+  function triangulateStereoFace(indices, viewVertices) {
+    if (indices.length === 3) return [[indices[0], indices[1], indices[2]]];
+    const projected = indices.map((index) => {
+      const point = viewVertices[index];
+      const distance = STEREO_CAMERA_Z - point[2];
+      return [
+        point[0] * STEREO_CAMERA_Z / distance,
+        point[1] * STEREO_CAMERA_Z / distance,
+      ];
+    });
+    let area = 0;
+    for (let i = 0; i < projected.length; i += 1) {
+      const a = projected[i];
+      const b = projected[(i + 1) % projected.length];
+      area += a[0] * b[1] - b[0] * a[1];
+    }
+    if (Math.abs(area) < 1e-10) {
+      return indices.slice(1, -1).map((_, i) => [indices[0], indices[i + 1], indices[i + 2]]);
+    }
+    const orientation = area > 0 ? 1 : -1;
+    const remaining = indices.map((_, i) => i);
+    const triangles = [];
+    let guard = 0;
+    while (remaining.length > 3 && guard < indices.length * indices.length) {
+      guard += 1;
+      let clipped = false;
+      for (let r = 0; r < remaining.length; r += 1) {
+        const previous = remaining[(r - 1 + remaining.length) % remaining.length];
+        const current = remaining[r];
+        const next = remaining[(r + 1) % remaining.length];
+        const a = projected[previous];
+        const b = projected[current];
+        const c = projected[next];
+        if (orientation * stereoCross2D(a, b, c) <= 1e-9) continue;
+        let contains = false;
+        for (const candidate of remaining) {
+          if (candidate === previous || candidate === current || candidate === next) continue;
+          if (stereoPointInsideTriangle(projected[candidate], a, b, c, orientation)) {
+            contains = true;
+            break;
+          }
+        }
+        if (contains) continue;
+        triangles.push([indices[previous], indices[current], indices[next]]);
+        remaining.splice(r, 1);
+        clipped = true;
+        break;
+      }
+      if (!clipped) break;
+    }
+    if (remaining.length === 3) {
+      triangles.push([indices[remaining[0]], indices[remaining[1]], indices[remaining[2]]]);
+    }
+    if (triangles.length !== indices.length - 2) {
+      return indices.slice(1, -1).map((_, i) => [indices[0], indices[i + 1], indices[i + 2]]);
+    }
+    return triangles;
+  }
+
+  function ensureStereoProgram() {
+    if (!stereoGl) return false;
+    if (stereoProgram) return true;
+    const gl = stereoGl;
+    const vertex = compileShader(gl, gl.VERTEX_SHADER, `
+      precision highp float;
+      attribute vec3 aPosition;
+      attribute vec4 aColor;
+      uniform float uEye;
+      uniform vec2 uScale;
+      uniform float uCameraZ;
+      varying vec4 vColor;
+      void main() {
+        float distance = uCameraZ - aPosition.z;
+        float nearPlane = 0.1;
+        float farPlane = 40.0;
+        float depthA = (farPlane + nearPlane) / (farPlane - nearPlane);
+        float depthB = (-2.0 * farPlane * nearPlane) / (farPlane - nearPlane);
+        gl_Position = vec4(
+          uScale.x * (uCameraZ * aPosition.x - uEye * aPosition.z),
+          -uScale.y * (uCameraZ * aPosition.y),
+          depthA * distance + depthB,
+          distance
+        );
+        vColor = aColor;
+      }
+    `);
+    const fragment = compileShader(gl, gl.FRAGMENT_SHADER, `
+      precision mediump float;
+      uniform float uXray;
+      varying vec4 vColor;
+      void main() {
+        if (uXray > 0.5) {
+          float pattern = mod(floor(gl_FragCoord.x) + 2.0 * floor(gl_FragCoord.y), 4.0);
+          if (pattern > 1.5) discard;
+        }
+        gl_FragColor = vColor;
+      }
+    `);
+    const program = gl.createProgram();
+    gl.attachShader(program, vertex);
+    gl.attachShader(program, fragment);
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      throw new Error(gl.getProgramInfoLog(program) || 'Stereo program link failed');
+    }
+    stereoProgram = program;
+    stereoTriangleBuffer = gl.createBuffer();
+    stereoLineBuffer = gl.createBuffer();
+    stereoLocations = {
+      position: gl.getAttribLocation(program, 'aPosition'),
+      color: gl.getAttribLocation(program, 'aColor'),
+      eye: gl.getUniformLocation(program, 'uEye'),
+      scale: gl.getUniformLocation(program, 'uScale'),
+      cameraZ: gl.getUniformLocation(program, 'uCameraZ'),
+      xray: gl.getUniformLocation(program, 'uXray'),
+    };
+    return true;
+  }
+
+  function pushStereoVertex(target, point, rgb, alpha = 1) {
+    target.push(point[0], point[1], point[2], rgb.r / 255, rgb.g / 255, rgb.b / 255, alpha);
+  }
+
+  function buildStereoGeometry(scene, appState) {
+    const triangles = [];
+    const lines = [];
+    const cache = new Map();
+    const allModules = [...new Set([...scene.filledModules, ...scene.structuralModules])];
     let maxAbsW = 1e-6;
-    const transformedCache = new Map();
-
-    for (const module of scene.filledModules) {
+    for (const module of allModules) {
       const transformed = transformedModule(module);
-      transformedCache.set(module, transformed);
+      cache.set(module, transformed);
       for (const point of transformed.p4) maxAbsW = Math.max(maxAbsW, Math.abs(point[3]));
     }
 
-    if (drawFaces) {
+    if (appState.renderMode !== 'wire') {
       for (const module of scene.filledModules) {
-        const transformed = transformedCache.get(module) || transformedModule(module);
-        for (const face of module.faces) {
+        const transformed = cache.get(module) || transformedModule(module);
+        for (const face of module.faces || []) {
           if (!face.indices || face.indices.length < 3) continue;
-          const points = face.indices.map((index) => (
-            stereoProject(transformed.view[index], eyeSign, viewport, appState)
-          ));
-          const depth = face.indices.reduce((sum, index) => sum + transformed.view[index][2], 0)
-            / face.indices.length;
-          const w = face.indices.reduce((sum, index) => sum + transformed.p4[index][3], 0)
-            / face.indices.length;
-          faces.push({
-            points,
-            depth,
-            rgb: appearanceRgb(module, face.axis, w, maxAbsW, appState),
-            axis: face.axis,
-          });
+          const faceTriangles = triangulateStereoFace(face.indices, transformed.view);
+          for (const triangle of faceTriangles) {
+            for (const index of triangle) {
+              const rgb = appearanceRgb(module, face.axis, transformed.p4[index][3], maxAbsW, appState);
+              pushStereoVertex(triangles, transformed.view[index], rgb, 1);
+            }
+          }
         }
-      }
-      faces.sort((a, b) => a.depth - b.depth);
-
-      for (const face of faces) {
-        ctx.beginPath();
-        face.points.forEach((point, index) => {
-          if (index === 0) ctx.moveTo(point.x, point.y);
-          else ctx.lineTo(point.x, point.y);
-        });
-        ctx.closePath();
-        const alpha = appState.renderMode === 'xray' ? 0.22 : 0.90;
-        ctx.fillStyle = rgbCss(face.rgb, alpha);
-        ctx.fill();
-        ctx.strokeStyle = face.axis === 'w'
-          ? 'rgba(240,196,92,.54)'
-          : 'rgba(20,18,16,.34)';
-        ctx.lineWidth = 0.65;
-        ctx.stroke();
       }
     }
 
-    if (drawStructuralEdges) {
-      const structuralModules = activeInspectionSurface()
-        ? scene.filledModules
-        : scene.structuralModules;
+    if (appState.renderMode !== 'solid') {
+      const structuralModules = activeInspectionSurface() ? scene.filledModules : scene.structuralModules;
       for (const module of structuralModules) {
-        const transformed = transformedCache.get(module) || transformedModule(module);
+        const transformed = cache.get(module) || transformedModule(module);
         for (const edge of module.edges || []) {
-          const a = stereoProject(transformed.view[edge.a], eyeSign, viewport, appState);
-          const b = stereoProject(transformed.view[edge.b], eyeSign, viewport, appState);
           const w = (transformed.p4[edge.a][3] + transformed.p4[edge.b][3]) * 0.5;
-          const rgb = appearanceRgb(module, edge.axis, w, maxAbsW, appState);
-          ctx.beginPath();
-          ctx.moveTo(a.x, a.y);
-          ctx.lineTo(b.x, b.y);
-          ctx.strokeStyle = rgbCss(rgb, edge.axis === 'w' ? 0.84 : 0.72);
-          ctx.globalAlpha = appState.renderMode === 'xray' ? 0.88 : 1;
-          ctx.lineWidth = edge.axis === 'w' ? 1.05 : 0.72;
-          ctx.stroke();
+          const rgb = appState.renderMode === 'solid-edges'
+            ? { r: 24, g: 25, b: 28 }
+            : appearanceRgb(module, edge.axis, w, maxAbsW, appState);
+          const depthBias = appState.renderMode === 'solid-edges' ? 0.0081 : 0;
+          const a = transformed.view[edge.a];
+          const b = transformed.view[edge.b];
+          pushStereoVertex(lines, [a[0], a[1], a[2] + depthBias], rgb, 0.96);
+          pushStereoVertex(lines, [b[0], b[1], b[2] + depthBias], rgb, 0.96);
         }
       }
-      ctx.globalAlpha = 1;
+    }
+    return { triangles: new Float32Array(triangles), lines: new Float32Array(lines) };
+  }
+
+  function resizeStereoLayer() {
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    const width = Math.max(1, Math.round(innerWidth * dpr));
+    const height = Math.max(1, Math.round(innerHeight * dpr));
+    if (stereoCanvas.width !== width || stereoCanvas.height !== height) {
+      stereoCanvas.width = width;
+      stereoCanvas.height = height;
+    }
+    stereoCanvas.style.width = innerWidth + 'px';
+    stereoCanvas.style.height = innerHeight + 'px';
+    return dpr;
+  }
+
+  function bindStereoBuffer(buffer, data) {
+    const gl = stereoGl;
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+    const stride = 7 * 4;
+    gl.enableVertexAttribArray(stereoLocations.position);
+    gl.vertexAttribPointer(stereoLocations.position, 3, gl.FLOAT, false, stride, 0);
+    gl.enableVertexAttribArray(stereoLocations.color);
+    gl.vertexAttribPointer(stereoLocations.color, 4, gl.FLOAT, false, stride, 3 * 4);
+  }
+
+  function renderStereoGlEye(geometry, appState, viewport, eyeSign, dpr) {
+    const gl = stereoGl;
+    const vx = Math.round(viewport.x * dpr);
+    const vy = Math.round((innerHeight - viewport.y - viewport.height) * dpr);
+    const vw = Math.max(1, Math.round(viewport.width * dpr));
+    const vh = Math.max(1, Math.round(viewport.height * dpr));
+    gl.viewport(vx, vy, vw, vh);
+    gl.scissor(vx, vy, vw, vh);
+    const scale = Math.min(viewport.width, viewport.height) * STEREO_SCALE * appState.zoom;
+    gl.uniform1f(stereoLocations.eye, eyeSign * 0.085);
+    gl.uniform2f(stereoLocations.scale, 2 * scale / viewport.width, 2 * scale / viewport.height);
+    gl.uniform1f(stereoLocations.cameraZ, STEREO_CAMERA_Z);
+
+    if (geometry.triangles.length) {
+      bindStereoBuffer(stereoTriangleBuffer, geometry.triangles);
+      gl.uniform1f(stereoLocations.xray, appState.renderMode === 'xray' ? 1 : 0);
+      gl.enable(gl.POLYGON_OFFSET_FILL);
+      gl.polygonOffset(1, 1);
+      gl.drawArrays(gl.TRIANGLES, 0, geometry.triangles.length / 7);
+      gl.disable(gl.POLYGON_OFFSET_FILL);
     }
 
-    if (perception.trajectories) {
-      for (const anchor of perception.anchors) {
-        const history = perception.trails.get(anchor.id) || [];
-        const points = history.map((sample) => {
-          const view = api.projectTransformed4DToView3D(sample.p4);
-          return stereoProject(view, eyeSign, viewport, appState);
-        });
-        drawTrailPolyline(points, anchor.color, 1.15);
+    if (geometry.lines.length) {
+      bindStereoBuffer(stereoLineBuffer, geometry.lines);
+      gl.uniform1f(stereoLocations.xray, 0);
+      if (appState.renderMode === 'xray') gl.disable(gl.DEPTH_TEST);
+      gl.drawArrays(gl.LINES, 0, geometry.lines.length / 7);
+      if (appState.renderMode === 'xray') gl.enable(gl.DEPTH_TEST);
+    }
+  }
+
+  function drawStereoOverlay(scene, appState, layout, leftEyeSign, rightEyeSign) {
+    clearOverlay();
+    const pairs = [
+      [layout.leftViewport, leftEyeSign, perception.swapped ? 'R eye' : 'L eye'],
+      [layout.rightViewport, rightEyeSign, perception.swapped ? 'L eye' : 'R eye'],
+    ];
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,.13)';
+    ctx.fillStyle = COLORS.text;
+    ctx.font = '9px Inter, ui-sans-serif, sans-serif';
+    ctx.textAlign = 'center';
+    for (const [viewport, eyeSign, label] of pairs) {
+      ctx.strokeRect(viewport.x + 0.5, viewport.y + 0.5, viewport.width - 1, viewport.height - 1);
+      ctx.fillText(label, viewport.x + viewport.width * 0.5, viewport.y + 13);
+      const markerY = Math.max(layout.safe.y + 8, viewport.y - 15);
+      ctx.beginPath();
+      ctx.arc(viewport.x + viewport.width * 0.5, markerY, 2.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (perception.trajectories) {
+        for (const anchor of perception.anchors) {
+          const history = perception.trails.get(anchor.id) || [];
+          const points = history.map((sample) => {
+            const view = api.projectTransformed4DToView3D(sample.p4);
+            return stereoProject(view, eyeSign, viewport, appState);
+          });
+          drawTrailPolyline(points, anchor.color, 1.15);
+          const current = api.transformPoint4D(anchor.point);
+          const view = api.projectTransformed4DToView3D(current);
+          const point = stereoProject(view, eyeSign, viewport, appState);
+          ctx.fillStyle = anchor.color;
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = COLORS.text;
+        }
       }
     }
-
-    ctx.beginPath();
-    ctx.arc(viewport.x + viewport.width * 0.5, viewport.y + viewport.height - 24, 2.1, 0, Math.PI * 2);
-    ctx.fillStyle = COLORS.center;
-    ctx.globalAlpha = 0.64;
-    ctx.fill();
-    ctx.globalAlpha = 1;
+    const instruction = perception.swapped
+      ? 'Cross-eye · converge until the two dots fuse into a central third dot'
+      : 'Parallel · relax focus beyond the screen until the two dots fuse';
+    ctx.font = '10px Inter, ui-sans-serif, sans-serif';
+    ctx.fillText(
+      instruction,
+      layout.safe.x + layout.safe.width * 0.5,
+      Math.min(innerHeight - 14, layout.leftViewport.y + layout.leftViewport.height + 26),
+    );
     ctx.restore();
   }
 
   function drawStereo(scene, appState) {
-    const width = innerWidth;
-    const height = innerHeight;
-    const gap = Math.max(14, width * 0.012);
-    const eyeWidth = (width - gap) * 0.5;
-    const leftViewport = { x: 0, y: 0, width: eyeWidth, height };
-    const rightViewport = { x: eyeWidth + gap, y: 0, width: eyeWidth, height };
+    if (!ensureStereoProgram()) {
+      setStereo(false, false);
+      setStatus('Stereo requires WebGL support in this browser.');
+      return;
+    }
+    const layout = stereoLayout(perception.swapped);
+    lastStereoLayout = layout;
+    const dpr = resizeStereoLayer();
+    stereoCanvas.style.display = 'block';
+    const gl = stereoGl;
+    gl.disable(gl.SCISSOR_TEST);
+    gl.enable(gl.DEPTH_TEST);
+    gl.depthFunc(gl.LEQUAL);
+    gl.disable(gl.CULL_FACE);
+    gl.disable(gl.BLEND);
+    gl.clearColor(0.027, 0.031, 0.035, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.useProgram(stereoProgram);
+    gl.enable(gl.SCISSOR_TEST);
 
-    ctx.fillStyle = COLORS.background;
-    ctx.globalAlpha = 1;
-    ctx.fillRect(0, 0, width, height);
-
+    const geometry = buildStereoGeometry(scene, appState);
     const leftEyeSign = perception.swapped ? 1 : -1;
     const rightEyeSign = perception.swapped ? -1 : 1;
-    renderStereoEye(scene, appState, leftViewport, leftEyeSign);
-    renderStereoEye(scene, appState, rightViewport, rightEyeSign);
+    renderStereoGlEye(geometry, appState, layout.leftViewport, leftEyeSign, dpr);
+    renderStereoGlEye(geometry, appState, layout.rightViewport, rightEyeSign, dpr);
+    gl.disable(gl.SCISSOR_TEST);
+    drawStereoOverlay(scene, appState, layout, leftEyeSign, rightEyeSign);
+  }
 
-    ctx.fillStyle = COLORS.separator;
-    ctx.fillRect(eyeWidth, 0, gap, height);
-    ctx.fillStyle = COLORS.text;
-    ctx.font = '10px Inter, ui-sans-serif, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(perception.swapped ? 'cross-eye stereo' : 'parallel stereo', width * 0.5, height - 8);
+  function hideStereoLayer() {
+    stereoCanvas.style.display = 'none';
+    lastStereoLayout = null;
   }
 
   function clearOverlay() {
@@ -899,6 +1169,8 @@
 
   function setStereo(enabled, message = true) {
     perception.stereo = Boolean(enabled);
+    document.body.classList.toggle('stereo-active', perception.stereo);
+    if (!perception.stereo) hideStereoLayer();
     stereoToggle?.classList.toggle('is-active', perception.stereo);
     stereoToggle?.setAttribute('aria-pressed', String(perception.stereo));
     if (!perception.stereo) {
@@ -917,7 +1189,7 @@
     }
     parallaxToggle?.classList.toggle('is-active', perception.parallax);
     parallaxToggle?.setAttribute('aria-pressed', String(perception.parallax));
-    if (message) setStatus(perception.parallax ? 'Motion parallax moves only the 3D observer.' : 'Motion parallax off.');
+    if (message) setStatus(perception.parallax ? 'Observer orbit changes only the ordinary 3D camera orientation.' : 'Observer orbit off.');
   }
 
   function setTrajectories(enabled, message = true) {
@@ -941,7 +1213,9 @@
     perception.swapped = !perception.swapped;
     stereoSwap.classList.toggle('is-active', perception.swapped);
     stereoSwap.setAttribute('aria-pressed', String(perception.swapped));
-    setStatus(perception.swapped ? 'Cross-eye stereo order.' : 'Parallel stereo order.');
+    setStatus(perception.swapped
+      ? 'Cross-eye: converge until the two fusion dots become a central third dot.'
+      : 'Parallel stereo: relax focus beyond the screen until the fusion dots merge.');
   });
 
   parallaxToggle?.addEventListener('click', async () => {
@@ -953,15 +1227,15 @@
       try {
         const granted = await ensureOrientationPermission();
         if (!granted) {
-          setStatus('Motion parallax enabled for pointer input; device orientation permission was not granted.');
+          setStatus('Observer orbit enabled for pointer input; device orientation permission was not granted.');
           return;
         }
       } catch {
-        setStatus('Motion parallax enabled for pointer input; device orientation is unavailable.');
+        setStatus('Observer orbit enabled for pointer input; device orientation is unavailable.');
         return;
       }
     }
-    setStatus(perception.parallax ? 'Motion parallax moves only the 3D observer.' : 'Motion parallax off.');
+    setStatus(perception.parallax ? 'Observer orbit changes only the ordinary 3D camera orientation.' : 'Observer orbit off.');
   });
 
   trajectoryToggle?.addEventListener('click', () => {
@@ -974,22 +1248,34 @@
   function syncAvailability(appState) {
     const in4D = appState.dimension >= 4 && !appState.transition;
     const in3DOr4D = appState.dimension >= 3 && !appState.transition;
-    const stereoAllowed = in4D && appState.screenProjection === 'perspective';
+    const safe = stereoSafeRect();
+    const stereoLayoutReady = innerWidth >= 820 && innerHeight >= 520 && safe.width >= 520;
+    const stereoAllowed = in4D
+      && appState.screenProjection === 'perspective'
+      && stereoLayoutReady
+      && Boolean(stereoGl);
 
     if (stereoToggle) {
       stereoToggle.disabled = !stereoAllowed;
       stereoToggle.title = !in4D
         ? 'Switch to 4D to use stereoscopic viewing'
         : appState.screenProjection !== 'perspective'
-          ? 'Stereo requires the perspective 3D→2D camera; orthographic projection has no binocular depth disparity'
-          : 'Render two parallel off-axis eye views of the exact 4D→3D projection';
+          ? 'Screen stereo in Hypermandala uses a physical pinhole-eye model; choose Perspective for the 3D→2D camera'
+          : !stereoLayoutReady
+            ? 'Stereo needs a wider unobstructed viewport; widen the window or collapse browser sidebars'
+            : !stereoGl
+              ? 'Stereo requires WebGL support'
+              : 'Render a depth-tested parallel off-axis eye pair of the exact 4D→3D projection';
     }
     if (stereoSwap) stereoSwap.disabled = !stereoAllowed || !perception.stereo;
     if (trajectoryToggle) trajectoryToggle.disabled = !in4D;
-    if (parallaxToggle) parallaxToggle.disabled = !in3DOr4D;
+    if (parallaxToggle) {
+      parallaxToggle.disabled = !in3DOr4D;
+      parallaxToggle.title = 'Orbit the ordinary 3D observer with pointer or device tilt; this is an orientation cue, not translational head parallax';
+    }
     if (enterVr) enterVr.disabled = !perception.xrSupported || !in4D;
 
-    document.querySelector('[data-tool-group="stereo"]')?.classList.toggle('is-unavailable', !in4D);
+    document.querySelector('[data-tool-group="stereo"]')?.classList.toggle('is-unavailable', !in4D || !stereoLayoutReady);
     document.querySelector('[data-tool-group="camera-motion"]')?.classList.toggle('is-unavailable', !in3DOr4D);
     document.querySelector('[data-tool-group="4d-motion"]')?.classList.toggle('is-unavailable', !in4D);
 
@@ -998,6 +1284,20 @@
     if (!in3DOr4D && perception.parallax) setParallax(false, false);
     if (!in4D && perception.xrSession) perception.xrSession.end().catch(() => {});
   }
+
+  window.__hypermandalaPerceptionDebug = Object.freeze({
+    stereoLayout: () => stereoLayout(perception.swapped),
+    stereoState: () => ({
+      enabled: perception.stereo,
+      crossEye: perception.swapped,
+      hasWebGL: Boolean(stereoGl),
+      layout: lastStereoLayout || stereoLayout(perception.swapped),
+    }),
+    stereoProject: (viewPoint, eyeSign) => {
+      const layout = stereoLayout(perception.swapped);
+      return stereoProject(viewPoint, eyeSign, layout.leftViewport, currentState());
+    },
+  });
 
   function frame(now) {
     const dt = Math.min(0.05, (now - perception.lastFrame) / 1000);
@@ -1011,6 +1311,7 @@
     if (perception.stereo && appState.dimension >= 4 && appState.screenProjection === 'perspective') {
       drawStereo(ensureScene(), appState);
     } else {
+      hideStereoLayer();
       clearOverlay();
       if (perception.trajectories && appState.dimension >= 4) {
         ensureScene();
