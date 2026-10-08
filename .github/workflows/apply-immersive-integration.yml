@@ -1,0 +1,47 @@
+name: Apply immersive integration
+
+on:
+  push:
+    branches:
+      - feature/immersive-4d-mandala
+    paths:
+      - scripts/apply_immersive_integration.py
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/immersive-4d-mandala
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Integrate immersive perception layer
+        run: python3 scripts/apply_immersive_integration.py
+
+      - name: Verify JavaScript syntax
+        run: |
+          node --check public/app.js
+          node --check public/immersive.js
+
+      - name: Verify mathematical and source invariants
+        run: python3 scripts/verify_math_rigor.py
+
+      - name: Verify patch integrity
+        run: git diff --check
+
+      - name: Commit integrated source
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/app.js public/index.html public/styles.css public/_headers README.md scripts/verify_math_rigor.py
+          git commit -m "Integrate immersive 4D perception [immersive-integrated]"
+          git push origin HEAD:feature/immersive-4d-mandala
