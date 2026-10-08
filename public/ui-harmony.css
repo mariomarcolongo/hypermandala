@@ -1,7 +1,9 @@
 /* Hypermandala Explorer harmonization.
    This layer normalizes the control taxonomy without changing geometry. */
 
-/* Core view choices first, optional inspection/perception second, transforms last. */
+/* Put the controls that reveal/manipulate the geometry first. Rotation is the
+   primary 4D interaction, so it belongs immediately after the two projection
+   choices rather than below rendering and optional inspection tools. */
 #explorerControls {
   display: flex;
   flex-direction: column;
@@ -16,12 +18,26 @@
 #explorerControls > .control-panel__title { order: 0; }
 #explorerControls > .control-section:has(#projectionControl) { order: 10; }
 #explorerControls > .control-section:has(#screenProjectionControl) { order: 20; }
-#explorerControls > .control-section:has(#renderControl) { order: 30; }
-#explorerControls > .control-section:has(#colorControl) { order: 40; }
-#explorerControls > .perception-details { order: 50; }
-#explorerControls > .view-tools-details { order: 60; }
-#explorerControls > .control-section:has(#rotationRows) { order: 70; }
-#explorerControls > .scale-section { order: 80; }
+#explorerControls > .control-section:has(#rotationRows) { order: 30; }
+#explorerControls > .scale-section { order: 40; }
+#explorerControls > .control-section:has(#renderControl) { order: 50; }
+#explorerControls > .control-section:has(#colorControl) { order: 60; }
+#explorerControls > .perception-details { order: 70; }
+#explorerControls > .view-tools-details { order: 80; }
+
+/* Rotation is the main geometric interaction in 4D. Give its heading a little
+   more contrast so it is discoverable without turning it into a separate UI. */
+#explorerControls > .rotation-section {
+  border-top-color: rgba(240,196,92,.16);
+}
+
+#explorerControls > .rotation-section .control-section__label {
+  color: rgba(238,239,242,.82);
+}
+
+#explorerControls > .rotation-section .control-section__note {
+  color: rgba(238,239,242,.42);
+}
 
 /* Four peer rendering modes read better as a balanced 2×2 matrix than as
    four cramped labels in one narrow row. */
