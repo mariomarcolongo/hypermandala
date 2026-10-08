@@ -1,0 +1,147 @@
+name: Verify projection and perception
+
+on:
+  pull_request:
+    paths:
+      - 'public/app.js'
+      - 'public/immersive.js'
+      - 'public/index.html'
+      - 'public/ui-harmony.css'
+      - 'scripts/verify_math_rigor.py'
+      - '.github/workflows/verify-projection-perception.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'public/app.js'
+      - 'public/immersive.js'
+      - 'public/index.html'
+      - 'public/ui-harmony.css'
+      - 'scripts/verify_math_rigor.py'
+      - '.github/workflows/verify-projection-perception.yml'
+
+jobs:
+  browser:
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, webkit]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Run projection and stereo regression
+        env:
+          BROWSER: ${{ matrix.browser }}
+        run: |
+          python3 -m http.server 4173 --directory public >/tmp/hypermandala-projection-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true' EXIT
+          node <<'NODE'
+          const { chromium, webkit } = require('playwright');
+          const crypto = require('crypto');
+
+          const engines = { chromium, webkit };
+          const engine = engines[process.env.BROWSER];
+          if (!engine) throw new Error('Unknown browser ' + process.env.BROWSER);
+
+          (async () => {
+            const browser = await engine.launch({ headless: true });
+            const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+            const errors = [];
+            page.on('pageerror', error => errors.push(String(error)));
+            await page.goto('http://127.0.0.1:4173/', { waitUntil: 'networkidle' });
+            await page.waitForFunction(() => Boolean(window.HypermandalaAPI && window.__hypermandalaDebug && window.__hypermandalaPerceptionDebug));
+
+            await page.locator('[data-dimension="4"]').click();
+            await page.waitForFunction(() => {
+              const state = window.HypermandalaAPI?.stateSnapshot?.();
+              return state?.dimension === 4 && !state?.transition;
+            }, null, { timeout: 10000 });
+
+            const combinations = [
+              ['perspective', 'perspective'],
+              ['perspective', 'orthographic'],
+              ['orthographic', 'perspective'],
+              ['orthographic', 'orthographic'],
+            ];
+            for (const [p4, p3] of combinations) {
+              await page.locator(`[data-projection="${p4}"]`).click();
+              await page.locator(`[data-screen-projection="${p3}"]`).click();
+              const state = await page.evaluate(() => window.__hypermandalaDebug.projectionState());
+              if (state.projection4D !== p4 || state.projection3D !== p3) {
+                throw new Error(`Projection state mismatch for ${p4}/${p3}: ${JSON.stringify(state)}`);
+              }
+            }
+
+            // Isometric is an orientation preset, not a third projection type.
+            await page.locator('[data-screen-projection="orthographic"]').click();
+            const iso = page.locator('#isometricView');
+            if ((await iso.getAttribute('aria-pressed')) !== 'false') await iso.click();
+            await iso.click();
+            let state = await page.evaluate(() => window.__hypermandalaDebug.projectionState());
+            if (!state.isometricView || state.projection3D !== 'orthographic') {
+              throw new Error('Isometric orientation did not preserve the orthographic camera stage');
+            }
+            await page.locator('[data-screen-projection="perspective"]').click();
+            state = await page.evaluate(() => window.__hypermandalaDebug.projectionState());
+            if (!state.isometricView || state.projection3D !== 'perspective') {
+              throw new Error('Isometric orientation was incorrectly coupled to the camera projection');
+            }
+            await iso.click();
+
+            // Stereo uses the physical perspective camera and must avoid the right Explorer panel.
+            const stereo = page.locator('#stereoToggle');
+            await page.waitForFunction(() => !document.querySelector('#stereoToggle')?.disabled);
+            await stereo.click();
+            await page.waitForFunction(() => window.__hypermandalaPerceptionDebug.stereoState().enabled);
+            let stereoState = await page.evaluate(() => window.__hypermandalaPerceptionDebug.stereoState());
+            const panel = await page.locator('#explorerControls').boundingBox();
+            if (!panel) throw new Error('Explorer panel has no bounding box');
+            const rightEdge = stereoState.layout.rightViewport.x + stereoState.layout.rightViewport.width;
+            if (rightEdge > panel.x - 8) {
+              throw new Error(`Stereo intrudes under Explorer: right=${rightEdge}, panel=${panel.x}`);
+            }
+            if (stereoState.layout.pairWidth > 580.1) {
+              throw new Error('Parallel stereo pair is too wide for comfortable fusion');
+            }
+            if (!stereoState.hasWebGL) throw new Error('Stereo WebGL renderer unavailable');
+            if (!(await page.evaluate(() => document.body.classList.contains('stereo-active')))) {
+              throw new Error('Stereo focus mode class missing');
+            }
+            const stereoShot = await page.locator('#stereoLayer').screenshot();
+            const stereoHash = crypto.createHash('sha256').update(stereoShot).digest('hex');
+
+            const cross = page.locator('#stereoSwap');
+            if ((await cross.textContent()).trim() !== 'Cross-eye') throw new Error('Cross-eye label is unclear');
+            await cross.click();
+            await page.waitForFunction(() => window.__hypermandalaPerceptionDebug.stereoState().crossEye);
+            stereoState = await page.evaluate(() => window.__hypermandalaPerceptionDebug.stereoState());
+            const crossRightEdge = stereoState.layout.rightViewport.x + stereoState.layout.rightViewport.width;
+            if (crossRightEdge > panel.x - 8) throw new Error('Cross-eye stereo intrudes under Explorer');
+            if (stereoState.layout.pairWidth > 720.1) throw new Error('Cross-eye pair exceeded compact layout cap');
+            const crossShot = await page.locator('#stereoLayer').screenshot();
+            const crossHash = crypto.createHash('sha256').update(crossShot).digest('hex');
+            if (crossHash === stereoHash) throw new Error('Cross-eye swap did not change the rendered eye ordering/layout');
+
+            if ((await page.locator('#motionParallaxToggle').textContent()).trim() !== 'Observer orbit') {
+              throw new Error('Orientation-only perception cue is still mislabeled as motion parallax');
+            }
+
+            await page.setViewportSize({ width: 760, height: 700 });
+            await page.waitForFunction(() => document.querySelector('#stereoToggle')?.disabled === true);
+            await page.waitForFunction(() => !window.__hypermandalaPerceptionDebug.stereoState().enabled);
+
+            if (errors.length) throw new Error('Page errors: ' + errors.join(' | '));
+            await browser.close();
+          })().catch(error => {
+            console.error(error);
+            process.exit(1);
+          });
+          NODE
