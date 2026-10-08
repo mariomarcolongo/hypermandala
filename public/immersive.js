@@ -87,8 +87,16 @@
     xrUsesFloor: false,
     xrGl: null,
     xrProgram: null,
-    xrBuffer: null,
+    xrTriangleBuffer: null,
+    xrLineBuffer: null,
     xrLocations: null,
+    xrGeometry: null,
+    xrGeometryKey: '',
+    xrLastGeometryBuild: 0,
+    xrModelMatrix: null,
+    xrRecenterPending: true,
+    xrMobile: false,
+    xrFramebufferScale: 1,
     xrScale: 0.34,
     lastFrame: performance.now(),
   };
@@ -377,14 +385,6 @@
     return anchors.slice(0, 3);
   }
 
-  function updateXRScale(scene) {
-    let extent = 0.1;
-    for (const point of uniqueVertices(scene.structuralModules)) {
-      extent = Math.max(extent, Math.hypot(point[0], point[1], point[2]));
-    }
-    perception.xrScale = Math.max(0.20, Math.min(0.48, 0.82 / extent));
-  }
-
   function ensureScene() {
     const key = api.sceneKey();
     if (perception.scene && key === perception.sceneKey) return perception.scene;
@@ -393,7 +393,8 @@
     perception.anchors = chooseTrajectoryAnchors(perception.scene);
     perception.trails.clear();
     for (const anchor of perception.anchors) perception.trails.set(anchor.id, []);
-    updateXRScale(perception.scene);
+    perception.xrGeometry = null;
+    perception.xrGeometryKey = '';
     return perception.scene;
   }
 
@@ -941,9 +942,10 @@
       attribute vec4 aColor;
       uniform mat4 uProjection;
       uniform mat4 uView;
+      uniform mat4 uModel;
       varying vec4 vColor;
       void main() {
-        gl_Position = uProjection * uView * vec4(aPosition, 1.0);
+        gl_Position = uProjection * uView * uModel * vec4(aPosition, 1.0);
         vColor = aColor;
       }
     `);
@@ -964,14 +966,87 @@
     return program;
   }
 
-  function worldPointFromProjected3D(point) {
-    const scale = perception.xrScale;
-    const baseY = perception.xrUsesFloor ? 1.35 : -0.02;
-    return [point[0] * scale, baseY - point[1] * scale, -2.05 + point[2] * scale];
+  function xrIsMobileDevice() {
+    const ua = navigator.userAgent || '';
+    const uaMobile = navigator.userAgentData?.mobile === true
+      || /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
+    // Standalone headsets should keep their native XR quality policy.
+    return uaMobile && !/OculusBrowser|Quest|PicoBrowser/i.test(ua);
+  }
+
+  function identityXRMatrix() {
+    return new Float32Array([
+      1, 0, 0, 0,
+      0, 1, 0, 0,
+      0, 0, 1, 0,
+      0, 0, 0, 1,
+    ]);
+  }
+
+  function recenterXRFromPose(pose) {
+    const matrix = pose?.transform?.matrix;
+    if (!matrix) return false;
+    let forwardX = -matrix[8];
+    let forwardY = -matrix[9];
+    let forwardZ = -matrix[10];
+    const length = Math.hypot(forwardX, forwardY, forwardZ) || 1;
+    forwardX /= length;
+    forwardY /= length;
+    forwardZ /= length;
+
+    // Put the fitted hypermandala directly in the viewer's current gaze direction.
+    // It remains world-locked afterwards, preserving genuine head-motion parallax.
+    const distance = 1.55;
+    const model = identityXRMatrix();
+    model[12] = matrix[12] + forwardX * distance;
+    model[13] = matrix[13] + forwardY * distance;
+    model[14] = matrix[14] + forwardZ * distance;
+    perception.xrModelMatrix = model;
+    perception.xrRecenterPending = false;
+    return true;
+  }
+
+  function fitXRProjectedPoints(points) {
+    if (!points.length) return { center: [0, 0, 0], scale: 0.34, radius: 1 };
+    const min = [Infinity, Infinity, Infinity];
+    const max = [-Infinity, -Infinity, -Infinity];
+    for (const point of points) {
+      for (let axis = 0; axis < 3; axis += 1) {
+        min[axis] = Math.min(min[axis], point[axis]);
+        max[axis] = Math.max(max[axis], point[axis]);
+      }
+    }
+    const center = min.map((value, axis) => (value + max[axis]) * 0.5);
+    let radius = 1e-4;
+    for (const point of points) {
+      radius = Math.max(
+        radius,
+        Math.hypot(point[0] - center[0], point[1] - center[1], point[2] - center[2]),
+      );
+    }
+    // ~0.56 m radius at 1.55 m gives a comfortable, immediately visible field of view.
+    const scale = Math.max(0.10, Math.min(0.78, 0.56 / radius));
+    return { center, scale, radius };
+  }
+
+  function xrFittedPoint(point, fit) {
+    return [
+      (point[0] - fit.center[0]) * fit.scale,
+      -(point[1] - fit.center[1]) * fit.scale,
+      (point[2] - fit.center[2]) * fit.scale,
+    ];
   }
 
   function pushXRVertex(target, point, rgb, alpha = 1) {
     target.push(point[0], point[1], point[2], rgb.r/255, rgb.g/255, rgb.b/255, alpha);
+  }
+
+  function xrGeometryStateKey(appState) {
+    return [
+      api.sceneKey(),
+      JSON.stringify(appState),
+      perception.trajectories ? perception.lastTrailSample : 0,
+    ].join('|');
   }
 
   function buildXRGeometry(scene, appState) {
@@ -981,20 +1056,28 @@
     const drawLines = appState.renderMode !== 'solid';
     let maxAbsW = 1e-6;
     const cache = new Map();
+    const allModules = [...new Set([...scene.filledModules, ...scene.structuralModules])];
+    const allProjected = [];
 
-    for (const module of scene.filledModules) {
+    for (const module of allModules) {
       const p4 = module.vertices.map((point) => api.transformPoint4D(point));
-      cache.set(module, p4);
+      const p3 = p4.map((point) => api.projectTransformed4DTo3D(point));
+      cache.set(module, { p4, p3 });
       for (const point of p4) maxAbsW = Math.max(maxAbsW, Math.abs(point[3]));
+      allProjected.push(...p3);
     }
+
+    const fit = fitXRProjectedPoints(allProjected);
+    perception.xrScale = fit.scale;
 
     if (drawFaces) {
       for (const module of scene.filledModules) {
-        const p4 = cache.get(module) || module.vertices.map((point) => api.transformPoint4D(point));
-        const projected = p4.map((point) => worldPointFromProjected3D(api.projectTransformed4DTo3D(point)));
+        const transformed = cache.get(module);
+        if (!transformed) continue;
+        const projected = transformed.p3.map((point) => xrFittedPoint(point, fit));
         for (const face of module.faces) {
           if (!face.indices || face.indices.length < 3) continue;
-          const w = face.indices.reduce((sum, index) => sum + p4[index][3], 0) / face.indices.length;
+          const w = face.indices.reduce((sum, index) => sum + transformed.p4[index][3], 0) / face.indices.length;
           const rgb = appearanceRgb(module, face.axis, w, maxAbsW, appState);
           const alpha = appState.renderMode === 'xray' ? 0.24 : 1;
           for (let i = 1; i + 1 < face.indices.length; i += 1) {
@@ -1009,10 +1092,11 @@
     if (drawLines) {
       const structuralModules = activeInspectionSurface() ? scene.filledModules : scene.structuralModules;
       for (const module of structuralModules) {
-        const p4 = module.vertices.map((point) => api.transformPoint4D(point));
-        const projected = p4.map((point) => worldPointFromProjected3D(api.projectTransformed4DTo3D(point)));
+        const transformed = cache.get(module);
+        if (!transformed) continue;
+        const projected = transformed.p3.map((point) => xrFittedPoint(point, fit));
         for (const edge of module.edges || []) {
-          const w = (p4[edge.a][3] + p4[edge.b][3]) * 0.5;
+          const w = (transformed.p4[edge.a][3] + transformed.p4[edge.b][3]) * 0.5;
           const rgb = appearanceRgb(module, edge.axis, w, maxAbsW, appState);
           pushXRVertex(lines, projected[edge.a], rgb, 0.9);
           pushXRVertex(lines, projected[edge.b], rgb, 0.9);
@@ -1025,27 +1109,44 @@
         const history = perception.trails.get(anchor.id) || [];
         const rgb = hexRgb(anchor.color);
         for (let i = 1; i < history.length; i += 1) {
-          const a = worldPointFromProjected3D(api.projectTransformed4DTo3D(history[i-1].p4));
-          const b = worldPointFromProjected3D(api.projectTransformed4DTo3D(history[i].p4));
+          const a3 = api.projectTransformed4DTo3D(history[i - 1].p4);
+          const b3 = api.projectTransformed4DTo3D(history[i].p4);
+          const a = xrFittedPoint(a3, fit);
+          const b = xrFittedPoint(b3, fit);
           const alpha = 0.18 + 0.82 * (i / Math.max(1, history.length - 1));
           pushXRVertex(lines, a, rgb, alpha);
           pushXRVertex(lines, b, rgb, alpha);
         }
       }
     }
-    return { triangles, lines };
+
+    return {
+      triangles: new Float32Array(triangles),
+      lines: new Float32Array(lines),
+      fit,
+    };
   }
 
-  function drawXRBuffer(gl, mode, data) {
-    if (!data.length) return;
-    gl.bindBuffer(gl.ARRAY_BUFFER, perception.xrBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.DYNAMIC_DRAW);
+  function bindXRBuffer(gl, buffer) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
     const stride = 7 * 4;
     gl.enableVertexAttribArray(perception.xrLocations.position);
     gl.vertexAttribPointer(perception.xrLocations.position, 3, gl.FLOAT, false, stride, 0);
     gl.enableVertexAttribArray(perception.xrLocations.color);
     gl.vertexAttribPointer(perception.xrLocations.color, 4, gl.FLOAT, false, stride, 3 * 4);
-    gl.drawArrays(mode, 0, data.length / 7);
+  }
+
+  function uploadXRGeometry(gl, geometry) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, perception.xrTriangleBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, geometry.triangles, gl.DYNAMIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, perception.xrLineBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, geometry.lines, gl.DYNAMIC_DRAW);
+  }
+
+  function drawXRBuffer(gl, mode, buffer, vertexCount) {
+    if (!vertexCount) return;
+    bindXRBuffer(gl, buffer);
+    gl.drawArrays(mode, 0, vertexCount);
   }
 
   function onXRFrame(time, frame) {
@@ -1055,12 +1156,26 @@
     const pose = frame.getViewerPose(perception.xrReferenceSpace);
     if (!pose) return;
 
+    if (perception.xrRecenterPending || !perception.xrModelMatrix) recenterXRFromPose(pose);
+
     const appState = currentState();
     const scene = ensureScene();
-    const geometry = buildXRGeometry(scene, appState);
     const gl = perception.xrGl;
     const layer = session.renderState.baseLayer;
-    if (!gl || !layer) return;
+    if (!gl || !layer || !perception.xrModelMatrix) return;
+
+    const geometryKey = xrGeometryStateKey(appState);
+    const geometryInterval = perception.xrMobile ? 33 : 0;
+    if (!perception.xrGeometry
+      || (geometryKey !== perception.xrGeometryKey
+        && time - perception.xrLastGeometryBuild >= geometryInterval)) {
+      perception.xrGeometry = buildXRGeometry(scene, appState);
+      perception.xrGeometryKey = geometryKey;
+      perception.xrLastGeometryBuild = time;
+      uploadXRGeometry(gl, perception.xrGeometry);
+    }
+    const geometry = perception.xrGeometry;
+    if (!geometry) return;
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);
     gl.enable(gl.DEPTH_TEST);
@@ -1069,6 +1184,7 @@
     gl.clearColor(0.012, 0.014, 0.018, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.useProgram(perception.xrProgram);
+    gl.uniformMatrix4fv(perception.xrLocations.model, false, perception.xrModelMatrix);
 
     for (const view of pose.views) {
       const viewport = layer.getViewport(view);
@@ -1084,12 +1200,22 @@
       } else {
         gl.disable(gl.BLEND);
       }
-      drawXRBuffer(gl, gl.TRIANGLES, geometry.triangles);
+      drawXRBuffer(
+        gl,
+        gl.TRIANGLES,
+        perception.xrTriangleBuffer,
+        geometry.triangles.length / 7,
+      );
 
       gl.depthMask(false);
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-      drawXRBuffer(gl, gl.LINES, geometry.lines);
+      drawXRBuffer(
+        gl,
+        gl.LINES,
+        perception.xrLineBuffer,
+        geometry.lines.length / 7,
+      );
       gl.disable(gl.BLEND);
       gl.depthMask(true);
     }
@@ -1111,7 +1237,13 @@
       const session = await navigator.xr.requestSession('immersive-vr', {
         optionalFeatures: ['local-floor'],
       });
-      const gl = xrCanvas.getContext('webgl', { alpha: false, antialias: true, xrCompatible: true });
+      perception.xrMobile = xrIsMobileDevice();
+      const gl = xrCanvas.getContext('webgl', {
+        alpha: false,
+        antialias: false,
+        xrCompatible: true,
+        powerPreference: 'high-performance',
+      });
       if (!gl) throw new Error('WebGL unavailable for XR');
       if (gl.makeXRCompatible) await gl.makeXRCompatible();
 
@@ -1119,14 +1251,22 @@
       perception.xrSession = session;
       perception.xrGl = gl;
       perception.xrProgram = program;
-      perception.xrBuffer = gl.createBuffer();
+      perception.xrTriangleBuffer = gl.createBuffer();
+      perception.xrLineBuffer = gl.createBuffer();
       perception.xrLocations = {
         position: gl.getAttribLocation(program, 'aPosition'),
         color: gl.getAttribLocation(program, 'aColor'),
         projection: gl.getUniformLocation(program, 'uProjection'),
         view: gl.getUniformLocation(program, 'uView'),
+        model: gl.getUniformLocation(program, 'uModel'),
       };
-      session.updateRenderState({ baseLayer: new XRWebGLLayer(session, gl) });
+      perception.xrFramebufferScale = perception.xrMobile ? 0.68 : 0.90;
+      session.updateRenderState({
+        baseLayer: new XRWebGLLayer(session, gl, {
+          antialias: false,
+          framebufferScaleFactor: perception.xrFramebufferScale,
+        }),
+      });
 
       try {
         perception.xrReferenceSpace = await session.requestReferenceSpace('local-floor');
@@ -1136,19 +1276,40 @@
         perception.xrUsesFloor = false;
       }
 
+      perception.xrGeometry = null;
+      perception.xrGeometryKey = '';
+      perception.xrLastGeometryBuild = 0;
+      perception.xrModelMatrix = null;
+      perception.xrRecenterPending = true;
+
+      // Cardboard-style viewers commonly expose a single select action.  Use it
+      // as a recenter command so the user can recover the mandala without exiting VR.
+      session.addEventListener('select', () => {
+        perception.xrRecenterPending = true;
+      });
+
       session.addEventListener('end', () => {
         perception.xrSession = null;
         perception.xrReferenceSpace = null;
         perception.xrGl = null;
         perception.xrProgram = null;
-        perception.xrBuffer = null;
+        perception.xrTriangleBuffer = null;
+        perception.xrLineBuffer = null;
         perception.xrLocations = null;
+        perception.xrGeometry = null;
+        perception.xrGeometryKey = '';
+        perception.xrModelMatrix = null;
+        perception.xrRecenterPending = true;
         if (enterVr) enterVr.textContent = 'Enter immersive VR';
         setStatus('VR session ended. Intrinsic 4D geometry was unchanged.');
       }, { once: true });
 
       if (enterVr) enterVr.textContent = 'Exit immersive VR';
-      setStatus('VR uses the headset pose and two physical eye views of the projected 4D form.');
+      setStatus(
+        perception.xrMobile
+          ? 'VR fitted the mandala in front of you. Tap the viewer trigger to recenter.'
+          : 'VR fitted the projected 4D form in front of you; use the primary select action to recenter.',
+      );
       session.requestAnimationFrame(onXRFrame);
     } catch (error) {
       console.warn('Unable to start WebXR session.', error);
