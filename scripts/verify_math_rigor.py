@@ -190,6 +190,76 @@ def check_projective_depth() -> None:
     assert abs((ndc_y * distance) / distance - ndc_y) < 1e-15
 
 
+
+def project_3d(point, mode: str):
+    x, y, z = point
+    if mode == "orthographic":
+        return x, y
+    camera_z = 9.0
+    factor = camera_z / (camera_z - z)
+    return x * factor, y * factor
+
+
+def check_projection_pipeline() -> None:
+    point4 = [1.2, -0.7, 0.4, 2.25]
+    camera_w = 9.0
+    w_factor = camera_w / (camera_w - point4[3])
+    perspective3 = [point4[i] * w_factor for i in range(3)]
+    orthographic3 = point4[:3]
+    assert perspective3 != orthographic3
+
+    pp = project_3d(perspective3, "perspective")
+    po = project_3d(perspective3, "orthographic")
+    op = project_3d(orthographic3, "perspective")
+    oo = project_3d(orthographic3, "orthographic")
+    for pair in (pp, po, op, oo):
+        assert all(math.isfinite(value) for value in pair)
+    assert pp != po
+    assert op != oo
+    assert pp != op
+    assert po != oo
+
+    # Isometric is an orientation. Equal X/Y/Z foreshortening is exact only
+    # when the final 3D→2D stage is orthographic.
+    ortho_lengths = []
+    perspective_lengths = []
+    origin_iso = camera_isometric([0.0, 0.0, 0.0])
+    origin_p = project_3d(origin_iso, "perspective")
+    for axis in range(3):
+        basis = [0.0, 0.0, 0.0]
+        basis[axis] = 1.0
+        iso = camera_isometric(basis)
+        ortho_lengths.append(math.hypot(iso[0], iso[1]))
+        p = project_3d(iso, "perspective")
+        perspective_lengths.append(math.hypot(p[0] - origin_p[0], p[1] - origin_p[1]))
+    assert max(ortho_lengths) - min(ortho_lengths) < 1e-12
+    assert max(perspective_lengths) - min(perspective_lengths) > 1e-3
+
+
+def stereo_x(view_point, eye: float) -> float:
+    camera_z = 9.0
+    distance = camera_z - view_point[2]
+    factor = camera_z / distance
+    return (view_point[0] - eye) * factor + eye
+
+
+def check_stereo_projection() -> None:
+    eye = 0.085
+    # The chosen convergence/reference plane is Z=0: both eyes project a point
+    # there to exactly the same local image coordinate.
+    for x in (-1.3, 0.0, 0.8):
+        assert abs(stereo_x([x, 0.0, 0.0], -eye) - stereo_x([x, 0.0, 0.0], eye)) < 1e-12
+
+    # Near and far points have opposite disparity signs, as physical stereo
+    # requires. Cross-eye mode swaps the two eye images; it does not alter the
+    # underlying eye projections.
+    near_disparity = stereo_x([0.0, 0.0, 2.0], eye) - stereo_x([0.0, 0.0, 2.0], -eye)
+    far_disparity = stereo_x([0.0, 0.0, -2.0], eye) - stereo_x([0.0, 0.0, -2.0], -eye)
+    assert near_disparity < 0 < far_disparity
+    assert abs(near_disparity) > 1e-4
+    assert abs(far_disparity) > 1e-4
+
+
 def check_source_guards() -> None:
     app = (ROOT / "public/app.js").read_text()
     index = (ROOT / "public/index.html").read_text()
@@ -253,8 +323,15 @@ def check_source_guards() -> None:
         "transformPoint4D",
         "projectTransformed4DTo3D",
         "(viewPoint[0] - eye) * factor + eye",
+        "function stereoSafeRect()",
+        "function stereoLayout(",
+        "id = 'stereoLayer'",
+        "Cross-eye",
+        "Observer orbit",
     ]:
         assert marker in immersive, marker
+    assert "Math.max(0.3, cameraZ - viewPoint[2])" not in immersive
+    assert "const distance = STEREO_CAMERA_Z - viewPoint[2];" in immersive
     for marker in [
         'id="stereoToggle"',
         'id="motionParallaxToggle"',
@@ -273,6 +350,8 @@ def main() -> None:
     check_4d_perspective()
     check_true_3d_isometric()
     check_projective_depth()
+    check_projection_pipeline()
+    check_stereo_projection()
     check_source_guards()
     print("Mathematical-rigor regression checks passed.")
 

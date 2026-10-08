@@ -432,7 +432,7 @@ The interface continuously labels the meaning of **W**. The symmetric free-geome
 
 ### Immersive perception without geometric distortion
 
-Stereo, motion parallax, 4D point trajectories and WebXR are **view modes**, not new geometry. The intrinsic vertices, topology, region identity, W semantics and six-plane SO(4) rotation remain unchanged.
+Stereo, observer-orbit cues, 4D point trajectories and WebXR are **view modes**, not new geometry. The intrinsic vertices, topology, region identity, W semantics and six-plane SO(4) rotation remain unchanged.
 
 - **Stereo pair** uses parallel off-axis eye views with the mandala center on the zero-parallax fusion plane; eye swapping supports cross-eye viewing without toe-in distortion.
 - **Motion parallax** perturbs only the ordinary 3D camera after the 4D→3D projection. Pointer motion works on desktop; compatible mobile browsers may use device orientation after explicit permission.
