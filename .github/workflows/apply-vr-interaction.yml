@@ -6,6 +6,7 @@ on:
       - feature/vr-interaction-controls
     paths:
       - 'scripts/apply_vr_interaction.py'
+      - 'scripts/fix_vr_guard.py'
       - '.github/workflows/apply-vr-interaction.yml'
 
 permissions:
@@ -23,7 +24,9 @@ jobs:
         with:
           node-version: 22
       - name: Apply migration
-        run: python3 scripts/apply_vr_interaction.py
+        run: |
+          python3 scripts/apply_vr_interaction.py
+          python3 scripts/fix_vr_guard.py
       - name: Validate JavaScript syntax
         run: |
           node --check public/app.js
