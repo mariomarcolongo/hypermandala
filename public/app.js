@@ -9855,6 +9855,15 @@ const SRI_REFERENCE_CELL_ANCHORS = [
       isometricView: state.isometricView,
       renderMode: state.renderMode,
       colorMode: state.colorMode,
+      insightMode: state.insightMode,
+      wSlice: state.wSlice,
+      wSectionSpace: state.wSectionSpace,
+      wSliceSweep: state.wSliceSweep,
+      wDepthColor: state.wDepthColor,
+      hypercellMode: state.hypercellMode,
+      hypercellIndex: state.hypercellIndex,
+      rotations: { ...state.rotations },
+      auto: { ...state.auto },
       zoom: state.zoom,
       pointerDown: state.pointerDown,
       width: state.width,
@@ -9878,7 +9887,123 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     state.perceptionPitch = clamp(Number(pitch) || 0, -0.12, 0.12);
   }
 
-  // Public read-only geometry bridge for immersive renderers. It exposes the
+  function vrSetRotation(key, value) {
+    if (!Object.hasOwn(state.rotations, key) || state.transition) return null;
+    stopAutorotation(key);
+    setRotationValue(key, Number(value) || 0);
+    markSettingsDirty();
+    return state.rotations[key];
+  }
+
+  function vrNudgeRotation(key, delta) {
+    if (!Object.hasOwn(state.rotations, key)) return null;
+    return vrSetRotation(key, state.rotations[key] + (Number(delta) || 0));
+  }
+
+  function vrToggleAutorotation(key) {
+    if (!Object.hasOwn(state.auto, key) || state.transition) return null;
+    state.auto[key] = !state.auto[key];
+    const ui = rotationUI[key];
+    ui?.auto?.setAttribute('aria-pressed', String(state.auto[key]));
+    markSettingsDirty();
+    return state.auto[key];
+  }
+
+  function vrSetWSlice(value) {
+    if (state.transition || state.dimension < 4) return state.wSlice;
+    setInsightMode('w-slice');
+    state.wSliceSweep = false;
+    state.wSlice = clamp(Number(value) || 0, 0, 1);
+    if (wSliceInput) wSliceInput.value = String(state.wSlice);
+    if (wSliceValue) wSliceValue.textContent = Math.round(state.wSlice * 100) + '%';
+    markSettingsDirty();
+    updateUI();
+    return state.wSlice;
+  }
+
+  function vrNudgeWSlice(delta) {
+    return vrSetWSlice(state.wSlice + (Number(delta) || 0));
+  }
+
+  function vrSetInsightMode(mode) {
+    if (state.transition || state.dimension < 4) return state.insightMode;
+    setInsightMode(mode);
+    updateUI();
+    return state.insightMode;
+  }
+
+  function vrSetWSectionSpace(space) {
+    if (!['intrinsic', 'view'].includes(space)) return state.wSectionSpace;
+    state.wSectionSpace = space;
+    markSettingsDirty();
+    updateUI();
+    return state.wSectionSpace;
+  }
+
+  function vrToggleWSweep() {
+    if (state.dimension < 4 || state.transition) return state.wSliceSweep;
+    if (state.insightMode !== 'w-slice') setInsightMode('w-slice');
+    state.wSliceSweep = !state.wSliceSweep;
+    markSettingsDirty();
+    updateUI();
+    return state.wSliceSweep;
+  }
+
+  function vrToggleWDepth() {
+    if (state.dimension < 4 || state.transition) return state.wDepthColor;
+    state.wDepthColor = !state.wDepthColor;
+    markSettingsDirty();
+    updateUI();
+    return state.wDepthColor;
+  }
+
+  function vrToggleHypercell() {
+    if (state.dimension < 4 || state.transition) return state.hypercellMode;
+    state.hypercellMode = state.hypercellMode === 'isolate' ? 'all' : 'isolate';
+    markSettingsDirty();
+    updateUI();
+    return state.hypercellMode;
+  }
+
+  function vrStepHypercell(direction) {
+    if (state.dimension < 4 || state.transition) return state.hypercellIndex;
+    const { cells, index } = selectedBoundaryHypercell();
+    if (!cells.length) return state.hypercellIndex;
+    const delta = Number(direction) < 0 ? -1 : 1;
+    state.hypercellMode = 'isolate';
+    state.hypercellIndex = (index + delta + cells.length) % cells.length;
+    markSettingsDirty();
+    updateUI();
+    return state.hypercellIndex;
+  }
+
+  function vrReset4DControls() {
+    for (const config of ROTATION_CONFIG) {
+      state.auto[config.key] = false;
+      const ui = rotationUI[config.key];
+      ui?.auto?.setAttribute('aria-pressed', 'false');
+      setRotationValue(config.key, 0);
+    }
+    state.insightMode = 'standard';
+    state.wSlice = 0.5;
+    state.wSectionSpace = 'intrinsic';
+    state.wSliceSweep = false;
+    state.wDepthColor = false;
+    state.hypercellMode = 'all';
+    state.hypercellIndex = 0;
+    if (wSliceInput) wSliceInput.value = '0.5';
+    if (wSliceValue) wSliceValue.textContent = '50%';
+    insightButtons.forEach((button) => {
+      button.classList.toggle('is-active', button.dataset.insight === 'standard');
+    });
+    markSettingsDirty();
+    updateUI();
+    return publicStateSnapshot();
+  }
+
+  // Public geometry bridge for immersive renderers. Intrinsic mutation is
+  // available only through the narrow vrControls interface below; it reuses
+  // the same state setters and validation path as the visible Explorer UI. It exposes the
   // exact intrinsic mesh and the same transform/projection functions used by
   // the primary renderer, while keeping all mutation inside the core engine.
   window.HypermandalaAPI = Object.freeze({
@@ -9892,6 +10017,25 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     projectTransformed4DToView3D: (point) => cameraTransform(project4Dto3D(point)),
     projectTransformed4DToScreen,
     setPerceptionCameraOffset,
+    vrControls: Object.freeze({
+      setRotation: vrSetRotation,
+      nudgeRotation: vrNudgeRotation,
+      toggleAutorotation: vrToggleAutorotation,
+      setWSlice: vrSetWSlice,
+      nudgeWSlice: vrNudgeWSlice,
+      setInsightMode: vrSetInsightMode,
+      setWSectionSpace: vrSetWSectionSpace,
+      toggleWSweep: vrToggleWSweep,
+      toggleWDepth: vrToggleWDepth,
+      toggleHypercell: vrToggleHypercell,
+      stepHypercell: vrStepHypercell,
+      setRenderMode,
+      setColorMode,
+      setProjection,
+      setScreenProjection,
+      setIsometricView,
+      reset4D: vrReset4DControls,
+    }),
     regionRgb: (regionId, x = 0, y = 0) => ({ ...classicRegionRgb(regionId, x, y) }),
   });
 
