@@ -1,0 +1,19 @@
+name: Verify UI harmony
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  ui-harmony:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Explorer taxonomy and perception guards
+        run: python3 scripts/verify_ui_harmony.py
+      - name: Verify immersive JavaScript syntax
+        run: node --check public/immersive.js
