@@ -30,6 +30,14 @@
   const wSliceValue = document.getElementById('wSliceValue');
   const wSliceControl = document.getElementById('wSliceControl');
   const replay4DButton = document.getElementById('replay4D');
+  const wSectionSpaceButtons = [...document.querySelectorAll('[data-w-section-space]')];
+  const wSliceSweepButton = document.getElementById('wSliceSweep');
+  const wDepthToggle = document.getElementById('wDepthToggle');
+  const hypercellToggle = document.getElementById('hypercellToggle');
+  const hypercellPrevButton = document.getElementById('hypercellPrev');
+  const hypercellNextButton = document.getElementById('hypercellNext');
+  const hypercellLabel = document.getElementById('hypercellLabel');
+  const hypercellNav = document.getElementById('hypercellNav');
   const previewCanvases = {
     square: document.getElementById('previewSquare'),
     sriyantra: document.getElementById('previewSriYantra'),
@@ -70,6 +78,12 @@
 
   const dimensionButtons = [...document.querySelectorAll('[data-dimension]')];
   const projectionButtons = [...document.querySelectorAll('[data-projection]')];
+  const screenProjectionButtons = [...document.querySelectorAll('[data-screen-projection]')];
+  const isometricViewButton = document.getElementById('isometricView');
+  const wMeaning = document.getElementById('wMeaning');
+  const dimensionRank = document.getElementById('dimensionRank');
+  const viewWExtent = document.getElementById('viewWExtent');
+  const wDepthLegend = document.getElementById('wDepthLegend');
   const insightButtons = [...document.querySelectorAll('[data-insight]')];
   const colorButtons = [...document.querySelectorAll('[data-color]')];
   const renderButtons = [...document.querySelectorAll('[data-render]')];
@@ -344,6 +358,20 @@
     },
   };
 
+
+
+  const W_SEMANTICS = {
+    square: ['spatial extrusion', 'spatial'], sriyantra: ['spatial extrusion', 'spatial'], kaliyantra: ['spatial extrusion', 'spatial'], matangiyantra: ['spatial extrusion', 'spatial'], hex: ['spatial extrusion', 'spatial'],
+    stupa: ['architectural hierarchy', 'parameter'], borobudur: ['architectural hierarchy', 'parameter'], castel: ['architectural hierarchy', 'parameter'], kukulkan: ['architectural hierarchy', 'parameter'], lalibela: ['architectural hierarchy', 'parameter'],
+    chartres: ['labyrinth path progress', 'parameter'], rosewindow: ['tracery depth parameter', 'parameter'], sunstone: ['concentric register', 'parameter'], lotfollah: ['dome radial depth', 'parameter'], chladni: ['standing-wave quadrature', 'parameter'], diatom: ['frustule shell parameter', 'parameter'], radiolaria: ['radial shell parameter', 'parameter'], snowflake: ['growth order', 'parameter'], kolam: ['weave crossing parameter', 'parameter'], vastu: ['center-zone hierarchy', 'parameter'], phyllotaxis: ['growth order', 'parameter'],
+  };
+  function currentWSemantics() { return W_SEMANTICS[state.preset] || ['model parameter', 'parameter']; }
+  function intrinsicRank() {
+    if (state.wMix * state.scales.w > 1e-4) return 4;
+    if (state.zMix * state.scales.z > 1e-4) return 3;
+    return 2;
+  }
+
   const state = {
     dimension: 2,
     requestedDimension: 2,
@@ -358,8 +386,16 @@
     zLiftStyle: 'hierarchy',
 
     projection: 'perspective',
+    screenProjection: 'perspective',
+    isometricView: false,
     insightMode: 'standard',
     wSlice: 0.5,
+    wSectionSpace: 'intrinsic',
+    wSliceSweep: false,
+    wSliceSweepDirection: 1,
+    wDepthColor: false,
+    hypercellMode: 'all',
+    hypercellIndex: 0,
     colorMode: 'classic',
     renderMode: 'solid',
 
@@ -409,8 +445,14 @@
       zLiftStyle: state.zLiftStyle,
       dimension: state.dimension,
       projection: state.projection,
+      screenProjection: state.screenProjection,
+      isometricView: state.isometricView,
       insightMode: state.insightMode,
       wSlice: state.wSlice,
+      wSectionSpace: state.wSectionSpace,
+      wDepthColor: state.wDepthColor,
+      hypercellMode: state.hypercellMode,
+      hypercellIndex: state.hypercellIndex,
       colorMode: state.colorMode,
       renderMode: state.renderMode,
       rotations: { ...state.rotations },
@@ -485,13 +527,30 @@
       state.wMix = dimension >= 4 ? 1 : 0;
     }
 
-    if (['perspective', 'orthographic', 'isometric'].includes(saved.projection)) {
+    if (saved.projection === 'isometric') {
+      state.projection = 'orthographic';
+      state.screenProjection = 'orthographic';
+      state.isometricView = true;
+    } else if (['perspective', 'orthographic'].includes(saved.projection)) {
       state.projection = saved.projection;
     }
+    if (['perspective', 'orthographic'].includes(saved.screenProjection)) state.screenProjection = saved.screenProjection;
+    if (typeof saved.isometricView === 'boolean') state.isometricView = saved.isometricView;
     if (['standard', 'w-color', 'w-slice', 'w-layers', 'compare'].includes(saved.insightMode)) {
       state.insightMode = saved.insightMode;
     }
     state.wSlice = finiteNumber(saved.wSlice, 0.5, 0, 1);
+    if (['intrinsic', 'view'].includes(saved.wSectionSpace)) {
+      state.wSectionSpace = saved.wSectionSpace;
+    }
+    state.wDepthColor = Boolean(saved.wDepthColor);
+    if (['all', 'isolate'].includes(saved.hypercellMode)) {
+      state.hypercellMode = saved.hypercellMode;
+    }
+    state.hypercellIndex = Math.max(
+      0,
+      Math.floor(finiteNumber(saved.hypercellIndex, 0, 0, 1000000)),
+    );
     if (['form', 'axis', 'classic'].includes(saved.colorMode)) {
       state.colorMode = saved.colorMode;
     }
@@ -682,7 +741,18 @@
       in vec4 vColor;
       out vec4 outColor;
       void main() {
-        outColor = vColor;
+        if (vColor.a < 0.999) {
+          ivec2 p = ivec2(mod(gl_FragCoord.xy, 4.0));
+          int i = p.x + p.y * 4;
+          float bayer[16] = float[16](
+            0.0,8.0,2.0,10.0, 12.0,4.0,14.0,6.0,
+            3.0,11.0,1.0,9.0, 15.0,7.0,13.0,5.0
+          );
+          if (vColor.a <= (bayer[i] + 0.5) / 16.0) discard;
+          outColor = vec4(vColor.rgb, 1.0);
+        } else {
+          outColor = vColor;
+        }
       }
     `);
 
@@ -1088,11 +1158,9 @@
     }
 
     if (meta.kind === 'symmetric') {
-      // Pure dimensional promotion follows the same convention as the Z lift:
-      // the finished 3D complex starts on W=0 and sweeps into +W.
-      // Intrinsically this is G3 × [0,h]. The renderer may subtract the
-      // midpoint only as a presentation translation so the object stays
-      // centered on screen; the intrinsic geometry remains one-sided in +W.
+      // Pure dimensional promotion is a centered Cartesian product.
+      // Intrinsically this is G3 × [-h/2,+h/2], so “Intrinsic W” is the
+      // same centered coordinate used by the mathematical construction.
       const hierarchy = clamp(
         liftMeta?.hierarchyT
           ?? ((z + 1.2) / 2.4),
@@ -1102,7 +1170,7 @@
       const extent = 0.48;
 
       return {
-        center: extent * 0.5,
+        center: 0,
         half: extent * 0.5,
         hierarchy,
         polarity: 0,
@@ -1236,6 +1304,7 @@
       source3: {
         vertices: vertices3.map((point) => [...point]),
         edges: edges3.map((edge) => ({ ...edge })),
+        faces: faces3.map((face) => ({ ...face, indices: [...face.indices] })),
         footprint: footprint.map((point) => [...point]),
         baseHalf: wHalf,
         liftMeta: liftMeta ? { ...liftMeta } : null,
@@ -2019,14 +2088,13 @@
       });
     }
 
-    faces3.push({
-      indices: Array.from({ length: n }, (_, i) => n - 1 - i),
-      axis: 'z',
-    });
-    faces3.push({
-      indices: Array.from({ length: n }, (_, i) => i + n),
-      axis: 'z',
-    });
+    const capTriangles = triangulateProjectedPolygon(
+      footprint.map(([x, y]) => ({ x, y })),
+    );
+    for (const [a, b, c] of capTriangles) {
+      faces3.push({ indices: [c, b, a], axis: 'z' });
+      faces3.push({ indices: [a + n, b + n, c + n], axis: 'z' });
+    }
 
     return { vertices3, edges3, faces3, footprint };
   }
@@ -6275,7 +6343,6 @@ const SRI_REFERENCE_CELL_ANCHORS = [
   function project4Dto3D(p) {
     if (
       state.projection === 'orthographic'
-      || state.projection === 'isometric'
       || state.wMix < 0.001
     ) {
       // Exact orthographic projection after 4D rotation: forget W.
@@ -6321,7 +6388,7 @@ const SRI_REFERENCE_CELL_ANCHORS = [
 
     const viewMix = cameraViewMix();
 
-    const isometric = state.projection === 'isometric';
+    const isometric = state.isometricView;
     const yaw = (
       isometric ? -Math.PI / 4 : state.cameraYaw
     ) * viewMix;
@@ -6356,7 +6423,7 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     // Perspective uses a true 3D central projection. Orthographic and
     // Isometric remain orthographic all the way to the screen.
     const cameraZ = 9;
-    const factor = state.projection === 'perspective'
+    const factor = state.screenProjection === 'perspective'
       ? cameraZ / (cameraZ - p3[2])
       : 1;
 
@@ -6593,26 +6660,23 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     return transformedWBoundsCache;
   }
 
-  function wCoordinateRgb(face, module) {
+  function wCoordinateRgbValue(value) {
     const bounds = transformedWBounds();
+    const t = clamp((value - bounds.min) / Math.max(1e-7, bounds.max - bounds.min), 0, 1);
+    const negative = hexToRgb('#6ca8ff');
+    const neutral = hexToRgb('#e7ddc6');
+    const positive = hexToRgb('#f0c45c');
+    return t < 0.5
+      ? mixRgb(negative, neutral, t * 2)
+      : mixRgb(neutral, positive, (t - 0.5) * 2);
+  }
+
+  function wCoordinateRgb(face, module) {
     const averageW = face.indices.reduce(
       (sum, index) => sum + transform4D(module.vertices[index], true)[3],
       0,
     ) / Math.max(1, face.indices.length);
-
-    const t = clamp(
-      (averageW - bounds.min) / Math.max(1e-7, bounds.max - bounds.min),
-      0,
-      1,
-    );
-
-    const negative = hexToRgb('#6ca8ff');
-    const neutral = hexToRgb('#e7ddc6');
-    const positive = hexToRgb('#f0c45c');
-
-    return t < 0.5
-      ? mixRgb(negative, neutral, t * 2)
-      : mixRgb(neutral, positive, (t - 0.5) * 2);
+    return wCoordinateRgbValue(averageW);
   }
 
   function faceStyleMix() {
@@ -6693,7 +6757,10 @@ const SRI_REFERENCE_CELL_ANCHORS = [
   function faceFillRgb(face, module, projectedPoints = null) {
     const styleMix = faceStyleMix();
 
-    if (state.insightMode === 'w-color' && state.wMix > 0.001) {
+    if (
+      (state.wDepthColor || state.insightMode === 'w-color')
+      && state.wMix > 0.001
+    ) {
       return shadeRgb(
         wCoordinateRgb(face, module),
         faceViewShade(projectedPoints),
@@ -7011,7 +7078,7 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     const ndcY = 1 - (yPx / state.height) * 2;
     const viewDepth = depth + depthBias;
 
-    if (state.projection !== 'perspective') {
+    if (state.screenProjection !== 'perspective') {
       return [
         ndcX,
         ndcY,
@@ -7060,6 +7127,7 @@ const SRI_REFERENCE_CELL_ANCHORS = [
       if (moduleAmount <= 0.002) continue;
 
       for (const face of module.faces) {
+        if (!hypercellFaceVisible(module, face, filledModules)) continue;
         const visibility = faceVisibility(face);
         if (visibility <= 0.002) continue;
 
@@ -7070,7 +7138,6 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     }
 
     const faceData = [];
-    const transparentTriangles = [];
 
     for (const entry of entries) {
       if ((counts.get(entry.key) || 0) > 1) continue;
@@ -7096,32 +7163,20 @@ const SRI_REFERENCE_CELL_ANCHORS = [
         for (const p of tri) {
           const [x, y, z, w] = solidClipPosition(p.x, p.y, p.depth);
 
+          const vertexRgb = (
+            (state.wDepthColor || state.insightMode === 'w-color')
+            && state.wMix > 0.001
+          ) ? wCoordinateRgbValue(p.w) : rgb;
           triData.push(
             x, y, z, w,
-            rgb.r / 255,
-            rgb.g / 255,
-            rgb.b / 255,
+            vertexRgb.r / 255,
+            vertexRgb.g / 255,
+            vertexRgb.b / 255,
             clamp(alpha * entry.visibility, 0, 1),
           );
         }
 
-        if (xray) {
-          transparentTriangles.push({
-            depth: tri.reduce((sum, p) => sum + p.depth, 0) / 3,
-            data: triData,
-          });
-        } else {
-          faceData.push(...triData);
-        }
-      }
-    }
-
-    if (xray) {
-      // Canvas fallback already painter-sorts faces. Mirror that ordering for
-      // WebGL so alpha compositing remains stable while all layers stay visible.
-      transparentTriangles.sort((a, b) => a.depth - b.depth);
-      for (const triangle of transparentTriangles) {
-        faceData.push(...triangle.data);
+        faceData.push(...triData);
       }
     }
 
@@ -7165,19 +7220,12 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     gl.depthFunc(gl.LEQUAL);
     gl.depthMask(true);
 
-    const translucent = xray || alpha < 0.999;
-    if (translucent) {
-      gl.enable(gl.BLEND);
-      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-      gl.depthMask(false);
-      if (xray) gl.disable(gl.DEPTH_TEST);
-    } else {
-      gl.disable(gl.BLEND);
-    }
+    gl.disable(gl.BLEND);
+    gl.enable(gl.DEPTH_TEST);
+    gl.depthMask(true);
     gl.disable(gl.CULL_FACE);
     gl.drawArrays(gl.TRIANGLES, 0, faceData.length / 8);
 
-    if (xray) gl.enable(gl.DEPTH_TEST);
     gl.depthMask(true);
     gl.disable(gl.BLEND);
 
@@ -7292,6 +7340,7 @@ const SRI_REFERENCE_CELL_ANCHORS = [
       if (moduleAmount <= 0.002) continue;
 
       for (const face of module.faces) {
+        if (!hypercellFaceVisible(module, face, filledModules)) continue;
         const visibility = faceVisibility(face);
         if (visibility <= 0.002) continue;
 
@@ -7473,14 +7522,399 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     ctx.globalAlpha = 1;
   }
 
+  function activeFilledModules() {
+    return (
+      state.zMix > 0.001
+      && surfaceModules.length
+    ) ? surfaceModules : modules;
+  }
+
+  function projectTransformed4DToScreen(p4) {
+    const p3 = cameraTransform(project4Dto3D(p4));
+
+    const cameraZ = 9;
+    const factor = state.screenProjection === 'perspective'
+      ? cameraZ / (cameraZ - p3[2])
+      : 1;
+
+    const mobile = isMobileLayout();
+    const stageTop = mobile ? state.viewTopInset : 0;
+    const stageBottom = mobile
+      ? Math.max(stageTop + 180, state.height - state.viewBottomInset)
+      : state.height;
+    const stageHeight = Math.max(180, stageBottom - stageTop);
+    const scale = Math.min(state.width, stageHeight)
+      * (mobile ? 0.27 : 0.245)
+      * state.zoom;
+
+    return {
+      x: state.width * (mobile ? 0.5 : 0.47) + p3[0] * factor * scale,
+      y: stageTop + stageHeight * 0.5 + p3[1] * factor * scale,
+      depth: p3[2],
+      viewX: p3[0],
+      viewY: p3[1],
+      viewZ: p3[2],
+      w: p4[3],
+    };
+  }
+
+  function globalIntrinsicWBounds(sectionModules = activeFilledModules()) {
+    let min = Infinity;
+    let max = -Infinity;
+
+    for (const module of sectionModules) {
+      const profile = module.wProfile;
+      if (profile) {
+        min = Math.min(min, profile.center - profile.half);
+        max = Math.max(max, profile.center + profile.half);
+        continue;
+      }
+
+      for (const point of module.vertices) {
+        min = Math.min(min, point[3]);
+        max = Math.max(max, point[3]);
+      }
+    }
+
+    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+      return { min: -0.5, max: 0.5 };
+    }
+    if (Math.abs(max - min) < 1e-8) {
+      return { min: min - 0.5, max: max + 0.5 };
+    }
+    return { min, max };
+  }
+
+  function transformedSectionWBounds(sectionModules = activeFilledModules()) {
+    let min = Infinity;
+    let max = -Infinity;
+
+    for (const module of sectionModules) {
+      for (const point of module.vertices) {
+        const transformed = transform4D(point, true);
+        min = Math.min(min, transformed[3]);
+        max = Math.max(max, transformed[3]);
+      }
+    }
+
+    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+      return { min: -0.5, max: 0.5 };
+    }
+    if (Math.abs(max - min) < 1e-8) {
+      return { min: min - 0.5, max: max + 0.5 };
+    }
+    return { min, max };
+  }
+
+  function point3Key(point, precision = 100000) {
+    return [
+      Math.round(point[0] * precision),
+      Math.round(point[1] * precision),
+      Math.round(point[2] * precision),
+    ].join(',');
+  }
+
+  function segment3Key(a, b) {
+    const ka = point3Key(a);
+    const kb = point3Key(b);
+    return ka < kb ? ka + '|' + kb : kb + '|' + ka;
+  }
+
+  function dedupeSectionPoints(points) {
+    const unique = new Map();
+    for (const point of points) {
+      unique.set(point3Key(point), point);
+    }
+    return [...unique.values()];
+  }
+
+  function intersectFaceWithViewW(transformedVertices, face, targetW) {
+    const epsilon = 1e-7;
+    const polygon = face.indices.map((index) => transformedVertices[index]);
+    if (polygon.length < 2) return [];
+
+    const allOnPlane = polygon.every(
+      (point) => Math.abs(point[3] - targetW) <= epsilon,
+    );
+
+    if (allOnPlane) {
+      return polygon.map((a, index) => {
+        const b = polygon[(index + 1) % polygon.length];
+        return [
+          [a[0], a[1], a[2], targetW],
+          [b[0], b[1], b[2], targetW],
+        ];
+      });
+    }
+
+    const coplanarSegments = [];
+    const hits = [];
+
+    for (let i = 0; i < polygon.length; i += 1) {
+      const a = polygon[i];
+      const b = polygon[(i + 1) % polygon.length];
+      const da = a[3] - targetW;
+      const db = b[3] - targetW;
+      const aOn = Math.abs(da) <= epsilon;
+      const bOn = Math.abs(db) <= epsilon;
+
+      if (aOn && bOn) {
+        coplanarSegments.push([
+          [a[0], a[1], a[2], targetW],
+          [b[0], b[1], b[2], targetW],
+        ]);
+        continue;
+      }
+
+      if (aOn) hits.push([a[0], a[1], a[2], targetW]);
+
+      if (
+        (da < -epsilon && db > epsilon)
+        || (da > epsilon && db < -epsilon)
+      ) {
+        const t = (targetW - a[3]) / (b[3] - a[3]);
+        hits.push([
+          a[0] + (b[0] - a[0]) * t,
+          a[1] + (b[1] - a[1]) * t,
+          a[2] + (b[2] - a[2]) * t,
+          targetW,
+        ]);
+      }
+    }
+
+    const unique = dedupeSectionPoints(hits);
+    if (unique.length < 2) return coplanarSegments;
+
+    // Every non-coplanar intersection lies on one line in the transformed
+    // 2-face. Sort along that line and pair crossings consecutively; unlike
+    // the previous farthest-pair shortcut, this also preserves disjoint
+    // segments if a future face is concave.
+    let start = unique[0];
+    let end = unique[1];
+    let bestDistance = -Infinity;
+
+    for (let i = 0; i < unique.length; i += 1) {
+      for (let j = i + 1; j < unique.length; j += 1) {
+        const dx = unique[j][0] - unique[i][0];
+        const dy = unique[j][1] - unique[i][1];
+        const dz = unique[j][2] - unique[i][2];
+        const distance = dx * dx + dy * dy + dz * dz;
+        if (distance > bestDistance) {
+          bestDistance = distance;
+          start = unique[i];
+          end = unique[j];
+        }
+      }
+    }
+
+    const direction = [
+      end[0] - start[0],
+      end[1] - start[1],
+      end[2] - start[2],
+    ];
+    const length = Math.max(1e-12, Math.hypot(...direction));
+    direction[0] /= length;
+    direction[1] /= length;
+    direction[2] /= length;
+
+    const ordered = [...unique].sort((a, b) => {
+      const ta =
+        (a[0] - start[0]) * direction[0]
+        + (a[1] - start[1]) * direction[1]
+        + (a[2] - start[2]) * direction[2];
+      const tb =
+        (b[0] - start[0]) * direction[0]
+        + (b[1] - start[1]) * direction[1]
+        + (b[2] - start[2]) * direction[2];
+      return ta - tb;
+    });
+
+    const segments = [...coplanarSegments];
+    for (let i = 0; i + 1 < ordered.length; i += 2) {
+      segments.push([ordered[i], ordered[i + 1]]);
+    }
+    return segments;
+  }
+
+
+  function sourceBoundaryEdgePairs(source3) {
+    const seen = new Set();
+    const pairs = [];
+    for (const face of source3?.faces || []) {
+      for (let i = 0; i < face.indices.length; i += 1) {
+        const a = face.indices[i];
+        const b = face.indices[(i + 1) % face.indices.length];
+        const key = a < b ? a + ':' + b : b + ':' + a;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        pairs.push([a, b]);
+      }
+    }
+    return pairs;
+  }
+
+  function polygon3Key(points, precision = 100000) {
+    return points.map((point) => point3Key(point, precision)).sort().join('|');
+  }
+
+  function orderCoplanarSectionPolygon(points) {
+    const unique = dedupeSectionPoints(points);
+    if (unique.length < 3) return [];
+    const center = [0, 0, 0];
+    for (const p of unique) {
+      center[0] += p[0]; center[1] += p[1]; center[2] += p[2];
+    }
+    center[0] /= unique.length; center[1] /= unique.length; center[2] /= unique.length;
+    let u = null;
+    for (const p of unique) {
+      const d = [p[0]-center[0], p[1]-center[1], p[2]-center[2]];
+      const length = Math.hypot(...d);
+      if (length > 1e-9) { u = d.map((x) => x / length); break; }
+    }
+    if (!u) return [];
+    let normal = null;
+    for (const p of unique) {
+      const d = [p[0]-center[0], p[1]-center[1], p[2]-center[2]];
+      const cross = [u[1]*d[2]-u[2]*d[1], u[2]*d[0]-u[0]*d[2], u[0]*d[1]-u[1]*d[0]];
+      const length = Math.hypot(...cross);
+      if (length > 1e-9) { normal = cross.map((x) => x / length); break; }
+    }
+    if (!normal) return [];
+    const v = [normal[1]*u[2]-normal[2]*u[1], normal[2]*u[0]-normal[0]*u[2], normal[0]*u[1]-normal[1]*u[0]];
+    return [...unique].sort((a, b) => {
+      const da = [a[0]-center[0], a[1]-center[1], a[2]-center[2]];
+      const db = [b[0]-center[0], b[1]-center[1], b[2]-center[2]];
+      const aa = Math.atan2(da[0]*v[0]+da[1]*v[1]+da[2]*v[2], da[0]*u[0]+da[1]*u[1]+da[2]*u[2]);
+      const ab = Math.atan2(db[0]*v[0]+db[1]*v[1]+db[2]*v[2], db[0]*u[0]+db[1]*u[1]+db[2]*u[2]);
+      return aa - ab;
+    });
+  }
+
+  function hypercellEdgeSets(module) {
+    const source = module.source3;
+    if (!source?.faces?.length) return [];
+    const n = source.vertices.length;
+    const boundaryEdges = sourceBoundaryEdgePairs(source);
+    const cells = [];
+    for (const layer of [0, 1]) {
+      const offset = layer * n;
+      cells.push({
+        kind: 'cap',
+        vertexIndices: Array.from({ length: n }, (_, i) => i + offset),
+        edgePairs: boundaryEdges.map(([a,b]) => [a+offset,b+offset]),
+        coplanarFaces: source.faces.map((face) => face.indices.map((i) => i + offset)),
+      });
+    }
+    for (const face of source.faces) {
+      const indices = face.indices;
+      const edgePairs = [];
+      for (let i = 0; i < indices.length; i += 1) {
+        const a = indices[i], b = indices[(i+1)%indices.length];
+        edgePairs.push([a,b], [a+n,b+n]);
+      }
+      for (const a of indices) edgePairs.push([a,a+n]);
+      cells.push({ kind:'side', vertexIndices:[...indices,...indices.map((i)=>i+n)], edgePairs });
+    }
+    return cells;
+  }
+
+  function intersectEdgeSetWithViewW(vertices, edgePairs, targetW) {
+    const epsilon = 1e-7;
+    const hits = [];
+    for (const [ia, ib] of edgePairs) {
+      const a = vertices[ia], b = vertices[ib];
+      if (!a || !b) continue;
+      const da = a[3]-targetW, db = b[3]-targetW;
+      const aOn = Math.abs(da)<=epsilon, bOn = Math.abs(db)<=epsilon;
+      if (aOn) hits.push([a[0],a[1],a[2],targetW]);
+      if (bOn) hits.push([b[0],b[1],b[2],targetW]);
+      if ((da < -epsilon && db > epsilon) || (da > epsilon && db < -epsilon)) {
+        const t = (targetW-a[3])/(b[3]-a[3]);
+        hits.push([a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t, targetW]);
+      }
+    }
+    return dedupeSectionPoints(hits);
+  }
+
+  function renderSectionSurface(polygons, alpha, width, color) {
+    const counts = new Map();
+    const entries = [];
+    for (const polygon of polygons) {
+      if (polygon.length < 3) continue;
+      const key = polygon3Key(polygon);
+      counts.set(key, (counts.get(key)||0)+1);
+      entries.push({ polygon, key });
+    }
+    const rendered = [];
+    for (const entry of entries) {
+      if ((counts.get(entry.key)||0) !== 1) continue;
+      const points = entry.polygon.map((p) => projectTransformed4DToScreen(p));
+      if (Math.abs(polygonArea2D(points)) < 0.2) continue;
+      rendered.push({ points, depth: points.reduce((sum,p)=>sum+p.depth,0)/points.length });
+    }
+    rendered.sort((a,b)=>a.depth-b.depth);
+    ctx.save();
+    ctx.lineJoin = 'round';
+    for (const item of rendered) {
+      ctx.beginPath();
+      item.points.forEach((p,i)=>{ if (!i) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y); });
+      ctx.closePath();
+      ctx.fillStyle = color; ctx.globalAlpha = alpha*0.22; ctx.fill();
+      ctx.strokeStyle = color; ctx.globalAlpha = alpha; ctx.lineWidth = width; ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawViewSpaceWSection(fraction, alpha, width, color) {
+    const sectionModules = activeFilledModules();
+    if (!sectionModules.length) return;
+    const bounds = transformedSectionWBounds(sectionModules);
+    const targetW = bounds.min + (bounds.max - bounds.min) * fraction;
+    const epsilon = Math.max(1e-7, (bounds.max-bounds.min)*1e-7);
+    const polygons = [];
+    for (const module of sectionModules) {
+      if (!module.source3?.faces?.length) continue;
+      const transformed = module.vertices.map((point) => transform4D(point, true));
+      for (const cell of hypercellEdgeSets(module)) {
+        const cellVertices = cell.vertexIndices.map((index) => transformed[index]);
+        const allOn = cellVertices.length && cellVertices.every((point) => Math.abs(point[3]-targetW)<=epsilon);
+        if (allOn && cell.kind === 'cap') {
+          for (const face of cell.coplanarFaces) {
+            polygons.push(face.map((index) => { const p=transformed[index]; return [p[0],p[1],p[2],targetW]; }));
+          }
+          continue;
+        }
+        const polygon = orderCoplanarSectionPolygon(intersectEdgeSetWithViewW(transformed, cell.edgePairs, targetW));
+        if (polygon.length >= 3) polygons.push(polygon.map((p)=>[p[0],p[1],p[2],targetW]));
+      }
+    }
+    renderSectionSurface(polygons, alpha, width, color);
+  }
+
+  function drawIntrinsicWSection(fraction, alpha, width, color) {
+    const sectionModules = activeFilledModules();
+    const bounds = globalIntrinsicWBounds(sectionModules);
+    const targetW = bounds.min + (bounds.max - bounds.min) * fraction;
+    const epsilon = Math.max(1e-7, (bounds.max-bounds.min)*1e-7);
+    const polygons = [];
+    for (const module of sectionModules) {
+      const source = module.source3;
+      if (!source?.faces?.length) continue;
+      const profile = module.wProfile;
+      const low = profile ? profile.center-profile.half : Math.min(...module.vertices.map((p)=>p[3]));
+      const high = profile ? profile.center+profile.half : Math.max(...module.vertices.map((p)=>p[3]));
+      if (targetW < low-epsilon || targetW > high+epsilon) continue;
+      const transformed = source.vertices.map((p)=>transform4D([p[0],p[1],p[2],targetW], true));
+      for (const face of source.faces) polygons.push(face.indices.map((index)=>transformed[index]));
+    }
+    renderSectionSurface(polygons, alpha, width, color);
+  }
+
   function drawWLayerOverlay() {
     if (
       state.wMix <= 0.001
       || !['w-slice', 'w-layers'].includes(state.insightMode)
     ) return;
-
-    const edges = uniqueStructuralEdgeSegments({ collapseW: true });
-    if (!edges?.length) return;
 
     const fractions = state.insightMode === 'w-slice'
       ? [state.wSlice]
@@ -7489,44 +7923,134 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     for (const fraction of fractions) {
       const distanceFromFocus = Math.abs(fraction - state.wSlice);
       const alpha = state.insightMode === 'w-slice'
-        ? 0.92
-        : 0.13 + Math.max(0, 0.26 - distanceFromFocus * 0.28);
-      const width = state.insightMode === 'w-slice' ? 1.65 : 0.9;
+        ? 0.94
+        : 0.15 + Math.max(0, 0.28 - distanceFromFocus * 0.30);
+      const width = state.insightMode === 'w-slice' ? 1.75 : 0.95;
+      const color = state.insightMode === 'w-slice'
+        ? 'rgba(246,221,151,.98)'
+        : 'rgba(220,224,232,.76)';
 
-      for (const item of edges) {
-        const profile = item.module.wProfile;
-        const w =
-          profile.center
-          - profile.half
-          + fraction * profile.half * 2;
-
-        const a = projectToScreen([item.a[0], item.a[1], item.a[2], w]);
-        const b = projectToScreen([item.b[0], item.b[1], item.b[2], w]);
-
-        drawLine(
-          a,
-          b,
-          state.insightMode === 'w-slice'
-            ? 'rgba(246,221,151,.95)'
-            : 'rgba(220,224,232,.72)',
-          width,
-          alpha,
-        );
+      if (state.wSectionSpace === 'view') {
+        drawViewSpaceWSection(fraction, alpha, width, color);
+      } else {
+        drawIntrinsicWSection(fraction, alpha, width, color);
       }
     }
+  }
 
-    ctx.save();
-    ctx.fillStyle = 'rgba(238,239,242,.48)';
-    ctx.font = '8px ui-monospace, SFMono-Regular, Menlo, monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText(
-      state.insightMode === 'w-slice'
-        ? 'intrinsic W layer ' + Math.round(state.wSlice * 100) + '%'
-        : 'intrinsic W layers 0 · 25 · 50 · 75 · 100%',
-      state.width * 0.5,
-      Math.max(24, state.height - (isMobileLayout() ? 122 : 34)),
+  function boundaryHypercells(filledModules = activeFilledModules()) {
+    const cells = [];
+
+    filledModules.forEach((module, moduleIndex) => {
+      const minusFaces = module.faces.filter(
+        (face) => !face.bridge && face.wLayer === -1,
+      );
+      const plusFaces = module.faces.filter(
+        (face) => !face.bridge && face.wLayer === 1,
+      );
+
+      if (minusFaces.length) {
+        cells.push({
+          module,
+          moduleIndex,
+          kind: 'cap',
+          wLayer: -1,
+          label: 'W− cap',
+        });
+      }
+      if (plusFaces.length) {
+        cells.push({
+          module,
+          moduleIndex,
+          kind: 'cap',
+          wLayer: 1,
+          label: 'W+ cap',
+        });
+      }
+
+      const sideCount = Math.min(minusFaces.length, plusFaces.length);
+      for (let sideIndex = 0; sideIndex < sideCount; sideIndex += 1) {
+        cells.push({
+          module,
+          moduleIndex,
+          kind: 'side',
+          sideIndex,
+          label: 'side ' + (sideIndex + 1),
+        });
+      }
+    });
+
+    return cells;
+  }
+
+  function selectedBoundaryHypercell(filledModules = activeFilledModules()) {
+    const cells = boundaryHypercells(filledModules);
+    if (!cells.length) return { cells, cell: null, index: 0 };
+
+    const index = (
+      (Math.floor(state.hypercellIndex) % cells.length)
+      + cells.length
+    ) % cells.length;
+
+    return { cells, cell: cells[index], index };
+  }
+
+  function bridgeBelongsToSide(module, bridgeFace, capFace) {
+    const n = module.source3?.vertices?.length
+      || Math.floor(module.vertices.length / 2);
+    if (!n || !capFace?.indices?.length) return false;
+
+    const sideVertices = new Set(
+      capFace.indices.map((index) => ((index % n) + n) % n),
     );
-    ctx.restore();
+    const a = ((bridgeFace.indices[0] % n) + n) % n;
+    const b = ((bridgeFace.indices[1] % n) + n) % n;
+    return sideVertices.has(a) && sideVertices.has(b);
+  }
+
+  function hypercellFaceVisible(module, face, filledModules) {
+    if (state.hypercellMode !== 'isolate' || state.wMix <= 0.001) {
+      return true;
+    }
+
+    const { cell } = selectedBoundaryHypercell(filledModules);
+    if (!cell || cell.module !== module) return false;
+
+    if (cell.kind === 'cap') {
+      return !face.bridge && face.wLayer === cell.wLayer;
+    }
+
+    const minusFaces = module.faces.filter(
+      (item) => !item.bridge && item.wLayer === -1,
+    );
+    const plusFaces = module.faces.filter(
+      (item) => !item.bridge && item.wLayer === 1,
+    );
+    const minus = minusFaces[cell.sideIndex];
+    const plus = plusFaces[cell.sideIndex];
+
+    if (face === minus || face === plus) return true;
+    if (!face.bridge) return false;
+    return bridgeBelongsToSide(module, face, minus);
+  }
+
+  function syncHypercellLabel() {
+    if (!hypercellLabel) return;
+
+    const { cells, cell, index } = selectedBoundaryHypercell();
+    if (!cells.length) {
+      hypercellLabel.textContent = 'no cells';
+      return;
+    }
+
+    if (state.hypercellMode !== 'isolate') {
+      hypercellLabel.textContent = cells.length + ' cells';
+      return;
+    }
+
+    hypercellLabel.textContent =
+      (index + 1) + '/' + cells.length + ' · '
+      + cell.label + ' · module ' + (cell.moduleIndex + 1);
   }
 
   function transform3DReference(source) {
@@ -7679,7 +8203,7 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     if (!solidHandled) drawFaces(fillAlpha);
 
     // Only the explicit Solid + wireframe mode receives the structural overlay.
-    if (state.renderMode === 'solid-edges') {
+    if (state.renderMode === 'solid-edges' || state.renderMode === 'xray') {
       drawEdges(transitionEdgeAlpha);
       drawVertices(transitionEdgeAlpha);
     }
@@ -8129,13 +8653,33 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     }
   }
 
+  function syncProjectionControls() {
+    projectionButtons.forEach((button) => button.classList.toggle('is-active', button.dataset.projection === state.projection));
+    screenProjectionButtons.forEach((button) => button.classList.toggle('is-active', button.dataset.screenProjection === state.screenProjection));
+    if (isometricViewButton) {
+      isometricViewButton.classList.toggle('is-active', state.isometricView);
+      isometricViewButton.setAttribute('aria-pressed', state.isometricView ? 'true' : 'false');
+    }
+  }
+
   function setProjection(mode) {
-    if (!['perspective', 'orthographic', 'isometric'].includes(mode)) return;
+    if (!['perspective', 'orthographic'].includes(mode)) return;
     state.projection = mode;
     markSettingsDirty();
-    projectionButtons.forEach((button) => {
-      button.classList.toggle('is-active', button.dataset.projection === mode);
-    });
+    syncProjectionControls();
+  }
+
+  function setScreenProjection(mode) {
+    if (!['perspective', 'orthographic'].includes(mode)) return;
+    state.screenProjection = mode;
+    markSettingsDirty();
+    syncProjectionControls();
+  }
+
+  function setIsometricView(enabled) {
+    state.isometricView = Boolean(enabled);
+    markSettingsDirty();
+    syncProjectionControls();
   }
 
   function setInsightMode(mode) {
@@ -8321,6 +8865,58 @@ const SRI_REFERENCE_CELL_ANCHORS = [
       'is-disabled',
       !insightEnabled || state.insightMode !== 'w-slice',
     );
+
+    const sectionEnabled = (
+      insightEnabled
+      && state.insightMode === 'w-slice'
+    );
+    wSectionSpaceButtons.forEach((button) => {
+      button.disabled = !sectionEnabled;
+      button.classList.toggle(
+        'is-active',
+        button.dataset.wSectionSpace === state.wSectionSpace,
+      );
+    });
+
+    if (wSliceSweepButton) {
+      wSliceSweepButton.disabled = (
+        !insightEnabled
+        || state.insightMode !== 'w-slice'
+      );
+      wSliceSweepButton.classList.toggle('is-active', state.wSliceSweep);
+      wSliceSweepButton.setAttribute(
+        'aria-pressed',
+        state.wSliceSweep ? 'true' : 'false',
+      );
+    }
+
+    if (wDepthToggle) {
+      const wDepthEnabled = insightEnabled && state.renderMode !== 'wire';
+      wDepthToggle.disabled = !wDepthEnabled;
+      wDepthToggle.classList.toggle('is-active', state.wDepthColor);
+      wDepthToggle.setAttribute(
+        'aria-pressed',
+        state.wDepthColor ? 'true' : 'false',
+      );
+    }
+
+    const hypercellEnabled = insightEnabled && state.renderMode !== 'wire';
+    if (hypercellToggle) {
+      hypercellToggle.disabled = !hypercellEnabled;
+      hypercellToggle.classList.toggle(
+        'is-active',
+        state.hypercellMode === 'isolate',
+      );
+      hypercellToggle.setAttribute(
+        'aria-pressed',
+        state.hypercellMode === 'isolate' ? 'true' : 'false',
+      );
+    }
+    if (hypercellPrevButton) hypercellPrevButton.disabled = !hypercellEnabled;
+    if (hypercellNextButton) hypercellNextButton.disabled = !hypercellEnabled;
+    hypercellNav?.classList.toggle('is-disabled', !hypercellEnabled);
+    syncHypercellLabel();
+
     if (replay4DButton) replay4DButton.disabled = !insightEnabled;
 
     const zLiftEnabled = meta.kind !== 'architecture' && !locked;
@@ -8338,6 +8934,19 @@ const SRI_REFERENCE_CELL_ANCHORS = [
 
   function updateUI() {
     const meta = PRESET_META[state.preset] || PRESET_META.square;
+    syncProjectionControls();
+    const [wLabel, wKind] = currentWSemantics();
+    if (wMeaning) {
+      wMeaning.textContent = wLabel;
+      wMeaning.dataset.kind = wKind;
+      wMeaning.title = wKind === 'spatial' ? 'W is an actual fourth spatial extrusion coordinate for this family.' : 'W is an explicit mathematical parameter embedded as a fourth coordinate; it is not claimed to be a physical fourth spatial direction.';
+    }
+    if (dimensionRank) dimensionRank.textContent = 'intrinsic rank ' + intrinsicRank() + 'D';
+    if (viewWExtent) {
+      if (state.wMix > 0.001) { const bounds = transformedWBounds(); viewWExtent.textContent = 'view W span ' + (bounds.max - bounds.min).toFixed(2); }
+      else viewWExtent.textContent = '';
+    }
+    wDepthLegend?.classList.toggle('is-active', Boolean(state.wDepthColor));
 
     if (state.transition) {
       const from = state.transition.fromDimension;
@@ -8377,10 +8986,8 @@ const SRI_REFERENCE_CELL_ANCHORS = [
       } else if (state.dimension === 3) {
         dimensionStatus.textContent = meta.spatial;
       } else {
-        dimensionStatus.textContent =
-          meta.kind === 'architecture'
-            ? '4D architectural projection'
-            : '4D geometric hyperform';
+        const [, wKind] = currentWSemantics();
+        dimensionStatus.textContent = wKind === 'spatial' ? '4D spatial hyperprism' : '4D parameter embedding';
       }
     }
 
@@ -8417,6 +9024,9 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     state.wSlice = 0.5;
     state.colorMode = 'classic';
     state.renderMode = 'solid';
+    state.projection = 'perspective';
+    state.screenProjection = 'perspective';
+    state.isometricView = false;
 
     state.rotations = { xw: 0, yw: 0, zw: 0, xy: 0, xz: 0, yz: 0 };
     state.auto = { xw: false, yw: false, zw: false, xy: false, xz: false, yz: false };
@@ -8589,6 +9199,11 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     });
   });
 
+  screenProjectionButtons.forEach((button) => {
+    button.addEventListener('click', () => { setScreenProjection(button.dataset.screenProjection); hideHint(); });
+  });
+  isometricViewButton?.addEventListener('click', () => { setIsometricView(!state.isometricView); hideHint(); });
+
   insightButtons.forEach((button) => {
     button.addEventListener('click', () => {
       setInsightMode(button.dataset.insight);
@@ -8599,6 +9214,7 @@ const SRI_REFERENCE_CELL_ANCHORS = [
   if (wSliceInput) {
     installTouchRangeGuard(wSliceInput, (nextValue, interactive) => {
       state.wSlice = clamp(nextValue, 0, 1);
+      if (interactive) state.wSliceSweep = false;
       if (wSliceValue) {
         wSliceValue.textContent = Math.round(state.wSlice * 100) + '%';
       }
@@ -8608,6 +9224,73 @@ const SRI_REFERENCE_CELL_ANCHORS = [
       }
     });
   }
+
+  wSectionSpaceButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const next = button.dataset.wSectionSpace;
+      if (!['intrinsic', 'view'].includes(next)) return;
+      state.wSectionSpace = next;
+      wSectionSpaceButtons.forEach((item) => {
+        item.classList.toggle(
+          'is-active',
+          item.dataset.wSectionSpace === state.wSectionSpace,
+        );
+      });
+      markSettingsDirty();
+      hideHint();
+    });
+  });
+
+  wSliceSweepButton?.addEventListener('click', () => {
+    if (state.insightMode !== 'w-slice') setInsightMode('w-slice');
+    state.wSliceSweep = !state.wSliceSweep;
+    wSliceSweepButton.classList.toggle('is-active', state.wSliceSweep);
+    wSliceSweepButton.setAttribute(
+      'aria-pressed',
+      state.wSliceSweep ? 'true' : 'false',
+    );
+    hideHint();
+  });
+
+  wDepthToggle?.addEventListener('click', () => {
+    state.wDepthColor = !state.wDepthColor;
+    wDepthToggle.classList.toggle('is-active', state.wDepthColor);
+    wDepthToggle.setAttribute(
+      'aria-pressed',
+      state.wDepthColor ? 'true' : 'false',
+    );
+    markSettingsDirty();
+    hideHint();
+  });
+
+  hypercellToggle?.addEventListener('click', () => {
+    state.hypercellMode = state.hypercellMode === 'isolate'
+      ? 'all'
+      : 'isolate';
+    markSettingsDirty();
+    updateUI();
+    hideHint();
+  });
+
+  hypercellPrevButton?.addEventListener('click', () => {
+    const { cells, index } = selectedBoundaryHypercell();
+    if (!cells.length) return;
+    state.hypercellMode = 'isolate';
+    state.hypercellIndex = (index - 1 + cells.length) % cells.length;
+    markSettingsDirty();
+    updateUI();
+    hideHint();
+  });
+
+  hypercellNextButton?.addEventListener('click', () => {
+    const { cells, index } = selectedBoundaryHypercell();
+    if (!cells.length) return;
+    state.hypercellMode = 'isolate';
+    state.hypercellIndex = (index + 1) % cells.length;
+    markSettingsDirty();
+    updateUI();
+    hideHint();
+  });
 
   replay4DButton?.addEventListener('click', replay4DConstruction);
 
@@ -8922,12 +9605,46 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     if (event.key.toLowerCase() === 'r') resetAll();
   });
 
+  function updateWSliceSweep(dt) {
+    if (!state.wSliceSweep) return;
+
+    if (
+      state.dimension < 4
+      || state.insightMode !== 'w-slice'
+      || state.transition
+    ) {
+      if (state.dimension < 4 || state.insightMode !== 'w-slice') {
+        state.wSliceSweep = false;
+        wSliceSweepButton?.classList.remove('is-active');
+        wSliceSweepButton?.setAttribute('aria-pressed', 'false');
+      }
+      return;
+    }
+
+    const speed = 0.22;
+    state.wSlice += dt * speed * state.wSliceSweepDirection;
+
+    if (state.wSlice >= 1) {
+      state.wSlice = 1;
+      state.wSliceSweepDirection = -1;
+    } else if (state.wSlice <= 0) {
+      state.wSlice = 0;
+      state.wSliceSweepDirection = 1;
+    }
+
+    if (wSliceInput) wSliceInput.value = String(state.wSlice);
+    if (wSliceValue) {
+      wSliceValue.textContent = Math.round(state.wSlice * 100) + '%';
+    }
+  }
+
   function tick(now) {
     const dt = Math.min(0.05, (now - state.lastTime) / 1000);
     state.lastTime = now;
 
     updateTransition(now);
     updateAutorotation(dt);
+    updateWSliceSweep(dt);
     updateUI();
     drawScene();
     drawBasis();
@@ -8949,4 +9666,65 @@ const SRI_REFERENCE_CELL_ANCHORS = [
   requestAnimationFrame(tick);
 
   setTimeout(() => hint.classList.add('is-hidden'), 6500);
+
+  function faceAffineResidual(vertices, indices) {
+    if (!indices || indices.length <= 3) return 0;
+    const p0 = vertices[indices[0]];
+    let u = null, v = null;
+    for (let i=1;i<indices.length&&!u;i+=1) {
+      const d=vertices[indices[i]].map((x,a)=>x-p0[a]);
+      if (Math.hypot(...d)>1e-9) u=d;
+    }
+    if (!u) return 0;
+    const uu=u.reduce((s,x)=>s+x*x,0);
+    for (let i=1;i<indices.length&&!v;i+=1) {
+      const d=vertices[indices[i]].map((x,a)=>x-p0[a]);
+      const ud=u.reduce((s,x,a)=>s+x*d[a],0);
+      const o=d.map((x,a)=>x-u[a]*ud/uu);
+      if (Math.hypot(...o)>1e-8) v=o;
+    }
+    if (!v) return 0;
+    const vv=v.reduce((s,x)=>s+x*x,0);
+    let worst=0;
+    for (const index of indices) {
+      const d=vertices[index].map((x,a)=>x-p0[a]);
+      const du=u.reduce((s,x,a)=>s+x*d[a],0)/uu;
+      const dv=v.reduce((s,x,a)=>s+x*d[a],0)/vv;
+      worst=Math.max(worst,Math.hypot(...d.map((x,a)=>x-du*u[a]-dv*v[a])));
+    }
+    return worst;
+  }
+
+  function validateCurrentGeometry() {
+    const issues=[];
+    const inspect=[...modules,...surfaceModules];
+    let maxFaceResidual=0,minCameraWDistance=Infinity,minCameraZDistance=Infinity;
+    inspect.forEach((module,moduleIndex)=>{
+      module.vertices.forEach((p,vertexIndex)=>{
+        if (p.length!==4||p.some((x)=>!Number.isFinite(x))) issues.push('non-finite vertex m'+moduleIndex+' v'+vertexIndex);
+        const p4=transform4D(p,true); minCameraWDistance=Math.min(minCameraWDistance,9-p4[3]);
+        const p3=cameraTransform(project4Dto3D(p4)); minCameraZDistance=Math.min(minCameraZDistance,9-p3[2]);
+      });
+      for (const face of module.faces) {
+        const residual=faceAffineResidual(module.vertices,face.indices); maxFaceResidual=Math.max(maxFaceResidual,residual);
+        if (residual>2e-6) issues.push('non-planar 4D face m'+moduleIndex+': '+residual);
+      }
+      if (module.source3?.faces) for (const face of module.source3.faces) {
+        const residual=faceAffineResidual(module.source3.vertices,face.indices); maxFaceResidual=Math.max(maxFaceResidual,residual);
+        if (residual>2e-6) issues.push('non-planar source3 face m'+moduleIndex+': '+residual);
+      }
+    });
+    if (minCameraWDistance<=0.25) issues.push('4D camera crosses geometry');
+    if (minCameraZDistance<=0.25) issues.push('3D camera crosses geometry');
+    if (PRESET_META[state.preset]?.kind==='symmetric') for (const module of modules) {
+      if (module.wProfile && Math.abs(module.wProfile.center)>1e-9) issues.push('symmetric intrinsic W not centered');
+    }
+    return {preset:state.preset,modules:modules.length,surfaceModules:surfaceModules.length,maxFaceResidual,minCameraWDistance,minCameraZDistance,issues,ok:issues.length===0};
+  }
+
+  window.__hypermandalaDebug = Object.freeze({
+    validateCurrentGeometry,
+    currentWSemantics: () => [...currentWSemantics()],
+    projectionState: () => ({projection4D:state.projection,projection3D:state.screenProjection,isometricView:state.isometricView}),
+  });
 })();

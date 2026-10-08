@@ -40,13 +40,6 @@
     `;
     document.head.appendChild(style);
 
-    if (sectionSpaceControl && !document.querySelector('.hyper4d-explanation')) {
-      const explanation = document.createElement('div');
-      explanation.className = 'hyper4d-explanation';
-      explanation.textContent =
-        'View-space W differs from intrinsic W after an XW, YW or ZW rotation.';
-      sectionSpaceControl.insertAdjacentElement('afterend', explanation);
-    }
 
     function usable4D() {
       return (

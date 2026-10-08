@@ -24,7 +24,7 @@ Families then divide naturally:
 In every case:
 
 - **2D → 3D:** the source plan is treated as a shared cell complex. A shared 2D edge generates one shared 3D interface, not two independently overlapping walls. The generated prism pieces are normalized into a common XY×Z cell complex before filled 3D rendering; partial overlaps are split at all footprint and Z boundaries, internal paired faces cancel, and the original plan-derived black network remains the semantic structural skeleton.
-- **3D → 4D:** for the free symmetric families (Square, Sri Yantra, Kali Yantra, Matangi Yantra and Hex), that same glued 3D cell complex receives the topology-preserving Cartesian product **G₃ × [-w,w]**. Shared 3D faces generate one shared 4D interface, every point receives the same centered W interval, collapsing W returns the exact 3D complex, and no new adjacency or holes are introduced. Other reference, physical, natural and architectural families may use explicitly documented W semantics.
+- **3D → 4D:** for the free symmetric families (Square, Sri Yantra, Kali Yantra, Matangi Yantra and Hex), that same glued 3D cell complex receives the topology-preserving Cartesian product **G₃ × [-w/2,+w/2]**. Shared 3D faces generate one shared 4D interface, every point receives the same centered W interval, collapsing W returns the exact 3D complex, and no new adjacency or holes are introduced. Other reference, physical, natural and architectural families may use explicitly documented W semantics.
 
 The project therefore preserves identity instead of manufacturing a second interpretation of every object.
 
@@ -52,7 +52,7 @@ The XW/YW/ZW rotations are the ones that most directly reveal the fourth coordin
 
 The fourth coordinate follows a stricter default rule:
 
-- Square, Sri Yantra, Kali Yantra, Matangi Yantra and Hex use one common centered W interval for the entire finished 3D object;
+- Square, Sri Yantra, Kali Yantra, Matangi Yantra and Hex use one common W interval centered at W=0 for the entire finished 3D object;
 - W therefore adds a genuine fourth-dimensional extrusion without changing 3D adjacency, inserting new holes, or using color/polarity to move touching regions apart;
 - XW/YW/ZW rotations act on that connected 4D hyperprism and can reveal the fourth coordinate without changing the object's intrinsic connectivity;
 - symmetric 4D surfaces are rendered from a shared **3D union cell complex**: all footprint boundaries and all Z boundaries subdivide the original prisms before W extrusion. Internal or partially overlapping module interfaces therefore become exact paired faces and cancel instead of appearing as extra planes. The original modules still supply meaningful structural/wire edges, so the cleanup does not introduce artificial partition lines.
@@ -65,17 +65,19 @@ The small **projected basis** gizmo shows how the X, Y, Z, and W basis direction
 
 ## Projection
 
-Three projection modes are available:
+Projection is explicitly split into two independent stages:
 
-- **Perspective** — a virtual 4D camera sits along W; geometry farther away in W projects smaller.
-- **Orthographic** — W is flattened without perspective scaling while the 3D camera remains perspective.
-- **Isometric** — W is orthographically flattened and the 3D result uses a true 3D isometric camera (45° yaw, 35.264° pitch) with orthographic screen projection, so X/Y/Z have equal foreshortening.
+- **4D → 3D:** W perspective uses a central 4D camera on +W; W orthographic forgets W without perspective scaling.
+- **3D → 2D:** the ordinary camera independently uses perspective or orthographic screen projection.
+- **Isometric orientation** is a camera-orientation preset (45° yaw, 35.264° pitch), not a fourth projection type. With 3D orthographic projection it gives equal X/Y/Z foreshortening.
+
+This separation lets W-perspective be inspected without ordinary Z-perspective, or vice versa.
 
 Mouse drag remains tied to the same object-rotation planes shown in the controls. In 3D/4D, horizontal drag now combines **XY spin + XZ tilt**, while vertical drag changes **YZ**. This keeps XY visibly responsive instead of hiding it behind a modifier. Shift-drag remains a pure **XY** gesture. The corresponding sliders update live. XW/YW/ZW remain explicit 4D rotations because an ordinary 2D drag does not uniquely specify a fourth-dimensional rotation. The wheel zooms.
 
 ## Dimension stretch
 
-The former **Axis scale** control is now labeled **Dimension stretch**:
+The former **Axis scale** control is now labeled **Intrinsic dimension stretch**:
 
 - **1.00** — normal size along that coordinate.
 - **0.00** — fully collapse that coordinate.
@@ -108,7 +110,7 @@ Its core uses nine interlocking triangles — four upward and five downward — 
 - **Complex**: the same identity-preserving core plus the fuller triple bhupura and concentric enclosure detail.
 - 3D: the full plan becomes **one centered outer→inner ascent through Z**. Bhupura begins at the low end, lotus/enclosure levels pass through the middle, and the bindu culminates at the high end. There is no second reflected Meru glued underneath.
 - The triangle intersection network is carried onto the lifted surfaces. Interlocking triangles therefore retain their smaller cells and crossing structure instead of becoming visually blank giant triangular slabs.
-- 4D: the complete stepped 3D Sri Yantra is extruded through one common centered W interval. Shiva/Shakti color families do **not** change W position. Any cells that touch in 3D remain adjacent in 4D; XW/YW/ZW rotations reveal the fourth coordinate without inventing gaps.
+- 4D: the complete stepped 3D Sri Yantra is extruded through one common W interval centered at W=0. Shiva/Shakti color families do **not** change W position. Any cells that touch in 3D remain adjacent in 4D; XW/YW/ZW rotations reveal the fourth coordinate without inventing gaps.
 
 Geometry references:
 - https://sriyantrageometry.com/
@@ -127,7 +129,7 @@ Reference:
 
 Matangi is no longer represented by a generic yantra. Its specific plan uses the documented **six-pointed star (shatkona)** inside an **eight-petalled lotus**, enclosed by a bhupura and centered on the bindu.
 
-Complex adds the additional triangle and lotus enclosures described in fuller Matangi-puja constructions while preserving the shatkona as the central identity. The shatkona crossings remain explicit structural edges on the lifted surfaces. In 4D the entire finished Matangi 3D object uses one common centered W interval, so those adjacencies are preserved rather than separated by color/polarity.
+Complex adds the additional triangle and lotus enclosures described in fuller Matangi-puja constructions while preserving the shatkona as the central identity. The shatkona crossings remain explicit structural edges on the lifted surfaces. In 4D the entire finished Matangi 3D object uses one common W interval centered at W=0, so those adjacencies are preserved rather than separated by color/polarity.
 
 References:
 - https://dlbs.liberal.ntu.edu.tw/DLMBS/search/search_detail.jsp?seq=351551
@@ -142,7 +144,7 @@ A sixfold planar-symmetric family:
 - outer satellites occupy the low end of Z;
 - layer thickness increases inward rather than remaining uniform;
 - the center becomes the single culmination at the high end of Z;
-- 4D uses one common centered W interval for the complete 3D hexagonal object, preserving all 3D adjacencies.
+- 4D uses one common W interval centered at W=0 for the complete 3D hexagonal object, preserving all 3D adjacencies.
 
 The complex version adds a twelve-module outer ring while preserving exact dimensional identity.
 
@@ -225,9 +227,9 @@ Three render modes are available:
 - **Solid** — the default; opaque projected surfaces with only the **visible** geometric edges drawn in black, matching the outlined 2D representation. This is the normal material view and remains unchanged.
 - **Solid + wireframe** — the same visible black edges plus the full structural edge overlay, including additional construction lines.
 - **Wire** — structural edges only. The edges remain fully opaque once a dimension has emerged, while new Z/W edges still fade in during dimensional transitions.
-- **Transparent** — optional translucent inspection of projected layers. Transparent triangles are composited back-to-front without depth writes so hidden projected geometry remains visible. It is simply a see-through inspection aid, **not** a simulation of 4D eyesight.
+- **X-ray** — depth-correct screen-door surfaces plus the complete structural wireframe. It avoids false painter-order relationships between intersecting translucent layers and remains an inspection aid, **not** a simulation of 4D eyesight.
 
-The collapsed **4D tools** disclosure exposes one exact intrinsic-W 3D cross-section or five simultaneous sections. These are sections of the actual 4D construction, not screen-space clipping. A hypothetical 4D observer would have a 3D retinal image: a visible 3D boundary cell can therefore be perceived volumetrically, while other 3D boundary cells may still occlude it. Hypermandala's ordinary screen render remains a 2D visualization of the projected geometry rather than a literal simulation of such a retina.
+The collapsed **4D tools** disclosure exposes one exact 3D cross-section surface or five simultaneous section surfaces, in either intrinsic-W or post-rotation view-space W. The section boundary polygons are reconstructed from the 4D cell complex; this is not screen-space clipping and not merely an edge skeleton. A hypothetical 4D observer would have a 3D retinal image: a visible 3D boundary cell can therefore be perceived volumetrically, while other 3D boundary cells may still occlude it. Hypermandala's ordinary screen render remains a 2D visualization of the projected geometry rather than a literal simulation of such a retina.
 
 The solid layer uses **WebGL2 with a real depth buffer**. Projected faces are triangulated and depth-tested per pixel rather than painter-sorted as whole polygons. Coincident shared faces are removed before rendering to prevent z-fighting. In Perspective mode, vertices are supplied to WebGL in homogeneous clip space, so depth interpolation uses the same projective denominator as the screen projection.
 
@@ -297,7 +299,7 @@ Classic 2D regions are painted **opaquely** in deterministic outer→inner order
 - **Wheel / trackpad** — zoom.
 - **Rotation planes** — rotate the object in 4D.
 - **A** — autorotate an individual plane.
-- **Dimension stretch** — manually scale X/Y/Z/W; 1 is normal and 0 collapses that coordinate.
+- **Intrinsic dimension stretch** — manually scale X/Y/Z/W; 1 is normal and 0 collapses that coordinate.
 - **Projection** — Perspective, Orthographic, or true 3D Isometric after the 4D→3D projection.
 - **Color** — Classic (default), Form, or Axis.
 - **Reset** — restore the complete default state, including Square / Complex / Compact / Hierarchy Z lift / 2D / Perspective / Classic / Solid.
@@ -421,3 +423,10 @@ The production site uses the canonical URL `https://hypermandala.mariomarcolongo
 Hypermandala does **not** claim to be the first 3D Sri Yantra visualization: earlier interactive and downloadable 3D Sri Yantra work exists.
 
 The project instead describes itself factually as an **interactive 4D mandala, yantra and geometry explorer** with genuine six-plane 4D rotation, dimensional collapse, multiple specific yantras/mandalas, semantic higher-dimensional lifts, and architecture-derived forms. Older fourth-dimensional sacred-geometry and “HyperMandala” concepts also exist, so any absolute “first 4D mandala ever” claim would require a much more exhaustive historical prior-art search.
+
+
+## Fourth-coordinate semantics
+
+The interface continuously labels the meaning of **W**. The symmetric free-geometric families use W as a genuine spatial hyperprism extrusion. Reference, physical, natural and architectural families may instead use W as an explicitly named mathematical parameter (for example path progress, standing-wave quadrature or growth order). A parameter embedding is a legitimate four-coordinate model, but it is not presented as evidence that the encoded quantity is literally a fourth spatial direction. The UI also reports intrinsic rank and current post-rotation W span.
+
+Plane rotations are composed in the listed order **XW → YW → ZW → XY → XZ → YZ**. Rotations in different planes generally do not commute; simultaneous autorotation is continuous composition in this fixed order.
