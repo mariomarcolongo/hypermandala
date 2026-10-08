@@ -23,16 +23,18 @@
 #explorerControls > .control-section:has(#rotationRows) { order: 70; }
 #explorerControls > .scale-section { order: 80; }
 
+/* Four peer rendering modes read better as a balanced 2×2 matrix than as
+   four cramped labels in one narrow row. */
 .segmented--four {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 #renderControl.segmented--four button {
   min-width: 0;
-  padding-inline: 5px;
-  font-size: 7.7px;
-  letter-spacing: .018em;
-  line-height: 1.12;
+  padding-inline: 7px;
+  font-size: 9px;
+  letter-spacing: .02em;
+  line-height: 1.15;
 }
 
 .view-tools-details {
@@ -150,10 +152,6 @@
 }
 
 @media (max-width: 760px) {
-  #renderControl.segmented--four {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   #renderControl.segmented--four button {
     min-height: 40px;
     font-size: 9px;
