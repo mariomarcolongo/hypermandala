@@ -2,8 +2,8 @@
    This layer normalizes the control taxonomy without changing geometry. */
 
 /* Put the controls that reveal/manipulate the geometry first. Rotation is the
-   primary 4D interaction, so it belongs immediately after the two projection
-   choices rather than below rendering and optional inspection tools. */
+   primary 4D interaction; Rendering is also a core viewing control, so both
+   remain above secondary stretch, palette, inspection and perception tools. */
 #explorerControls {
   display: flex;
   flex-direction: column;
@@ -19,8 +19,8 @@
 #explorerControls > .control-section:has(#projectionControl) { order: 10; }
 #explorerControls > .control-section:has(#screenProjectionControl) { order: 20; }
 #explorerControls > .control-section:has(#rotationRows) { order: 30; }
-#explorerControls > .scale-section { order: 40; }
-#explorerControls > .control-section:has(#renderControl) { order: 50; }
+#explorerControls > .control-section:has(#renderControl) { order: 40; }
+#explorerControls > .scale-section { order: 50; }
 #explorerControls > .control-section:has(#colorControl) { order: 60; }
 #explorerControls > .perception-details { order: 70; }
 #explorerControls > .view-tools-details { order: 80; }
