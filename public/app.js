@@ -294,8 +294,8 @@
     },
     chladni: {
       kind: 'physical',
-      plan: 'Chladni mode field',
-      spatial: 'standing-wave surface · W quadrature mode',
+      plan: 'clamped circular-plate eigenmode',
+      spatial: 'Kirchhoff–Love plate mode · W degenerate quadrature',
     },
     diatom: {
       kind: 'natural',
@@ -665,11 +665,14 @@
     if (!gl) return null;
 
     const vertexShader = compileGlShader(gl.VERTEX_SHADER, `#version 300 es
-      in vec3 aPosition;
+      in vec4 aPosition;
       in vec4 aColor;
       out vec4 vColor;
       void main() {
-        gl_Position = vec4(aPosition, 1.0);
+        // CPU supplies homogeneous clip coordinates. In perspective mode
+        // aPosition.w is the camera-space distance, so the GPU performs the
+        // correct perspective divide and projective depth interpolation.
+        gl_Position = aPosition;
         vColor = aColor;
       }
     `);
@@ -3868,12 +3871,78 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     return pieces;
   }
 
+  // Kirchhoff–Love thin-plate eigenmode for a clamped circular plate.
+  // For azimuthal order m, the radial solution is
+  //   J_m(lambda*r/R) - J_m(lambda)/I_m(lambda) * I_m(lambda*r/R).
+  // lambda below is the first positive m=4 root of
+  //   J'_m(lambda) I_m(lambda) - J_m(lambda) I'_m(lambda) = 0,
+  // which enforces both displacement=0 and radial slope=0 at r=R.
+  const CHLADNI_RADIUS = 1.45;
+  const CHLADNI_ORDER = 4;
+  const CHLADNI_LAMBDA = 8.346605938750736;
+
+  function besselIntegerSeries(order, x, modified = false) {
+    const half = x * 0.5;
+    let term = Math.pow(half, order);
+    for (let i = 2; i <= order; i += 1) term /= i;
+
+    let sum = term;
+    const xQuarter = half * half;
+
+    for (let k = 1; k < 48; k += 1) {
+      term *= (modified ? 1 : -1)
+        * xQuarter / (k * (order + k));
+      sum += term;
+      if (Math.abs(term) <= 1e-15 * Math.max(1, Math.abs(sum))) break;
+    }
+
+    return sum;
+  }
+
+  function besselJInteger(order, x) {
+    return besselIntegerSeries(order, x, false);
+  }
+
+  function besselIInteger(order, x) {
+    return besselIntegerSeries(order, x, true);
+  }
+
+  const CHLADNI_BOUNDARY_RATIO = (
+    besselJInteger(CHLADNI_ORDER, CHLADNI_LAMBDA)
+    / besselIInteger(CHLADNI_ORDER, CHLADNI_LAMBDA)
+  );
+
+  function chladniRadialMode(radialT) {
+    const argument = CHLADNI_LAMBDA * clamp(radialT, 0, 1);
+    return (
+      besselJInteger(CHLADNI_ORDER, argument)
+      - CHLADNI_BOUNDARY_RATIO
+        * besselIInteger(CHLADNI_ORDER, argument)
+    );
+  }
+
+  const CHLADNI_NORMALIZATION = (() => {
+    let peak = 1e-8;
+    for (let i = 0; i <= 512; i += 1) {
+      peak = Math.max(peak, Math.abs(chladniRadialMode(i / 512)));
+    }
+    return 1 / peak;
+  })();
+
   function chladniModeValue(x, y, phase = 0) {
-    const radius = 1.45;
-    const radialT = clamp(Math.hypot(x, y) / radius, 0, 1);
+    const radialT = clamp(
+      Math.hypot(x, y) / CHLADNI_RADIUS,
+      0,
+      1,
+    );
     const theta = Math.atan2(y, x);
-    const radial = Math.sin(3 * Math.PI * radialT);
-    return Math.cos(4 * theta + phase) * radial;
+    const radial = chladniRadialMode(radialT) * CHLADNI_NORMALIZATION;
+
+    // cos(4 theta) and sin(4 theta) are the two degenerate angular
+    // eigenfunctions of the same circular-plate mode. phase=pi/2 therefore
+    // supplies an orthogonal W-coordinate mode without inventing a new
+    // eigenfrequency.
+    return Math.cos(CHLADNI_ORDER * theta + phase) * radial;
   }
 
   function chladniPieces() {
@@ -6358,6 +6427,75 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     return sum * 0.5;
   }
 
+  function triangleCross2D(a, b, c) {
+    return (b.x - a.x) * (c.y - a.y)
+      - (b.y - a.y) * (c.x - a.x);
+  }
+
+  function pointStrictlyInsideTriangle2D(p, a, b, c, orientation) {
+    const epsilon = 1e-8;
+    const ab = orientation * triangleCross2D(a, b, p);
+    const bc = orientation * triangleCross2D(b, c, p);
+    const ca = orientation * triangleCross2D(c, a, p);
+    return ab > epsilon && bc > epsilon && ca > epsilon;
+  }
+
+  function triangulateProjectedPolygon(points) {
+    if (points.length < 3) return [];
+    if (points.length === 3) return [[0, 1, 2]];
+
+    const orientation = polygonArea2D(points) >= 0 ? 1 : -1;
+    const remaining = points.map((_, index) => index);
+    const triangles = [];
+    const epsilon = 1e-8;
+    let guard = 0;
+
+    while (remaining.length > 3 && guard < points.length * points.length) {
+      guard += 1;
+      let clipped = false;
+
+      for (let i = 0; i < remaining.length; i += 1) {
+        const prev = remaining[(i - 1 + remaining.length) % remaining.length];
+        const current = remaining[i];
+        const next = remaining[(i + 1) % remaining.length];
+        const a = points[prev];
+        const b = points[current];
+        const c = points[next];
+
+        if (orientation * triangleCross2D(a, b, c) <= epsilon) continue;
+
+        const containsVertex = remaining.some((index) => (
+          index !== prev
+          && index !== current
+          && index !== next
+          && pointStrictlyInsideTriangle2D(
+            points[index],
+            a, b, c, orientation,
+          )
+        ));
+        if (containsVertex) continue;
+
+        triangles.push([prev, current, next]);
+        remaining.splice(i, 1);
+        clipped = true;
+        break;
+      }
+
+      if (!clipped) break;
+    }
+
+    if (remaining.length === 3) triangles.push([...remaining]);
+
+    if (triangles.length === points.length - 2) return triangles;
+
+    // Degenerate/self-intersecting input is outside the supported face model.
+    // Keep a deterministic fallback rather than silently dropping the face.
+    return Array.from(
+      { length: points.length - 2 },
+      (_, i) => [0, i + 1, i + 2],
+    );
+  }
+
   function rawPolygonArea(points) {
     let sum = 0;
     for (let i = 0; i < points.length; i += 1) {
@@ -6868,6 +7006,38 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   }
 
+  function solidClipPosition(xPx, yPx, depth, depthBias = 0) {
+    const ndcX = (xPx / state.width) * 2 - 1;
+    const ndcY = 1 - (yPx / state.height) * 2;
+    const viewDepth = depth + depthBias;
+
+    if (state.projection !== 'perspective') {
+      return [
+        ndcX,
+        ndcY,
+        clamp(-viewDepth / 16, -0.98, 0.98),
+        1,
+      ];
+    }
+
+    // The screen X/Y values have already undergone the pinhole projection
+    // with a camera at +Z=9. Reconstruct homogeneous clip coordinates so the
+    // rasterizer uses the same projective denominator for depth.
+    const cameraZ = 9;
+    const near = 0.1;
+    const far = 40;
+    const distance = Math.max(near, cameraZ - viewDepth);
+    const a = (far + near) / (far - near);
+    const b = (-2 * far * near) / (far - near);
+
+    return [
+      ndcX * distance,
+      ndcY * distance,
+      a * distance + b,
+      distance,
+    ];
+  }
+
   function drawSolidLayer(alpha) {
     if (!solidRenderer || !gl) return false;
 
@@ -6918,17 +7088,16 @@ const SRI_REFERENCE_CELL_ANCHORS = [
 
       const rgb = faceFillRgb(entry.face, entry.module, points);
 
-      for (let i = 1; i < points.length - 1; i += 1) {
-        const tri = [points[0], points[i], points[i + 1]];
+      const triangleIndices = triangulateProjectedPolygon(points);
+      for (const indices of triangleIndices) {
+        const tri = indices.map((index) => points[index]);
         const triData = [];
 
         for (const p of tri) {
-          const x = (p.x / state.width) * 2 - 1;
-          const y = 1 - (p.y / state.height) * 2;
-          const z = clamp(-p.depth / 4.5, -0.98, 0.98);
+          const [x, y, z, w] = solidClipPosition(p.x, p.y, p.depth);
 
           triData.push(
-            x, y, z,
+            x, y, z, w,
             rgb.r / 255,
             rgb.g / 255,
             rgb.b / 255,
@@ -6970,12 +7139,12 @@ const SRI_REFERENCE_CELL_ANCHORS = [
       gl.DYNAMIC_DRAW,
     );
 
-    const stride = 7 * 4;
+    const stride = 8 * 4;
 
     gl.enableVertexAttribArray(solidRenderer.aPosition);
     gl.vertexAttribPointer(
       solidRenderer.aPosition,
-      3,
+      4,
       gl.FLOAT,
       false,
       stride,
@@ -6989,7 +7158,7 @@ const SRI_REFERENCE_CELL_ANCHORS = [
       gl.FLOAT,
       false,
       stride,
-      3 * 4,
+      4 * 4,
     );
 
     gl.enable(gl.DEPTH_TEST);
@@ -7006,7 +7175,7 @@ const SRI_REFERENCE_CELL_ANCHORS = [
       gl.disable(gl.BLEND);
     }
     gl.disable(gl.CULL_FACE);
-    gl.drawArrays(gl.TRIANGLES, 0, faceData.length / 7);
+    gl.drawArrays(gl.TRIANGLES, 0, faceData.length / 8);
 
     if (xray) gl.enable(gl.DEPTH_TEST);
     gl.depthMask(true);
@@ -7021,16 +7190,14 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     const halfWidth = edgeWidth * 0.5;
 
     const pushEdgeVertex = (xPx, yPx, depth, edgeAlpha) => {
-      const x = (xPx / state.width) * 2 - 1;
-      const y = 1 - (yPx / state.height) * 2;
-      const z = clamp(
-        -depth / 4.5 - 0.0018,
-        -0.999,
-        0.999,
+      // A small positive camera-space bias keeps visible contours in front of
+      // their coplanar face without replacing the projective depth mapping.
+      const [x, y, z, w] = solidClipPosition(
+        xPx, yPx, depth, 0.0081,
       );
 
       edgeData.push(
-        x, y, z,
+        x, y, z, w,
         black.r / 255,
         black.g / 255,
         black.b / 255,
@@ -7084,7 +7251,7 @@ const SRI_REFERENCE_CELL_ANCHORS = [
 
       gl.vertexAttribPointer(
         solidRenderer.aPosition,
-        3,
+        4,
         gl.FLOAT,
         false,
         stride,
@@ -7096,13 +7263,13 @@ const SRI_REFERENCE_CELL_ANCHORS = [
         gl.FLOAT,
         false,
         stride,
-        3 * 4,
+        4 * 4,
       );
 
       gl.depthMask(false);
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-      gl.drawArrays(gl.TRIANGLES, 0, edgeData.length / 7);
+      gl.drawArrays(gl.TRIANGLES, 0, edgeData.length / 8);
 
       gl.disable(gl.BLEND);
       gl.depthMask(true);

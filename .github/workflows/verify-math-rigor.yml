@@ -1,0 +1,43 @@
+name: Verify mathematical rigor
+
+on:
+  pull_request:
+    paths:
+      - public/app.js
+      - public/4d-tools-fix.js
+      - public/index.html
+      - README.md
+      - scripts/verify_math_rigor.py
+      - .github/workflows/verify-math-rigor.yml
+  push:
+    branches:
+      - main
+    paths:
+      - public/app.js
+      - public/4d-tools-fix.js
+      - public/index.html
+      - README.md
+      - scripts/verify_math_rigor.py
+      - .github/workflows/verify-math-rigor.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  math-and-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify geometric and physical invariants
+        run: python3 scripts/verify_math_rigor.py
+
+      - name: Verify JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check public/app.js
+          node --check public/4d-tools-fix.js
+          node --check public/kali-fix.js
+          node --check public/ui-fixes.js

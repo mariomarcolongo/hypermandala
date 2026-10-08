@@ -359,28 +359,35 @@
     );
 
     if (allOnPlane) {
-      const segments = [];
-      for (let i = 0; i < polygon.length; i += 1) {
-        const a = polygon[i];
-        const b = polygon[(i + 1) % polygon.length];
-        segments.push([
+      return polygon.map((a, index) => {
+        const b = polygon[(index + 1) % polygon.length];
+        return [
           [a[0], a[1], a[2], targetW],
           [b[0], b[1], b[2], targetW],
-        ]);
-      }
-      return segments;
+        ];
+      });
     }
 
+    const coplanarSegments = [];
     const hits = [];
+
     for (let i = 0; i < polygon.length; i += 1) {
       const a = polygon[i];
       const b = polygon[(i + 1) % polygon.length];
       const da = a[3] - targetW;
       const db = b[3] - targetW;
+      const aOn = Math.abs(da) <= epsilon;
+      const bOn = Math.abs(db) <= epsilon;
 
-      if (Math.abs(da) <= epsilon) {
-        hits.push([a[0], a[1], a[2], targetW]);
+      if (aOn && bOn) {
+        coplanarSegments.push([
+          [a[0], a[1], a[2], targetW],
+          [b[0], b[1], b[2], targetW],
+        ]);
+        continue;
       }
+
+      if (aOn) hits.push([a[0], a[1], a[2], targetW]);
 
       if (
         (da < -epsilon && db > epsilon)
@@ -397,27 +404,57 @@
     }
 
     const unique = dedupeSectionPoints(hits);
-    if (unique.length < 2) return [];
+    if (unique.length < 2) return coplanarSegments;
 
-    let bestA = unique[0];
-    let bestB = unique[1];
+    // Every non-coplanar intersection lies on one line in the transformed
+    // 2-face. Sort along that line and pair crossings consecutively; unlike
+    // the previous farthest-pair shortcut, this also preserves disjoint
+    // segments if a future face is concave.
+    let start = unique[0];
+    let end = unique[1];
     let bestDistance = -Infinity;
 
     for (let i = 0; i < unique.length; i += 1) {
       for (let j = i + 1; j < unique.length; j += 1) {
-        const dx = unique[i][0] - unique[j][0];
-        const dy = unique[i][1] - unique[j][1];
-        const dz = unique[i][2] - unique[j][2];
+        const dx = unique[j][0] - unique[i][0];
+        const dy = unique[j][1] - unique[i][1];
+        const dz = unique[j][2] - unique[i][2];
         const distance = dx * dx + dy * dy + dz * dz;
         if (distance > bestDistance) {
           bestDistance = distance;
-          bestA = unique[i];
-          bestB = unique[j];
+          start = unique[i];
+          end = unique[j];
         }
       }
     }
 
-    return [[bestA, bestB]];
+    const direction = [
+      end[0] - start[0],
+      end[1] - start[1],
+      end[2] - start[2],
+    ];
+    const length = Math.max(1e-12, Math.hypot(...direction));
+    direction[0] /= length;
+    direction[1] /= length;
+    direction[2] /= length;
+
+    const ordered = [...unique].sort((a, b) => {
+      const ta =
+        (a[0] - start[0]) * direction[0]
+        + (a[1] - start[1]) * direction[1]
+        + (a[2] - start[2]) * direction[2];
+      const tb =
+        (b[0] - start[0]) * direction[0]
+        + (b[1] - start[1]) * direction[1]
+        + (b[2] - start[2]) * direction[2];
+      return ta - tb;
+    });
+
+    const segments = [...coplanarSegments];
+    for (let i = 0; i + 1 < ordered.length; i += 2) {
+      segments.push([ordered[i], ordered[i + 1]]);
+    }
+    return segments;
   }
 
   function drawViewSpaceWSection(fraction, alpha, width, color) {
