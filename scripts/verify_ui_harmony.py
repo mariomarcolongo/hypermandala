@@ -40,6 +40,11 @@ def main() -> None:
         "#explorerControls > .perception-details { order: 70; }",
         "#explorerControls > .view-tools-details { order: 80; }",
         "#explorerControls > .rotation-section .control-section__label",
+        "#screenProjectionControl",
+        "#isometricView",
+        "#isometricView::after",
+        "content: 'Isometric';",
+        "#isometricView.is-active::after",
     ]
     for marker in harmony_markers:
         assert marker in harmony, marker
