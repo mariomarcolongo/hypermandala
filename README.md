@@ -69,7 +69,7 @@ Three projection modes are available:
 
 - **Perspective** — a virtual 4D camera sits along W; geometry farther away in W projects smaller.
 - **Orthographic** — W is flattened without perspective scaling while the 3D camera remains perspective.
-- **Isometric** — W is orthographically flattened and the 3D result uses a true isometric camera (45° yaw, 35.264° pitch) with orthographic screen projection, so X/Y/Z have equal foreshortening.
+- **Isometric** — W is orthographically flattened and the 3D result uses a true 3D isometric camera (45° yaw, 35.264° pitch) with orthographic screen projection, so X/Y/Z have equal foreshortening.
 
 Mouse drag remains tied to the same object-rotation planes shown in the controls. In 3D/4D, horizontal drag now combines **XY spin + XZ tilt**, while vertical drag changes **YZ**. This keeps XY visibly responsive instead of hiding it behind a modifier. Shift-drag remains a pure **XY** gesture. The corresponding sliders update live. XW/YW/ZW remain explicit 4D rotations because an ordinary 2D drag does not uniquely specify a fourth-dimensional rotation. The wheel zooms.
 
@@ -229,7 +229,7 @@ Three render modes are available:
 
 The collapsed **4D tools** disclosure exposes one exact intrinsic-W 3D cross-section or five simultaneous sections. These are sections of the actual 4D construction, not screen-space clipping. A hypothetical 4D observer would have a 3D retinal image: a visible 3D boundary cell can therefore be perceived volumetrically, while other 3D boundary cells may still occlude it. Hypermandala's ordinary screen render remains a 2D visualization of the projected geometry rather than a literal simulation of such a retina.
 
-The solid layer uses **WebGL2 with a real depth buffer**. Projected faces are triangulated and depth-tested per pixel rather than painter-sorted as whole polygons. Coincident shared faces are removed before rendering to prevent z-fighting.
+The solid layer uses **WebGL2 with a real depth buffer**. Projected faces are triangulated and depth-tested per pixel rather than painter-sorted as whole polygons. Coincident shared faces are removed before rendering to prevent z-fighting. In Perspective mode, vertices are supplied to WebGL in homogeneous clip space, so depth interpolation uses the same projective denominator as the screen projection.
 
 After the face pass, Solid performs a second depth-tested pass for black edge contours. The edges are rendered as narrow screen-space quads with a tiny depth bias, so front-facing/silhouette structure remains crisp while hidden and back edges are rejected by the existing face depth buffer. This gives 2D, 3D and 4D the same visual grammar: **colored faces + visible black outlines**.
 
@@ -298,7 +298,7 @@ Classic 2D regions are painted **opaquely** in deterministic outer→inner order
 - **Rotation planes** — rotate the object in 4D.
 - **A** — autorotate an individual plane.
 - **Dimension stretch** — manually scale X/Y/Z/W; 1 is normal and 0 collapses that coordinate.
-- **Projection** — Perspective, Orthographic, or true Isometric.
+- **Projection** — Perspective, Orthographic, or true 3D Isometric after the 4D→3D projection.
 - **Color** — Classic (default), Form, or Axis.
 - **Reset** — restore the complete default state, including Square / Complex / Compact / Hierarchy Z lift / 2D / Perspective / Classic / Solid.
 - **Persistence** — explorer settings are stored in browser `localStorage` and restored after reload/reopening: selected form, complexity, spacing, Z lift, dimension, projection, rendering, color mode, rotations, autorotation, dimension stretches, zoom, and Geometric Forms panel collapse state.
@@ -366,7 +366,7 @@ The yantra and Hex center marks become the single high-Z culmination of their ge
 
 ## Dimensional lift philosophy
 
-The 2D plan remains exact, but the higher-dimensional realization is not required to imitate ordinary construction constraints.
+The 2D plan is the authoritative geometric source for each preset; reference-derived presets may be idealized rather than survey-exact. The higher-dimensional realization is not required to imitate ordinary construction constraints.
 
 For **reference architecture**, real buildings anchor recognizable topology, proportions and hierarchy. Hypermandala may idealize those forms where gravity, materials or construction economy would otherwise force asymmetry or compromise, especially in 4D.
 
