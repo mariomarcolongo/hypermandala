@@ -7,18 +7,48 @@ required = [
     "function fitXRProjectedPoints(points)",
     "function recenterXRFromPose(pose)",
     "uModel * vec4(aPosition, 1.0)",
-    "const geometryInterval = perception.xrMobile ? 33 : 0;",
+    "const geometryInterval = perception.xrMobile",
+    "perception.xrFramebufferScale <= 0.52 ? 50 : 33",
     "framebufferScaleFactor: perception.xrFramebufferScale",
     "perception.xrFramebufferScale = perception.xrMobile ? 0.68 : 0.90;",
     "powerPreference: 'high-performance'",
-    "session.addEventListener('select', () => {",
+    "session.addEventListener('selectstart', onXRSelectStart);",
+    "session.addEventListener('selectend', onXRSelectEnd);",
+    "session.addEventListener('select', onXRSelect);",
+    "function executeXRMenuAction(action)",
+    "function drawXRMenu(gl, view)",
+    "function updateXRAdaptiveQuality(time, session, gl)",
     "perception.xrRecenterPending = true;",
     "perception.xrTriangleBuffer",
     "perception.xrLineBuffer",
     "uploadXRGeometry(gl, perception.xrGeometry)",
     "xrFitProjectedPoints: (points) => fitXRProjectedPoints(points)",
     "xrRecenterForMatrix: (matrix) =>",
+    "xrExecuteControl: (action) =>",
+    "api.vrControls",
+    "rot:${key}:-",
+    "mode:w-slice",
+    "frame:intrinsic",
+    "toggle:hypercell",
+    "render:solid-edges",
+    "projection:orthographic",
+    "screen:orthographic",
 ]
+
+app_source = (ROOT / 'public' / 'app.js').read_text()
+for marker in [
+    "vrControls: Object.freeze({",
+    "nudgeRotation: vrNudgeRotation",
+    "nudgeWSlice: vrNudgeWSlice",
+    "toggleAutorotation: vrToggleAutorotation",
+    "toggleWDepth: vrToggleWDepth",
+    "toggleHypercell: vrToggleHypercell",
+    "stepHypercell: vrStepHypercell",
+    "reset4D: vrReset4DControls",
+    "rotations: { ...state.rotations }",
+    "wSlice: state.wSlice",
+]:
+    assert marker in app_source, marker
 for marker in required:
     assert marker in source, marker
 
