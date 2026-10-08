@@ -143,6 +143,8 @@
 <body>
   <canvas id="solidLayer" aria-hidden="true"></canvas>
   <canvas id="mandala" aria-label="Interactive 2D, 3D and 4D geometric form explorer"></canvas>
+  <canvas id="perceptionOverlay" aria-hidden="true"></canvas>
+  <canvas id="xrCanvas" aria-hidden="true"></canvas>
 
   <header class="brand">
     <div class="brand__name">Hypermandala</div>
@@ -244,6 +246,17 @@
           <div class="perception-tool-label">3D boundary cell</div>
           <button id="hypercellToggle" class="inspection-toggle hyper4d-wide" type="button" aria-pressed="false" title="Isolate one genuine 3D boundary cell of the current 4D prism decomposition">Isolate one cell</button>
           <div class="hyper4d-cell-nav" id="hypercellNav"><button id="hypercellPrev" type="button" aria-label="Previous 3D boundary cell">‹</button><output id="hypercellLabel" aria-live="polite">all cells</output><button id="hypercellNext" type="button" aria-label="Next 3D boundary cell">›</button></div>
+          <div class="perception-tool-label">Immersive perception</div>
+          <div class="segmented hyper4d-two immersive-grid">
+            <button id="stereoToggle" type="button" aria-pressed="false" title="Render two off-axis eye views of the exact 4D→3D projection">Stereo pair</button>
+            <button id="motionParallaxToggle" type="button" aria-pressed="false" title="Move only the ordinary 3D camera with pointer or device orientation">Motion parallax</button>
+          </div>
+          <div class="segmented hyper4d-two immersive-grid">
+            <button id="trajectoryToggle" type="button" aria-pressed="false" title="Trace actual transformed 4D points, including the W↔−W mirror pair where present">4D trajectories</button>
+            <button id="stereoSwap" type="button" aria-pressed="false" disabled title="Swap left/right views for cross-eye stereoscopy">Swap eyes</button>
+          </div>
+          <button id="enterVr" class="inspection-toggle hyper4d-wide" type="button" disabled title="Use a compatible WebXR headset for true binocular head-tracked viewing">Enter immersive VR</button>
+          <div id="immersiveStatus" class="hyper4d-explanation immersive-status" aria-live="polite">Perception tools preserve intrinsic geometry.</div>
         </div>
         <button
           id="replay4D"
@@ -515,6 +528,12 @@
         being presented as the only canonical interpretation.
       </p>
       <p>
+        Stereo, motion-parallax, trajectory and WebXR modes are observation tools only:
+        they never deform the intrinsic 4D construction. Symmetric mandala and yantra
+        families use a centered W↔−W spatial hyperprism, preserving the source center,
+        adjacency, reflection balance and symbolic hierarchy through the fourth axis.
+      </p>
+      <p>
         Created by <a href="https://mariomarcolongo.com/" rel="author">Mario Marcolongo</a>.
         <a href="https://github.com/mariomarcolongo/hypermandala" target="_blank" rel="noreferrer">Source code</a>.
       </p>
@@ -544,6 +563,7 @@
         window.__hypermandalaPrepareUiFixes?.();
         await loadInlineScript('./kali-fix.js', '/kali-fix.js');
         await loadInlineScript('./app.js', '/app.js');
+        await loadInlineScript('./immersive.js', '/immersive.js');
         window.__hypermandalaInstallUiFixes?.();
       } catch (error) {
         console.warn('Fresh asset load failed; retrying with cache-busting URLs.', error);
@@ -556,7 +576,13 @@
           const loadFallbackApp = () => {
             const app = document.createElement('script');
             app.src = './app.js?reload=' + Date.now();
-            app.onload = () => window.__hypermandalaInstallUiFixes?.();
+            app.onload = () => {
+              const immersive = document.createElement('script');
+              immersive.src = './immersive.js?reload=' + Date.now();
+              immersive.onload = () => window.__hypermandalaInstallUiFixes?.();
+              immersive.onerror = () => window.__hypermandalaInstallUiFixes?.();
+              document.body.appendChild(immersive);
+            };
             document.body.appendChild(app);
           };
 

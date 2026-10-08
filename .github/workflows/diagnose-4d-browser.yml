@@ -7,6 +7,7 @@ on:
       - 'public/index.html'
       - 'public/styles.css'
       - 'public/app.js'
+      - 'public/immersive.js'
   push:
     paths:
       - '.github/workflows/diagnose-4d-browser.yml'
@@ -14,6 +15,7 @@ on:
       - 'public/index.html'
       - 'public/styles.css'
       - 'public/app.js'
+      - 'public/immersive.js'
 permissions:
   contents: read
 jobs:
@@ -60,11 +62,26 @@ jobs:
             throw new Error('Native 4D tools are missing or duplicated');
           }
 
+          for (const id of ['stereoToggle', 'stereoSwap', 'motionParallaxToggle', 'trajectoryToggle', 'enterVr']) {
+            if (await page.locator('#' + id).count() !== 1) {
+              throw new Error('Immersive control missing or duplicated: ' + id);
+            }
+          }
+          if (!(await page.evaluate(() => Boolean(window.HypermandalaAPI)))) {
+            throw new Error('HypermandalaAPI geometry bridge is unavailable');
+          }
+
           await page.locator('[data-dimension="4"]').click();
           await page.waitForTimeout(5000);
           const details = page.locator('.perception-details');
           await details.locator('summary').click();
           console.log('DETAILS_OPEN', await details.evaluate(el => el.open));
+
+          const transformValidation = await page.evaluate(() => window.__hypermandalaDebug.validate4DTransform());
+          console.log('SO4_TRANSFORM', transformValidation);
+          if (!transformValidation.ok) {
+            throw new Error('Composed 4D transform is not a valid SO(4) transform: ' + JSON.stringify(transformValidation));
+          }
 
           const assertExplorerLayout = async (label) => {
             const layout = await page.evaluate(() => {
@@ -146,6 +163,60 @@ jobs:
           };
           const changed = (a, b) => a.solid !== b.solid || a.overlay !== b.overlay;
           const baseline = await snapshot('baseline');
+
+          // Stereo must produce a real two-eye view, and swapping eyes must
+          // produce a distinct image rather than only relabeling the control.
+          const blankPerception = await hash('#perceptionOverlay');
+          await page.locator('#stereoToggle').click();
+          await page.waitForTimeout(400);
+          const stereo = await hash('#perceptionOverlay');
+          if (stereo === blankPerception) throw new Error('Stereo pair did not render');
+          if ((await page.locator('#stereoSwap').isDisabled())) throw new Error('Stereo eye swap remained disabled');
+          await page.locator('#stereoSwap').click();
+          await page.waitForTimeout(250);
+          const stereoSwapped = await hash('#perceptionOverlay');
+          if (stereoSwapped === stereo) throw new Error('Eye swap did not change the stereo render');
+          await page.locator('#stereoToggle').click();
+          await page.waitForTimeout(150);
+
+          // Motion parallax must move the projected view while leaving the
+          // intrinsic scene key untouched.
+          const intrinsicKeyBeforeParallax = await page.evaluate(() => window.HypermandalaAPI.sceneKey());
+          const parallaxBefore = await hash('#mandala');
+          await page.locator('#motionParallaxToggle').click();
+          await page.mouse.move(1360, 220);
+          await page.waitForTimeout(450);
+          const parallaxAfter = await hash('#mandala');
+          const intrinsicKeyAfterParallax = await page.evaluate(() => window.HypermandalaAPI.sceneKey());
+          if (parallaxBefore === parallaxAfter) throw new Error('Motion parallax did not alter the camera view');
+          if (intrinsicKeyBeforeParallax !== intrinsicKeyAfterParallax) throw new Error('Motion parallax mutated intrinsic geometry');
+          await page.locator('#motionParallaxToggle').click();
+          await page.waitForTimeout(250);
+
+          // A true 4D drag must leave a visible trajectory of transformed 4D
+          // points without changing the intrinsic scene topology.
+          await page.locator('#trajectoryToggle').click();
+          const trajectoryBefore = await hash('#perceptionOverlay');
+          const intrinsicKeyBeforeTrajectory = await page.evaluate(() => window.HypermandalaAPI.sceneKey());
+          const canvasBox = await page.locator('#mandala').boundingBox();
+          if (!canvasBox) throw new Error('Mandala canvas has no bounding box');
+          const cx = canvasBox.x + canvasBox.width * 0.52;
+          const cy = canvasBox.y + canvasBox.height * 0.52;
+          await page.mouse.move(cx, cy);
+          await page.mouse.down();
+          await page.mouse.move(cx + 120, cy - 70, { steps: 10 });
+          await page.mouse.up();
+          await page.waitForTimeout(500);
+          const trajectoryAfter = await hash('#perceptionOverlay');
+          const intrinsicKeyAfterTrajectory = await page.evaluate(() => window.HypermandalaAPI.sceneKey());
+          if (trajectoryBefore === trajectoryAfter) throw new Error('4D trajectory did not respond to 4D rotation');
+          if (intrinsicKeyBeforeTrajectory !== intrinsicKeyAfterTrajectory) throw new Error('4D trajectory mutated intrinsic topology');
+          await page.locator('#trajectoryToggle').click();
+
+          // Headless CI normally has no immersive XR device. The progressive
+          // enhancement must therefore remain safe and simply expose a disabled
+          // button rather than throwing page errors.
+          console.log('XR_BUTTON_DISABLED', await page.locator('#enterVr').isDisabled());
 
           const viewButton = page.locator('[data-w-section-space="view"]');
           console.log('VIEW_DISABLED_BEFORE', await viewButton.isDisabled());

@@ -300,6 +300,7 @@ Classic 2D regions are painted **opaquely** in deterministic outer→inner order
 - **Rotation planes** — rotate the object in 4D.
 - **A** — autorotate an individual plane.
 - **Intrinsic dimension stretch** — manually scale X/Y/Z/W; 1 is normal and 0 collapses that coordinate.
+- **Immersive perception** — optional stereo pair, eye-order swap, motion parallax, exact 4D point trajectories and compatible-headset WebXR; these change observation only, not intrinsic geometry.
 - **Projection** — Perspective, Orthographic, or true 3D Isometric after the 4D→3D projection.
 - **Color** — Classic (default), Form, or Axis.
 - **Reset** — restore the complete default state, including Square / Complex / Compact / Hierarchy Z lift / 2D / Perspective / Classic / Solid.
@@ -387,7 +388,7 @@ The default yantra lift is therefore a **single centered hierarchy**. The bhupur
 
 Hypermandala also keeps an explicit **Mirror** Z-lift mode as an experiment. In that mode the outer level is shared at Z=0 and the inward hierarchy is reflected into ±Z. This deliberately restores a stronger reflection symmetry — useful aesthetically and mathematically — without claiming that it is the uniquely faithful traditional continuation.
 
-In 4D, W is used for relationships that Z cannot express cleanly. Complementary Sri/Matangi triangle polarities separate in opposite W directions through the intermediate hierarchy and converge again toward W=0 at the outer boundary and bindu. Kali's five downward triangles share one polarity rather than being assigned an artificial alternating sign. Square and Hex use hierarchy-dependent W extent without an invented polarity.
+In 4D, the symmetric mandala/yantra families are promoted as centered spatial hyperprisms: the complete finished 3D object is copied through one common interval `[-h/2,+h/2]` on W. This preserves every 3D adjacency and gives an exact W↔−W mirror symmetry without separating regions by color, deity association or polarity. XW/YW/ZW rotations then reveal this genuine fourth spatial coordinate while the bindu/center remains structurally privileged by the source hierarchy rather than by an invented W offset.
 
 ### Complexity preservation
 
@@ -428,5 +429,16 @@ The project instead describes itself factually as an **interactive 4D mandala, y
 ## Fourth-coordinate semantics
 
 The interface continuously labels the meaning of **W**. The symmetric free-geometric families use W as a genuine spatial hyperprism extrusion. Reference, physical, natural and architectural families may instead use W as an explicitly named mathematical parameter (for example path progress, standing-wave quadrature or growth order). A parameter embedding is a legitimate four-coordinate model, but it is not presented as evidence that the encoded quantity is literally a fourth spatial direction. The UI also reports intrinsic rank and current post-rotation W span.
+
+### Immersive perception without geometric distortion
+
+Stereo, motion parallax, 4D point trajectories and WebXR are **view modes**, not new geometry. The intrinsic vertices, topology, region identity, W semantics and six-plane SO(4) rotation remain unchanged.
+
+- **Stereo pair** uses parallel off-axis eye views with the mandala center on the zero-parallax fusion plane; eye swapping supports cross-eye viewing without toe-in distortion.
+- **Motion parallax** perturbs only the ordinary 3D camera after the 4D→3D projection. Pointer motion works on desktop; compatible mobile browsers may use device orientation after explicit permission.
+- **4D trajectories** record actual transformed four-coordinate points. Spatial hyperprisms trace the symbolic center plus an actual W−/W+ mirror pair when such a pair exists in the mesh.
+- **Immersive VR** is progressive enhancement through WebXR. A headset supplies independent left/right eye view and projection matrices for the same exact 4D→3D geometry; unsupported browsers simply keep the normal explorer.
+
+The goal is perceptual access to the hyperform while preserving mandala qualities—center, radial/axial balance, repetition, hierarchy, adjacency and symbolic region identity—rather than adding arbitrary psychedelic deformation. No claim is made that a historical tradition prescribed a uniquely canonical four-dimensional continuation.
 
 Plane rotations are composed in the listed order **XW → YW → ZW → XY → XZ → YZ**. Rotations in different planes generally do not commute; simultaneous autorotation is continuous composition in this fixed order.

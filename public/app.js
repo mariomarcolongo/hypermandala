@@ -361,7 +361,7 @@
 
 
   const W_SEMANTICS = {
-    square: ['spatial extrusion', 'spatial'], sriyantra: ['spatial extrusion', 'spatial'], kaliyantra: ['spatial extrusion', 'spatial'], matangiyantra: ['spatial extrusion', 'spatial'], hex: ['spatial extrusion', 'spatial'],
+    square: ['centered spatial hyperprism · W↔−W mirror', 'spatial'], sriyantra: ['centered spatial hyperprism · W↔−W mirror', 'spatial'], kaliyantra: ['centered spatial hyperprism · W↔−W mirror', 'spatial'], matangiyantra: ['centered spatial hyperprism · W↔−W mirror', 'spatial'], hex: ['centered spatial hyperprism · W↔−W mirror', 'spatial'],
     stupa: ['architectural hierarchy', 'parameter'], borobudur: ['architectural hierarchy', 'parameter'], castel: ['architectural hierarchy', 'parameter'], kukulkan: ['architectural hierarchy', 'parameter'], lalibela: ['architectural hierarchy', 'parameter'],
     chartres: ['labyrinth path progress', 'parameter'], rosewindow: ['tracery depth parameter', 'parameter'], sunstone: ['concentric register', 'parameter'], lotfollah: ['dome radial depth', 'parameter'], chladni: ['standing-wave quadrature', 'parameter'], diatom: ['frustule shell parameter', 'parameter'], radiolaria: ['radial shell parameter', 'parameter'], snowflake: ['growth order', 'parameter'], kolam: ['weave crossing parameter', 'parameter'], vastu: ['center-zone hierarchy', 'parameter'], phyllotaxis: ['growth order', 'parameter'],
   };
@@ -406,6 +406,10 @@
     cameraYaw: -0.62,
     cameraPitch: 0.58,
     zoom: 1,
+    // Observation-only offsets used by motion parallax. They are deliberately
+    // excluded from persistence and from the intrinsic 4D transform.
+    perceptionYaw: 0,
+    perceptionPitch: 0,
 
     pointerDown: false,
     pointerX: 0,
@@ -6390,7 +6394,8 @@ const SRI_REFERENCE_CELL_ANCHORS = [
 
     const isometric = state.isometricView;
     const yaw = (
-      isometric ? -Math.PI / 4 : state.cameraYaw
+      (isometric ? -Math.PI / 4 : state.cameraYaw)
+      + state.perceptionYaw
     ) * viewMix;
 
     let c = Math.cos(yaw);
@@ -6401,9 +6406,10 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     z = nz;
 
     const pitch = (
-      isometric
+      (isometric
         ? Math.atan(1 / Math.sqrt(2))
-        : state.cameraPitch
+        : state.cameraPitch)
+      + state.perceptionPitch
     ) * viewMix;
 
     c = Math.cos(pitch);
@@ -9034,6 +9040,8 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     state.cameraYaw = -0.62;
     state.cameraPitch = 0.58;
     state.zoom = 1;
+    state.perceptionYaw = 0;
+    state.perceptionPitch = 0;
 
     restoredDockCollapsed = false;
     restoredDockExpanded = false;
@@ -9572,6 +9580,8 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     state.cameraYaw = -0.62;
     state.cameraPitch = 0.58;
     state.zoom = 1;
+    state.perceptionYaw = 0;
+    state.perceptionPitch = 0;
     markSettingsDirty();
   });
 
@@ -9722,8 +9732,172 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     return {preset:state.preset,modules:modules.length,surfaceModules:surfaceModules.length,maxFaceResidual,minCameraWDistance,minCameraZDistance,issues,ok:issues.length===0};
   }
 
+  function rotationOnly4D(source) {
+    const p = [...source];
+    for (const config of ROTATION_CONFIG) {
+      rotatePlane(p, config.a, config.b, state.rotations[config.key] * RAD);
+    }
+    return p;
+  }
+
+  function determinant4(matrix) {
+    const a = matrix.map((row) => [...row]);
+    let determinant = 1;
+    for (let column = 0; column < 4; column += 1) {
+      let pivot = column;
+      for (let row = column + 1; row < 4; row += 1) {
+        if (Math.abs(a[row][column]) > Math.abs(a[pivot][column])) pivot = row;
+      }
+      if (Math.abs(a[pivot][column]) < 1e-14) return 0;
+      if (pivot !== column) {
+        [a[pivot], a[column]] = [a[column], a[pivot]];
+        determinant *= -1;
+      }
+      const value = a[column][column];
+      determinant *= value;
+      for (let row = column + 1; row < 4; row += 1) {
+        const factor = a[row][column] / value;
+        for (let k = column + 1; k < 4; k += 1) {
+          a[row][k] -= factor * a[column][k];
+        }
+      }
+    }
+    return determinant;
+  }
+
+  function validate4DTransform() {
+    const basis = [
+      [1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1],
+    ].map(rotationOnly4D);
+    let maxMetricError = 0;
+    for (let i = 0; i < 4; i += 1) {
+      for (let j = 0; j < 4; j += 1) {
+        const dot = basis[i].reduce((sum, value, axis) => (
+          sum + value * basis[j][axis]
+        ), 0);
+        maxMetricError = Math.max(
+          maxMetricError,
+          Math.abs(dot - (i === j ? 1 : 0)),
+        );
+      }
+    }
+    // basis vectors are rows here; det(R^T) = det(R), so orientation is exact.
+    const determinant = determinant4(basis);
+    const determinantError = Math.abs(determinant - 1);
+    const probe = [0.37, -0.21, 0.56, 0];
+    const cameraW = 9;
+    const factor = cameraW / (cameraW - probe[3]);
+    const projected = [probe[0] * factor, probe[1] * factor, probe[2] * factor];
+    const perspectivePlaneError = Math.hypot(
+      projected[0] - probe[0],
+      projected[1] - probe[1],
+      projected[2] - probe[2],
+    );
+    return {
+      maxMetricError,
+      determinant,
+      determinantError,
+      perspectivePlaneError,
+      ok: (
+        maxMetricError < 1e-10
+        && determinantError < 1e-10
+        && perspectivePlaneError < 1e-12
+      ),
+    };
+  }
+
+  function symbolicCenterPoint() {
+    const central = modules.filter((module) => isCentralRegion(module.regionId));
+    const source = central.length ? central : modules;
+    let count = 0;
+    const sum = [0,0,0,0];
+    for (const module of source) {
+      for (const point of module.vertices) {
+        for (let axis = 0; axis < 4; axis += 1) sum[axis] += point[axis];
+        count += 1;
+      }
+    }
+    if (!count) return [0,0,geometryStats.centerZ,geometryStats.centerW];
+    return sum.map((value) => value / count);
+  }
+
+  function clonePublicModule(module) {
+    return {
+      regionId: module.regionId,
+      vertices: module.vertices.map((point) => [...point]),
+      edges: module.edges.map((edge) => ({ ...edge })),
+      faces: module.faces.map((face) => ({ ...face, indices: [...face.indices] })),
+      wProfile: module.wProfile ? { ...module.wProfile } : null,
+    };
+  }
+
+  function publicSceneKey() {
+    return [
+      state.preset,
+      state.complexity,
+      state.spacingStyle,
+      state.zLiftStyle,
+      modules.length,
+      surfaceModules.length,
+    ].join('|');
+  }
+
+  function publicStateSnapshot() {
+    return {
+      preset: state.preset,
+      complexity: state.complexity,
+      spacingStyle: state.spacingStyle,
+      zLiftStyle: state.zLiftStyle,
+      dimension: state.dimension,
+      transition: Boolean(state.transition),
+      projection: state.projection,
+      screenProjection: state.screenProjection,
+      isometricView: state.isometricView,
+      renderMode: state.renderMode,
+      colorMode: state.colorMode,
+      zoom: state.zoom,
+      pointerDown: state.pointerDown,
+      width: state.width,
+      height: state.height,
+      wSemantics: [...currentWSemantics()],
+    };
+  }
+
+  function publicSceneSnapshot() {
+    return {
+      key: publicSceneKey(),
+      state: publicStateSnapshot(),
+      symbolicCenter: symbolicCenterPoint(),
+      filledModules: activeFilledModules().map(clonePublicModule),
+      structuralModules: modules.map(clonePublicModule),
+    };
+  }
+
+  function setPerceptionCameraOffset(yaw, pitch) {
+    state.perceptionYaw = clamp(Number(yaw) || 0, -0.16, 0.16);
+    state.perceptionPitch = clamp(Number(pitch) || 0, -0.12, 0.12);
+  }
+
+  // Public read-only geometry bridge for immersive renderers. It exposes the
+  // exact intrinsic mesh and the same transform/projection functions used by
+  // the primary renderer, while keeping all mutation inside the core engine.
+  window.HypermandalaAPI = Object.freeze({
+    stateSnapshot: publicStateSnapshot,
+    sceneSnapshot: publicSceneSnapshot,
+    sceneKey: publicSceneKey,
+    transformPoint4D: (point) => transform4D(point, true),
+    projectPoint4DTo3D: (point) => project4Dto3D(transform4D(point, true)),
+    projectPointToView3D: (point) => cameraTransform(project4Dto3D(transform4D(point, true))),
+    projectTransformed4DTo3D: (point) => project4Dto3D(point),
+    projectTransformed4DToView3D: (point) => cameraTransform(project4Dto3D(point)),
+    projectTransformed4DToScreen,
+    setPerceptionCameraOffset,
+    regionRgb: (regionId, x = 0, y = 0) => ({ ...classicRegionRgb(regionId, x, y) }),
+  });
+
   window.__hypermandalaDebug = Object.freeze({
     validateCurrentGeometry,
+    validate4DTransform,
     currentWSemantics: () => [...currentWSemantics()],
     projectionState: () => ({projection4D:state.projection,projection3D:state.screenProjection,isometricView:state.isometricView}),
   });
