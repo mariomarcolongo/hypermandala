@@ -7,6 +7,12 @@
   flex-direction: column;
 }
 
+/* The panel is height-limited and scrollable. Do not let flexbox compress
+   control groups to fit that height; preserve their natural size and scroll. */
+#explorerControls > * {
+  flex: 0 0 auto;
+}
+
 #explorerControls > .control-panel__title { order: 0; }
 #explorerControls > .control-section:has(#projectionControl) { order: 10; }
 #explorerControls > .control-section:has(#screenProjectionControl) { order: 20; }
