@@ -6,6 +6,7 @@ on:
       - feature/immersive-4d-mandala
     paths:
       - scripts/apply_immersive_integration.py
+      - .github/workflows/apply-immersive-integration.yml
 
 permissions:
   contents: write
