@@ -12,9 +12,11 @@
 
   const WHITE = 'rgba(244,246,249,.92)';
   const GOLD = '#d8b662';
+  const BLUE = '#6ca8ff';
   /* Keep the dimensional build smooth, then devote most of each stage to the
      completed form's 360° rotation so it can actually be inspected. */
   const BUILD_END = .30;
+  const FOUR_D_ROTATION_START = .44;
 
   const style = document.createElement('style');
   style.id = 'learn4dBuildRotationStyles';
@@ -72,7 +74,7 @@
     const s = Math.min(width, height) * .285;
     return {
       center: [width * .5, height * .445],
-      vectors: [[s, 0], [0, s], [s * .34, -s * .28], [-s * .27, -s * .22]],
+      vectors: [[s, 0], [0, s], [s * .34, -s * .28], [-s * .31, -s * .25]],
     };
   }
 
@@ -99,12 +101,13 @@
     return [x, y];
   }
 
-  function line(a, b, color, width, alpha) {
+  function line(a, b, color, width, alpha, dash = null) {
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.strokeStyle = color;
     ctx.lineWidth = width;
     ctx.lineCap = 'round';
+    if (dash) ctx.setLineDash(dash);
     ctx.beginPath();
     ctx.moveTo(a[0], a[1]);
     ctx.lineTo(b[0], b[1]);
@@ -119,6 +122,16 @@
     ctx.beginPath();
     ctx.arc(p[0], p[1], radius, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
+  }
+
+  function label(text, p, color = 'rgba(216,182,98,.72)') {
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.font = '700 10px ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, p[0], p[1]);
     ctx.restore();
   }
 
@@ -137,8 +150,9 @@
 
     let angle = 0;
     let plane = null;
-    if (stage >= 1 && local > BUILD_END) {
-      const turn = ease((local - BUILD_END) / (1 - BUILD_END));
+    const rotationStart = stage === 3 ? FOUR_D_ROTATION_START : BUILD_END;
+    if (stage >= 1 && local > rotationStart) {
+      const turn = ease((local - rotationStart) / (1 - rotationStart));
       angle = Math.PI * 2 * turn;
       plane = [0, stage];
     }
@@ -167,6 +181,15 @@
     if (description) description.textContent = text;
   }
 
+  function drawWAxis(width, height) {
+    const { center, vectors } = basis(width, height);
+    const v = vectors[3];
+    const a = [center[0] - v[0] * .78, center[1] - v[1] * .78];
+    const b = [center[0] + v[0] * .78, center[1] + v[1] * .78];
+    line(a, b, GOLD, 1, .24, [4, 6]);
+    label('W', [b[0] + 8, b[1] - 5]);
+  }
+
   function draw(width, height, t) {
     const { stage, local } = stageInfo(t);
     const { vertices, axes } = geometry(stage, local);
@@ -182,10 +205,25 @@
         const b = projected.get(key(nextBits, axes));
         if (!a || !b) return;
         const newest = axis === stage;
-        line(a, b, newest ? GOLD : WHITE, newest ? 2.15 : 1.35, newest ? .92 : .60);
+        let color = newest ? GOLD : WHITE;
+        let lineWidth = newest ? 2.15 : 1.35;
+        let alpha = newest ? .92 : .60;
+
+        /* At the 3D → 4D step, make the construction legible as two cubes:
+           the original cube remains white, the W-shifted copy is blue, and
+           only the new W-edges are gold. */
+        if (stage === 3 && axis !== 3 && axes.includes(3)) {
+          const shiftedCopy = v.bits[3] === 1;
+          color = shiftedCopy ? BLUE : WHITE;
+          lineWidth = shiftedCopy ? 1.65 : 1.35;
+          alpha = shiftedCopy ? .82 : .56;
+        }
+
+        line(a, b, color, lineWidth, alpha);
       });
     });
     projected.forEach((p) => dot(p, 2.8, WHITE, .74));
+    if (stage === 3) drawWAxis(width, height);
 
     if (stage === 0) {
       caption.textContent = local < .06 ? '0D · one point' : '0D → 1D · the point traces a line';
@@ -200,14 +238,20 @@
         '',
         '1D → 2D · the line extends along the new Y direction',
         '2D → 3D · the square extends along the new Z direction',
-        '3D → 4D · the cube extends along the new W direction',
+        '3D → 4D · duplicate the cube and separate the copy along W',
       ][stage];
       setDescription([
         '',
         'Move the whole line along Y. Every point traces a line, and the line sweeps out the square.',
         'Move the whole square along Z. Its edges sweep faces, while the square sweeps out the cube.',
-        'Move the whole cube along W. Vertices trace W-edges, edges sweep faces, and square faces sweep cubic cells.',
+        'The white cube stays fixed while an identical blue cube moves along W. Gold W-edges connect corresponding vertices; together the two cubes and connectors form the tesseract boundary.',
       ][stage]);
+      return;
+    }
+
+    if (stage === 3 && local <= FOUR_D_ROTATION_START) {
+      caption.textContent = '4D reached · white cube + W-shifted blue cube + gold W-edges';
+      setDescription('Hold the completed projection still for a moment: the blue cube is not smaller or inside the white cube in 4D. That nesting is only the 2D appearance of separation along W.');
       return;
     }
 
@@ -215,7 +259,7 @@
     const explanations = {
       1: '2D reached. Now rotate the square a full 360° in the X–Y plane. It returns exactly to its starting orientation.',
       2: '3D reached. Now rotate the cube a full 360° in the X–Z plane, a rotation involving the newly added Z direction.',
-      3: '4D reached. Now rotate the tesseract a full 360° in the X–W plane. This is a genuine 4D rotation involving W, not a screen-space spin.',
+      3: '4D reached. Now rotate the tesseract a full 360° in the X–W plane. The changing nesting and overlap are projection effects of a genuine 4D rotation, not deformation of the tesseract.',
     };
     caption.textContent = `${stage + 1}D reached · full 360° rotation in the ${names[stage]} plane · returns to the original orientation`;
     setDescription(explanations[stage]);

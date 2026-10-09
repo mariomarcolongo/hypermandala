@@ -32,6 +32,12 @@
                 const buildRotation = document.createElement('script');
                 buildRotation.src = './tutorial-build-rotation.js?reload=' + Date.now();
                 buildRotation.async = false;
+                buildRotation.onload = () => {
+                  const perception = document.createElement('script');
+                  perception.src = './tutorial-perception.js?reload=' + Date.now();
+                  perception.async = false;
+                  document.body.appendChild(perception);
+                };
                 document.body.appendChild(buildRotation);
               };
               document.body.appendChild(cleanBackground);
