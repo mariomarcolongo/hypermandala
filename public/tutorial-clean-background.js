@@ -18,7 +18,7 @@
       visibility: hidden !important;
     }
 
-    body.learn4d-active > canvas:not(.learn4d-stage):not(.learn4d-enhanced-stage):not(.learn4d-elements-clean-stage):not(.learn4d-build-rotation-stage) {
+    body.learn4d-active > canvas:not(.learn4d-stage):not(.learn4d-enhanced-stage):not(.learn4d-elements-clean-stage):not(.learn4d-build-rotation-stage):not(.learn4d-perception-stage) {
       display: none !important;
     }
 
