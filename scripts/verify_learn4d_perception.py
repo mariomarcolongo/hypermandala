@@ -7,7 +7,7 @@ perception = Path('public/tutorial-perception.js').read_text(encoding='utf-8')
 checks = [
     (
         'clean background allowlists perception canvas',
-        '.not(.learn4d-perception-stage)' in clean_background,
+        ':not(.learn4d-perception-stage)' in clean_background,
     ),
     (
         'loader includes perception tutorial',
