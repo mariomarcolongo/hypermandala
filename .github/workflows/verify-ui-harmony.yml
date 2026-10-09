@@ -22,3 +22,5 @@ jobs:
           node --check public/tutorial-fluid.js
           node --check public/tutorial-build-rotation.js
           node --check public/tutorial-perception.js
+      - name: Verify Learn 4D perception integration
+        run: python3 scripts/verify_learn4d_perception.py
