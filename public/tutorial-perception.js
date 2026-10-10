@@ -5,12 +5,15 @@
   window.__hypermandalaPerceptionLessonInstalled = true;
 
   const modes = document.querySelector('.learn4d-modes');
+  const hud = document.querySelector('.learn4d-hud');
   const timeline = document.querySelector('.learn4d-timeline');
   const caption = document.querySelector('.learn4d-caption');
   const markers = document.querySelector('.learn4d-markers');
+  const timelineRow = document.querySelector('.learn4d-timeline-row');
   const description = document.querySelector('.learn4d-step-description');
-  if (!modes || !timeline || !caption || !markers) return;
+  if (!modes || !hud || !timeline || !caption || !markers || !timelineRow) return;
 
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const WHITE = 'rgba(244,246,249,.92)';
   const FAINT = 'rgba(244,246,249,.16)';
   const GOLD = '#d8b662';
@@ -39,6 +42,59 @@
     body.learn4d-active.learn4d-perception .learn4d-build-rotation-stage {
       opacity: 0 !important;
     }
+
+    .learn4d-perception-nav {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      flex-wrap: wrap;
+      padding: 1px 0 2px;
+    }
+    body.learn4d-active.learn4d-perception .learn4d-perception-nav { display: flex; }
+    .learn4d-perception-scene {
+      min-height: 27px;
+      padding: 0 8px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: rgba(238,239,242,.34);
+      cursor: pointer;
+      font-size: 7.5px;
+      font-weight: 720;
+      letter-spacing: .045em;
+      text-transform: uppercase;
+    }
+    .learn4d-perception-scene:hover { color: rgba(248,249,250,.84); }
+    .learn4d-perception-scene.is-active {
+      background: rgba(216,182,98,.10);
+      color: rgba(238,208,130,.96);
+      box-shadow: inset 0 -1px 0 rgba(216,182,98,.42);
+    }
+    .learn4d-perception-loop-note {
+      display: none;
+      width: 100%;
+      margin-top: -1px;
+      color: rgba(225,229,235,.28);
+      font-size: 7px;
+      font-weight: 650;
+      letter-spacing: .055em;
+      text-align: center;
+      text-transform: uppercase;
+    }
+    body.learn4d-active.learn4d-perception .learn4d-perception-loop-note { display: block; }
+    body.learn4d-active.learn4d-perception .learn4d-markers,
+    body.learn4d-active.learn4d-perception .learn4d-play,
+    body.learn4d-active.learn4d-perception .learn4d-timeline { display: none !important; }
+    body.learn4d-active.learn4d-perception .learn4d-timeline-row {
+      display: flex;
+      justify-content: flex-end;
+      min-height: 27px;
+    }
+
+    @media (max-width: 680px) {
+      .learn4d-perception-scene { padding: 0 6px; font-size: 7px; }
+    }
     @media (prefers-reduced-motion: reduce) {
       .learn4d-perception-stage { transition: none !important; }
     }
@@ -57,6 +113,7 @@
     const x = clamp(t);
     return x * x * (3 - 2 * x);
   };
+  const angleDelta = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 
   function fitCanvas() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -168,7 +225,7 @@
   function tesseract(center, size, local) {
     const pulse = .82 + .12 * Math.sin(local * Math.PI * 2);
     const d = size * .18;
-    const offset = size * (.16 + .04 * Math.sin(local * Math.PI));
+    const offset = size * (.16 + .04 * Math.sin(local * Math.PI * 2));
     const outer = cube([center[0] - offset * .26, center[1] + offset * .18], size, d, WHITE, .48);
     const inner = cube([center[0] + offset * .18, center[1] - offset * .10], size * .56 * pulse, d * .55, GOLD, .90);
     for (let i = 0; i < 4; i += 1) {
@@ -181,15 +238,9 @@
     if (description) description.textContent = text;
   }
 
-  function phaseInfo(t) {
-    const x = clamp(t) * 5;
-    const phase = Math.min(4, Math.floor(x));
-    return { phase, local: x >= 5 ? 1 : x - phase };
-  }
-
   function viewArea(width, height) {
     const top = Math.max(128, height * .16);
-    const bottom = Math.min(height - 142, height * .80);
+    const bottom = Math.min(height - 150, height * .79);
     return { top, bottom, height: Math.max(160, bottom - top), centerY: (top + bottom) / 2 };
   }
 
@@ -197,96 +248,150 @@
     const area = viewArea(width, height);
     if (width >= 760) {
       return {
-        a: { x: width * .08, y: area.top, w: width * .38, h: area.height },
-        b: { x: width * .54, y: area.top, w: width * .38, h: area.height },
+        a: { x: width * .07, y: area.top, w: width * .40, h: area.height },
+        b: { x: width * .53, y: area.top, w: width * .40, h: area.height },
       };
     }
     return {
-      a: { x: width * .08, y: area.top, w: width * .84, h: area.height * .43 },
-      b: { x: width * .08, y: area.top + area.height * .54, w: width * .84, h: area.height * .43 },
+      a: { x: width * .07, y: area.top, w: width * .86, h: area.height * .43 },
+      b: { x: width * .07, y: area.top + area.height * .54, w: width * .86, h: area.height * .43 },
     };
   }
 
   function panelFrame(panel, title, tint = WHITE) {
-    const r = Math.min(panel.w, panel.h) * .04;
     ctx.save();
-    ctx.globalAlpha = .7;
+    ctx.globalAlpha = .72;
     ctx.strokeStyle = 'rgba(255,255,255,.07)';
     ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.roundRect(panel.x, panel.y, panel.w, panel.h, r);
-    ctx.stroke();
+    ctx.strokeRect(panel.x, panel.y, panel.w, panel.h);
     ctx.restore();
     label(title, [panel.x + panel.w / 2, panel.y + 18], 10, tint);
   }
 
-  function rectBoundaryHit(observer, target, rect) {
-    const dx = target[0] - observer[0];
-    const dy = target[1] - observer[1];
+  const WALLS = {
+    top: BLUE,
+    right: PINK,
+    bottom: WHITE,
+    left: GOLD,
+  };
+
+  function drawColoredRoom(rect, alpha = .84) {
+    line([rect.x0, rect.y0], [rect.x1, rect.y0], WALLS.top, 3, alpha);
+    line([rect.x1, rect.y0], [rect.x1, rect.y1], WALLS.right, 3, alpha);
+    line([rect.x1, rect.y1], [rect.x0, rect.y1], WALLS.bottom, 3, alpha);
+    line([rect.x0, rect.y1], [rect.x0, rect.y0], WALLS.left, 3, alpha);
+  }
+
+  function rayRectHit(origin, angle, rect) {
+    const dx = Math.cos(angle);
+    const dy = Math.sin(angle);
     const hits = [];
-    const tryX = (x) => {
+    const tryVertical = (x, side) => {
       if (Math.abs(dx) < 1e-8) return;
-      const t = (x - observer[0]) / dx;
-      const y = observer[1] + t * dy;
-      if (t > 0 && t < 1 && y >= rect.y0 && y <= rect.y1) hits.push({ t, p: [x, y] });
+      const t = (x - origin[0]) / dx;
+      const y = origin[1] + t * dy;
+      if (t > 0 && y >= rect.y0 - 1e-6 && y <= rect.y1 + 1e-6) hits.push({ t, p: [x, y], side });
     };
-    const tryY = (y) => {
+    const tryHorizontal = (y, side) => {
       if (Math.abs(dy) < 1e-8) return;
-      const t = (y - observer[1]) / dy;
-      const x = observer[0] + t * dx;
-      if (t > 0 && t < 1 && x >= rect.x0 && x <= rect.x1) hits.push({ t, p: [x, y] });
+      const t = (y - origin[1]) / dy;
+      const x = origin[0] + t * dx;
+      if (t > 0 && x >= rect.x0 - 1e-6 && x <= rect.x1 + 1e-6) hits.push({ t, p: [x, y], side });
     };
-    tryX(rect.x0); tryX(rect.x1); tryY(rect.y0); tryY(rect.y1);
+    tryVertical(rect.x0, 'left');
+    tryVertical(rect.x1, 'right');
+    tryHorizontal(rect.y0, 'top');
+    tryHorizontal(rect.y1, 'bottom');
     hits.sort((a, b) => a.t - b.t);
-    return hits[0]?.p || target;
+    return hits[0] || null;
+  }
+
+  function pingPongWithHolds(u) {
+    if (u < .12) return 0;
+    if (u < .46) return ease((u - .12) / .34);
+    if (u < .62) return 1;
+    if (u < .96) return 1 - ease((u - .62) / .34);
+    return 0;
   }
 
   function drawFlatlanderView(width, height, local) {
     const { a, b } = splitPanels(width, height);
-    panelFrame(a, 'outside diagram · the 2D world', 'rgba(108,168,255,.80)');
-    panelFrame(b, 'what the Flatlander actually receives', 'rgba(216,182,98,.82)');
+    panelFrame(a, 'same instant · view from above Flatland', 'rgba(108,168,255,.82)');
+    panelFrame(b, 'same instant · Flatlander first-person 1D image', 'rgba(216,182,98,.84)');
 
     const cx = a.x + a.w * .52;
-    const cy = a.y + a.h * .55;
-    const rw = a.w * .34;
-    const rh = a.h * .26;
+    const cy = a.y + a.h * .56;
+    const rw = a.w * .24;
+    const rh = a.h * .21;
     const room = { x0: cx - rw, x1: cx + rw, y0: cy - rh, y1: cy + rh };
-    polygon([[room.x0, room.y0], [room.x1, room.y0], [room.x1, room.y1], [room.x0, room.y1]], 'rgba(223,122,176,.025)', PINK, .78, 2.0);
-    label('closed 2D room', [cx, room.y0 - 18], 9, 'rgba(223,122,176,.80)');
+    drawColoredRoom(room);
+    label('four wall segments keep the same colors in both views', [cx, room.y0 - 22], 8, 'rgba(244,246,249,.48)');
 
-    const target = [cx + rw * .16, cy - rh * .06];
-    ring(target, Math.max(10, rh * .18), GREEN, .64, 1.2);
-    dot(target, 4.5, GREEN, .96);
-    label('inside', [target[0], target[1] + rh * .34], 9, 'rgba(98,212,139,.78)');
+    const target = [cx + rw * .12, cy - rh * .08];
+    ring(target, Math.max(9, rh * .16), GREEN, .62, 1.1);
+    dot(target, 4.5, GREEN, .98);
+    label('interior target', [target[0], target[1] + rh * .34], 8, 'rgba(98,212,139,.78)');
 
-    const angle = lerp(-2.65, -.28, ease(local));
-    const observer = [cx + Math.cos(angle) * rw * 1.55, cy + Math.sin(angle) * rh * 1.65];
-    dot(observer, 5.5, GOLD, .98);
-    ring(observer, 9, GOLD, .45, 1);
-    label('2D observer', [observer[0], observer[1] + 18], 9, 'rgba(216,182,98,.84)');
+    const orbit = -Math.PI * .82 + local * Math.PI * 2;
+    const observer = [cx + Math.cos(orbit) * rw * 1.78, cy + Math.sin(orbit) * rh * 1.95];
+    const heading = Math.atan2(target[1] - observer[1], target[0] - observer[0]);
+    const fov = 1.32;
+    const rayCount = 49;
+    const hits = [];
 
-    const hit = rectBoundaryHit(observer, target, room);
-    line(observer, hit, GOLD, 1.25, .55, [5, 5]);
-    cross(hit, 5, RED, .92);
-    line(hit, target, RED, 1.0, .16, [3, 6]);
-    label('wall blocks line of sight', [lerp(observer[0], hit[0], .55), lerp(observer[1], hit[1], .55) - 13], 8, 'rgba(239,119,119,.80)');
+    dot(observer, 5.6, GOLD, .98);
+    ring(observer, 9.5, GOLD, .40, 1);
+    label('2D observer', [observer[0], observer[1] + 18], 8, 'rgba(216,182,98,.86)');
+
+    for (let i = 0; i < rayCount; i += 1) {
+      const u = i / (rayCount - 1);
+      const angle = heading + (u - .5) * fov;
+      hits.push({ u, angle, hit: rayRectHit(observer, angle, room) });
+    }
 
     const horizonY = b.y + b.h * .58;
-    const horizonA = [b.x + b.w * .10, horizonY];
-    const horizonB = [b.x + b.w * .90, horizonY];
-    line(horizonA, horizonB, WHITE, 2.0, .55);
-    label('1D visual field', [b.x + b.w / 2, horizonY + 24], 9, 'rgba(244,246,249,.62)');
+    const x0 = b.x + b.w * .10;
+    const x1 = b.x + b.w * .90;
+    line([x0, horizonY], [x1, horizonY], 'rgba(255,255,255,.11)', 9, .65);
+    label('angular direction →', [x1, horizonY + 24], 8, 'rgba(244,246,249,.42)', 'right');
 
-    const drift = Math.sin(local * Math.PI * 2) * b.w * .08;
-    const wallCenter = b.x + b.w * .52 + drift;
-    line([wallCenter - b.w * .14, horizonY], [wallCenter + b.w * .14, horizonY], PINK, 8, .84);
-    dot([wallCenter - b.w * .09, horizonY], 4.2, BLUE, .84);
-    dot([wallCenter + b.w * .08, horizonY], 4.2, WHITE, .80);
-    label('near wall fills those directions', [wallCenter, horizonY - 28], 9, 'rgba(223,122,176,.80)');
-    label('the green object inside does not appear', [b.x + b.w / 2, b.y + b.h * .80], 9, 'rgba(98,212,139,.58)');
+    const step = (x1 - x0) / (rayCount - 1);
+    hits.forEach(({ u, hit }) => {
+      const x = lerp(x0, x1, u);
+      if (!hit) return;
+      const alpha = .58 + .28 * clamp(1 - hit.t / (rw * 5));
+      line([x - step * .48, horizonY], [x + step * .48, horizonY], WALLS[hit.side], 8, alpha);
+    });
 
-    caption.textContent = 'Flatland first-person · a 2D being gets a 1D image, and the boundary hides the interior';
-    setDescription('The left panel is our privileged view from outside the plane. The right panel is the Flatlander’s instantaneous visual field: one-dimensional. A closed 1D boundary can occlude whatever is inside because every line of sight must stay in the 2D plane.');
+    const special = [
+      { offset: -.13, name: 'A' },
+      { offset: 0, name: 'B' },
+      { offset: .13, name: 'C' },
+    ];
+    special.forEach(({ offset, name }) => {
+      const angle = heading + offset;
+      const hit = rayRectHit(observer, angle, room);
+      if (!hit) return;
+      const u = offset / fov + .5;
+      const x = lerp(x0, x1, u);
+      line(observer, hit.p, WALLS[hit.side], 1.25, .48, [4, 5]);
+      ring(hit.p, 5, WALLS[hit.side], .88, 1.2);
+      label(name, [hit.p[0], hit.p[1] - 10], 8, WALLS[hit.side]);
+      dot([x, horizonY], 5.1, WALLS[hit.side], .98);
+      label(name, [x, horizonY - 17], 8, WALLS[hit.side]);
+    });
+
+    const central = rayRectHit(observer, heading, room);
+    if (central) {
+      line(observer, central.p, WALLS[central.side], 1.5, .70, [5, 5]);
+      cross(central.p, 5, RED, .94);
+      line(central.p, target, RED, 1, .20, [3, 6]);
+      cross([lerp(x0, x1, .5), horizonY + 34], 5, RED, .90);
+      label('target direction is blocked by the B wall sample', [b.x + b.w / 2, b.y + b.h * .80], 8, 'rgba(239,119,119,.76)');
+    }
+
+    caption.textContent = 'Flatland POV · the overhead rays and the 1D image are now the same geometry';
+    setDescription('Every colored sample on the right comes from an actual ray drawn in the overhead world on the left. A, B and C are the same rays in both panels. The green target lies behind the nearest wall hit, so it cannot appear in the Flatlander’s one-dimensional image.');
   }
 
   function planeProject(center, scale, x, y, z, lift) {
@@ -301,7 +406,7 @@
     const area = viewArea(width, height);
     const c = [width * .50, area.centerY + 10];
     const s = Math.min(width, area.height) * .28;
-    const lift = ease(local);
+    const lift = pingPongWithHolds(local);
 
     const plane = [[-1,-.72],[1,-.72],[1,.72],[-1,.72]].map(([x,y]) => planeProject(c, s, x, y, 0, lift));
     polygon(plane, 'rgba(108,168,255,.025)', BLUE, .34, 1.1);
@@ -320,7 +425,7 @@
     dot(cameraBase, 4.2, GOLD, .30);
     line(cameraBase, camera, GOLD, 1.25, .52, [4, 5]);
     dot(camera, 6, GOLD, .98);
-    label('3D observer', [camera[0] - 8, camera[1] - 18], 10, 'rgba(216,182,98,.86)', 'right');
+    label('observer', [camera[0] - 8, camera[1] - 18], 10, 'rgba(216,182,98,.86)', 'right');
 
     const zTop = planeProject(c, s, -.93, .64, .92, lift);
     const zBase = planeProject(c, s, -.93, .64, 0, lift);
@@ -335,37 +440,48 @@
       line(camera, target, GOLD, 1.4, .34 + .48 * visible, [5, 5]);
     }
 
-    label(lift < .28 ? 'still almost in the plane' : 'the line of sight now passes above the 1D wall', [width * .50, area.bottom - 16], 10, lift < .28 ? 'rgba(239,119,119,.72)' : 'rgba(98,212,139,.78)');
+    label(lift < .28 ? 'in-plane: boundary blocks the sightline' : 'out of plane: sightline passes over the boundary', [width * .50, area.bottom - 14], 10, lift < .28 ? 'rgba(239,119,119,.72)' : 'rgba(98,212,139,.78)');
+    caption.textContent = 'Rise into 3D · this scene loops between the blocked and unblocked viewpoints';
+    setDescription('The room never changes. The loop changes only the observer’s Z coordinate. Watch the same sightline become possible when it can leave the plane, pass over the one-dimensional wall, and return to the interior point.');
+  }
 
-    caption.textContent = 'Rise out of Flatland · the boundary stops being an obstacle';
-    setDescription('Nothing about the room changed. Only the observer gained a new direction. Once the viewpoint moves into Z, a sightline can leave the 2D plane, pass over the 1D boundary, and return to any interior point. That is the key higher-dimensional trick.');
+  function makeBody(center, r) {
+    const points = [];
+    const n = 28;
+    for (let i = 0; i < n; i += 1) {
+      const q = (i / n) * Math.PI * 2;
+      const wobble = 1 + .08 * Math.sin(q * 3) + .035 * Math.cos(q * 5);
+      points.push([center[0] + Math.cos(q) * r * wobble, center[1] + Math.sin(q) * r * .76 * wobble]);
+    }
+    return points;
   }
 
   function drawSeeInside2D(width, height, local) {
     const { a, b } = splitPanels(width, height);
-    panelFrame(a, 'Flatlander looking at another 2D being', 'rgba(216,182,98,.82)');
-    panelFrame(b, 'our 3D view from above the plane', 'rgba(98,212,139,.82)');
+    panelFrame(a, '2D first-person image of the body', 'rgba(216,182,98,.84)');
+    panelFrame(b, 'same body from +Z · our privileged 3D view', 'rgba(98,212,139,.84)');
 
-    const ay = a.y + a.h * .58;
-    line([a.x + a.w * .10, ay], [a.x + a.w * .90, ay], WHITE, 1.8, .46);
-    const silhouetteX = a.x + a.w * (.48 + .08 * Math.sin(local * Math.PI * 2));
-    line([silhouetteX - a.w * .09, ay], [silhouetteX + a.w * .09, ay], BLUE, 9, .80);
-    label('only a 1D slice / silhouette', [silhouetteX, ay - 28], 9, 'rgba(108,168,255,.80)');
-    dot([a.x + a.w * .20, ay], 5, GOLD, .96);
-    label('observer', [a.x + a.w * .20, ay + 22], 8, 'rgba(216,182,98,.78)');
+    const cx = b.x + b.w * .54;
+    const cy = b.y + b.h * .57;
+    const r = Math.min(b.w, b.h) * .23;
+    const body = makeBody([cx, cy], r);
+    polygon(body, 'rgba(108,168,255,.035)', BLUE, .78, 1.8);
 
-    const cx = b.x + b.w * .50;
-    const cy = b.y + b.h * .56;
-    const r = Math.min(b.w, b.h) * .24;
-    const body = [];
-    const n = 18;
-    for (let i = 0; i < n; i += 1) {
-      const q = (i / n) * Math.PI * 2;
-      const wobble = 1 + .10 * Math.sin(q * 3 + local * Math.PI * 2);
-      body.push([cx + Math.cos(q) * r * wobble, cy + Math.sin(q) * r * .76 * wobble]);
+    const orbit = Math.PI + local * Math.PI * 2;
+    const observer = [cx + Math.cos(orbit) * r * 1.95, cy + Math.sin(orbit) * r * 1.62];
+    const heading = Math.atan2(cy - observer[1], cx - observer[0]);
+    dot(observer, 5.5, GOLD, .98);
+    label('2D observer', [observer[0], observer[1] + 17], 8, 'rgba(216,182,98,.82)');
+
+    const offsets = body.map((p) => angleDelta(Math.atan2(p[1] - observer[1], p[0] - observer[0]), heading));
+    let minI = 0;
+    let maxI = 0;
+    for (let i = 1; i < offsets.length; i += 1) {
+      if (offsets[i] < offsets[minI]) minI = i;
+      if (offsets[i] > offsets[maxI]) maxI = i;
     }
-    polygon(body, 'rgba(108,168,255,.035)', BLUE, .76, 1.8);
-    label('2D body boundary', [cx, cy - r * .93], 9, 'rgba(108,168,255,.74)');
+    line(observer, body[minI], BLUE, 1, .35, [4, 5]);
+    line(observer, body[maxI], BLUE, 1, .35, [4, 5]);
 
     const organs = [
       { p: [cx - r * .22, cy - r * .08], c: PINK, name: 'A' },
@@ -373,26 +489,44 @@
       { p: [cx + r * .06, cy + r * .23], c: GOLD, name: 'C' },
     ];
     organs.forEach((o, i) => {
-      const pulse = 4.4 + 1.6 * Math.sin(local * Math.PI * 2 + i * 1.8);
-      ring(o.p, pulse + 6, o.c, .28, 1);
-      dot(o.p, pulse, o.c, .94);
+      ring(o.p, 9 + i * 2, o.c, .28, 1);
+      dot(o.p, 4.4, o.c, .96);
     });
 
-    const camera = [cx + r * .90, cy - r * 1.05];
-    dot(camera, 6, WHITE, .96);
-    label('3D observer above plane', [camera[0], camera[1] - 18], 9, 'rgba(244,246,249,.76)');
-    organs.forEach((o) => line(camera, o.p, o.c, 1.0, .24, [4, 5]));
-    label('all interior points can be addressed directly', [cx, b.y + b.h * .84], 9, 'rgba(98,212,139,.76)');
+    const above = [cx + r * .88, cy - r * 1.04];
+    dot(above, 6, WHITE, .96);
+    label('3D observer above plane', [above[0], above[1] - 18], 8, 'rgba(244,246,249,.76)');
+    organs.forEach((o) => line(above, o.p, o.c, 1, .24, [4, 5]));
 
-    caption.textContent = 'Why we could “see inside” a truly 2D being';
-    setDescription('In the ideal geometric analogy, a 2D being’s enclosing boundary is one-dimensional. From inside the plane, that boundary can hide what lies behind it. From 3D, we look down across the whole 2D area, so the boundary does not sit between our eye and the interior points.');
+    const horizonY = a.y + a.h * .58;
+    const x0 = a.x + a.w * .10;
+    const x1 = a.x + a.w * .90;
+    const displayFov = 1.25;
+    line([x0, horizonY], [x1, horizonY], WHITE, 2, .48);
+    const minX = lerp(x0, x1, clamp(offsets[minI] / displayFov + .5));
+    const maxX = lerp(x0, x1, clamp(offsets[maxI] / displayFov + .5));
+    line([minX, horizonY], [maxX, horizonY], BLUE, 10, .82);
+    label('the blue interval is the angular silhouette of the same blue body', [a.x + a.w / 2, horizonY - 30], 8, 'rgba(108,168,255,.78)');
+
+    organs.forEach((o) => {
+      const q = Math.atan2(o.p[1] - observer[1], o.p[0] - observer[0]);
+      const off = angleDelta(q, heading);
+      const x = lerp(x0, x1, clamp(off / displayFov + .5));
+      dot([x, horizonY + 30], 4, o.c, .80);
+      cross([x, horizonY], 4, RED, .72);
+      label(o.name, [x, horizonY + 45], 7, o.c);
+    });
+    label('A/B/C have directions in the 1D image, but the boundary occludes them', [a.x + a.w / 2, a.y + a.h * .84], 8, 'rgba(239,119,119,.67)');
+
+    caption.textContent = 'See inside 2D · the silhouette on the left is computed from the same body on the right';
+    setDescription('The blue 1D interval is not decorative: it is the angular extent of the exact blue 2D body shown from above. A, B and C also project to exact positions on that 1D field, but a same-plane observer meets the body boundary first. From +Z, the whole 2D area and its interior points are directly exposed.');
   }
 
   function drawRiseInto4D(width, height, local) {
     const area = viewArea(width, height);
     const c = [width * .50, area.centerY + 6];
     const s = Math.min(width, area.height) * .28;
-    const lift = ease(local);
+    const lift = pingPongWithHolds(local);
 
     const shell = cube(c, s * 1.15, s * .24, WHITE, .58, 'rgba(244,246,249,.014)');
     label('closed 3D body / room', [c[0], c[1] - s * .86], 10, 'rgba(244,246,249,.72)');
@@ -422,16 +556,15 @@
       const visible = ease(clamp((lift - .18 - i * .05) / .42));
       ring([x, y], 10 + i * 2, color, .18 + .38 * visible, 1);
       dot([x, y], 4.2 + i * .3, color, .12 + .84 * visible);
-      if (visible > .04) line(observer, [x, y], color, 1.0, .12 + .30 * visible, [4, 5]);
+      if (visible > .04) line(observer, [x, y], color, 1, .12 + .30 * visible, [4, 5]);
     });
 
     const note = lift < .25
-      ? 'from ordinary 3D viewpoints, the shell can occlude the interior'
-      : 'with W available, sightlines need not cross the 3D boundary first';
+      ? 'ordinary 3D viewpoint: shell can occlude its interior'
+      : 'W-displaced viewpoint: sightlines need not cross the 3D boundary first';
     label(note, [width * .50, area.bottom - 14], 10, lift < .25 ? 'rgba(239,119,119,.68)' : 'rgba(98,212,139,.78)');
-
-    caption.textContent = 'Replay the same move with us · 3D → 4D';
-    setDescription('Replace “2D plane + Z” with “3D space + W.” For a purely 3D object embedded in 4D, an observer displaced in W can connect to an interior 3D point along a line that touches our 3D space only at that target point. The animation uses translucency only to depict that higher-dimensional access on a 2D monitor.');
+    caption.textContent = 'Rise into 4D · the same blocked → unblocked transition now loops with W';
+    setDescription('This is the direct analogue of the previous Z animation. The loop starts with an ordinary 3D viewpoint, moves the observer in the extra W direction, holds so you can inspect the new sightlines, then returns. Translucency is only a 2D drawing aid for higher-dimensional access.');
   }
 
   function drawProjectionChain(width, height, local) {
@@ -443,7 +576,6 @@
 
     tesseract([xs[0], y], s * 1.15, local);
     label('4D object', [xs[0], y - s * .95], 10, 'rgba(216,182,98,.84)');
-
     arrow([xs[0] + s * .72, y], [xs[1] - s * .72, y], GOLD, .78, 1.4);
     label('4D → 3D', [(xs[0] + xs[1]) / 2, y - 22], 9, 'rgba(216,182,98,.72)');
 
@@ -468,18 +600,37 @@
     cube([xs[2] + s * .04, y - s * .02], s * .29 * (.9 + .1 * Math.sin(local * Math.PI * 2)), s * .06, GOLD, .78);
     label('our 2D monitor', [xs[2], y + s * .70], 9, 'rgba(244,246,249,.68)');
 
-    caption.textContent = 'Why a real 4D view still looks strange here · 4D → 3D → 2D';
-    setDescription('The hypothetical 4D observer gets one dimension more of visual data than we do. Hypermandala cannot give your eyes a real 3D retinal image, so it must flatten the 4D → 3D result again onto this 2D screen. Nested cubes, overlap and foreshortening are therefore projections of a projection.');
+    caption.textContent = 'Projection chain · this loop keeps the nested projection in motion';
+    setDescription('A hypothetical 4D observer could receive a 3D visual projection. Hypermandala must flatten that result again for a 2D monitor, so nesting, overlap and foreshortening remain. The animation loops continuously so you can watch which apparent deformations are projection effects.');
   }
 
-  function draw(width, height, t) {
-    const { phase, local } = phaseInfo(t);
-    if (phase === 0) drawFlatlanderView(width, height, local);
-    else if (phase === 1) drawRiseInto3D(width, height, local);
-    else if (phase === 2) drawSeeInside2D(width, height, local);
-    else if (phase === 3) drawRiseInto4D(width, height, local);
-    else drawProjectionChain(width, height, local);
-  }
+  const scenes = [
+    { id: 'flatland', label: 'Flatland POV', duration: 9, draw: drawFlatlanderView },
+    { id: 'rise3d', label: 'Rise to 3D', duration: 8, draw: drawRiseInto3D },
+    { id: 'inside2d', label: 'See inside 2D', duration: 9, draw: drawSeeInside2D },
+    { id: 'rise4d', label: 'Rise to 4D', duration: 9, draw: drawRiseInto4D },
+    { id: 'projection', label: 'Projection', duration: 7, draw: drawProjectionChain },
+  ];
+
+  const nav = document.createElement('div');
+  nav.className = 'learn4d-perception-nav';
+  nav.setAttribute('aria-label', 'Perception animation');
+  const navButtons = scenes.map((scene, index) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'learn4d-perception-scene';
+    button.dataset.scene = scene.id;
+    button.textContent = scene.label;
+    button.setAttribute('aria-pressed', index === 0 ? 'true' : 'false');
+    nav.appendChild(button);
+    return button;
+  });
+  modes.insertAdjacentElement('afterend', nav);
+
+  const loopNote = document.createElement('div');
+  loopNote.className = 'learn4d-perception-loop-note';
+  loopNote.textContent = reduceMotion ? 'Reduced motion is enabled · choose a scene above' : 'Each scene loops automatically · use the buttons above or ← →';
+  nav.insertAdjacentElement('afterend', loopNote);
 
   const existingButtons = [...modes.querySelectorAll('.learn4d-mode')];
   const perception = document.createElement('button');
@@ -487,7 +638,25 @@
   perception.className = 'learn4d-mode';
   perception.dataset.mode = 'perception';
   perception.textContent = 'Perception';
-  perception.title = 'Experience the dimensional viewpoint shift from Flatland to 4D';
+  perception.title = 'Switch between looping dimensional viewpoint animations';
+
+  let sceneIndex = 0;
+  let sceneStartedAt = performance.now();
+
+  function selectScene(index) {
+    sceneIndex = (index + scenes.length) % scenes.length;
+    sceneStartedAt = performance.now();
+    navButtons.forEach((button, i) => {
+      const selected = i === sceneIndex;
+      button.classList.toggle('is-active', selected);
+      button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+    });
+  }
+
+  navButtons.forEach((button, index) => {
+    button.addEventListener('click', () => selectScene(index));
+  });
+  selectScene(0);
 
   existingButtons.forEach((button) => {
     button.addEventListener('click', () => {
@@ -501,19 +670,32 @@
     modes.querySelectorAll('.learn4d-mode').forEach((button) => button.classList.remove('is-active'));
     perception.classList.add('is-active');
     document.body.classList.add('learn4d-perception');
-    markers.innerHTML = '<span>Flatland view</span><span>rise to 3D</span><span>see inside 2D</span><span>rise to 4D</span><span>projection</span>';
+    sceneStartedAt = performance.now();
   });
 
   modes.appendChild(perception);
 
-  function frame() {
+  window.addEventListener('keydown', (event) => {
+    if (!document.body.classList.contains('learn4d-perception')) return;
+    if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      selectScene(sceneIndex + 1);
+    } else if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      selectScene(sceneIndex - 1);
+    }
+  });
+
+  function frame(now) {
     const active = document.body.classList.contains('learn4d-active') && perception.classList.contains('is-active');
     document.body.classList.toggle('learn4d-perception', active);
 
     if (active) {
       const { width, height } = fitCanvas();
       ctx.clearRect(0, 0, width, height);
-      draw(width, height, Number(timeline.value) || 0);
+      const scene = scenes[sceneIndex];
+      const local = reduceMotion ? .5 : (((now - sceneStartedAt) / 1000) / scene.duration) % 1;
+      scene.draw(width, height, local);
     } else {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
