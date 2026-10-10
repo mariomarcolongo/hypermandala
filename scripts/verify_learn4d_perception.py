@@ -17,6 +17,22 @@ checks = [
         'perception canvas is created',
         "canvas.className = 'learn4d-perception-stage'" in perception,
     ),
+    (
+        'perception has user-selectable scene navigation',
+        "nav.className = 'learn4d-perception-nav'" in perception
+        and "button.dataset.scene = scene.id" in perception,
+    ),
+    (
+        'perception scenes loop independently of the base timeline',
+        'sceneStartedAt = performance.now()' in perception
+        and 'scene.duration' in perception,
+    ),
+    (
+        'Flatland paired views share ray-cast geometry',
+        'function rayRectHit' in perception
+        and "same instant · Flatlander first-person 1D image" in perception
+        and "A, B and C are the same rays in both panels" in perception,
+    ),
 ]
 
 missing = [name for name, ok in checks if not ok]
