@@ -442,3 +442,7 @@ Stereo, observer-orbit cues, 4D point trajectories and WebXR are **view modes**,
 The goal is perceptual access to the hyperform while preserving mandala qualities—center, radial/axial balance, repetition, hierarchy, adjacency and symbolic region identity—rather than adding arbitrary psychedelic deformation. No claim is made that a historical tradition prescribed a uniquely canonical four-dimensional continuation.
 
 Plane rotations are composed in the listed order **XW → YW → ZW → XY → XZ → YZ**. Rotations in different planes generally do not commute; simultaneous autorotation is continuous composition in this fixed order.
+
+## Published software archive
+
+Version **0.1.0** is preserved on Zenodo: [release DOI](https://doi.org/10.5281/zenodo.23391082). Use this version DOI when referring to that exact release; use the [all-version DOI](https://doi.org/10.5281/zenodo.23391081) for the project across releases.
