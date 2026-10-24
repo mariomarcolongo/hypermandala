@@ -255,7 +255,7 @@ Square uses the Tibetan-inspired five-direction vocabulary already used by Hyper
 
 ### Specific yantra families
 
-- **Sri Yantra** — gold bhupura, rose/ivory lotus rings, blue upward triangles, red downward triangles, red bindu.
+- **Sri Yantra** — ivory/sand bhupura (`#eadfbd`), ochre 16-lotus (`#d0a23b`), rose 8-lotus (`#ce8e98`), slate trivalaya (`#777b76`), and historical polychrome cell terraces (terracotta `#c46e4d`, orange `#c6652f`, ochre `#c99a32`, green `#71815f`) crowned by rose bindu (`#e1b2a8`).
 - **Kali Yantra** — dark bhupura, crimson lotus, black/crimson triangle hierarchy, gold bindu.
 - **Matangi Yantra** — olive bhupura, pink lotus, ochre/green shatkona, gold bindu.
 

@@ -97,6 +97,7 @@
   const complexityButtons = [...document.querySelectorAll('[data-complexity]')];
   const spacingButtons = [...document.querySelectorAll('[data-spacing]')];
   const zLiftButtons = [...document.querySelectorAll('[data-zlift]')];
+  const wLiftButtons = [...document.querySelectorAll('[data-wlift]')];
 
   const rotationRows = document.getElementById('rotationRows');
   const scaleRows = document.getElementById('scaleRows');
@@ -235,12 +236,12 @@
   };
 
   const ROTATION_CONFIG = [
-    { key: 'xw', label: 'XW', a: 0, b: 3, minDim: 4, color: COLORS.w },
-    { key: 'yw', label: 'YW', a: 1, b: 3, minDim: 4, color: COLORS.w },
-    { key: 'zw', label: 'ZW', a: 2, b: 3, minDim: 4, color: COLORS.w },
-    { key: 'xy', label: 'XY', a: 0, b: 1, minDim: 2, color: '#d8dbe0' },
-    { key: 'xz', label: 'XZ', a: 0, b: 2, minDim: 3, color: COLORS.z },
-    { key: 'yz', label: 'YZ', a: 1, b: 2, minDim: 3, color: COLORS.z },
+    { key: 'xw', label: 'XW', a: 0, b: 3, minDim: 4, color: COLORS.w, speed: 28.0 },
+    { key: 'yw', label: 'YW', a: 1, b: 3, minDim: 4, color: COLORS.w, speed: 17.3 },
+    { key: 'zw', label: 'ZW', a: 2, b: 3, minDim: 4, color: COLORS.w, speed: 11.6 },
+    { key: 'xy', label: 'XY', a: 0, b: 1, minDim: 2, color: '#d8dbe0', speed: 28.0 },
+    { key: 'xz', label: 'XZ', a: 0, b: 2, minDim: 3, color: COLORS.z, speed: 16.2 },
+    { key: 'yz', label: 'YZ', a: 1, b: 2, minDim: 3, color: COLORS.z, speed: 12.5 },
   ];
 
   const SCALE_CONFIG = [
@@ -361,11 +362,28 @@
 
 
   const W_SEMANTICS = {
-    square: ['centered spatial hyperprism · W↔−W mirror', 'spatial'], sriyantra: ['centered spatial hyperprism · W↔−W mirror', 'spatial'], kaliyantra: ['centered spatial hyperprism · W↔−W mirror', 'spatial'], matangiyantra: ['centered spatial hyperprism · W↔−W mirror', 'spatial'], hex: ['centered spatial hyperprism · W↔−W mirror', 'spatial'],
+    square: ['centered spatial hyperprism · W↔−W mirror', 'spatial'], sriyantra: ['Sri Yantra spatial hyperprism · W↔−W mirror', 'spatial'], kaliyantra: ['Kali Yantra spatial hyperprism · W↔−W mirror', 'spatial'], matangiyantra: ['Matangi Yantra spatial hyperprism · W↔−W mirror', 'spatial'], hex: ['centered spatial hyperprism · W↔−W mirror', 'spatial'],
     stupa: ['architectural hierarchy', 'parameter'], borobudur: ['architectural hierarchy', 'parameter'], castel: ['architectural hierarchy', 'parameter'], kukulkan: ['architectural hierarchy', 'parameter'], lalibela: ['architectural hierarchy', 'parameter'],
     chartres: ['labyrinth path progress', 'parameter'], rosewindow: ['tracery depth parameter', 'parameter'], sunstone: ['concentric register', 'parameter'], lotfollah: ['dome radial depth', 'parameter'], chladni: ['standing-wave quadrature', 'parameter'], diatom: ['frustule shell parameter', 'parameter'], radiolaria: ['radial shell parameter', 'parameter'], snowflake: ['growth order', 'parameter'], kolam: ['weave crossing parameter', 'parameter'], vastu: ['center-zone hierarchy', 'parameter'], phyllotaxis: ['growth order', 'parameter'],
   };
-  function currentWSemantics() { return W_SEMANTICS[state.preset] || ['model parameter', 'parameter']; }
+  function currentWSemantics() {
+    const base = W_SEMANTICS[state.preset] || ['model parameter', 'parameter'];
+    if (
+      base[1] === 'spatial'
+      && state.wLiftMode === 'hierarchical'
+      && PRESET_META[state.preset]?.kind === 'symmetric'
+    ) {
+      const prefix = state.preset === 'sriyantra'
+        ? 'Sri Yantra '
+        : state.preset === 'kaliyantra'
+          ? 'Kali Yantra '
+          : state.preset === 'matangiyantra'
+            ? 'Matangi Yantra '
+            : '';
+      return [prefix + 'hierarchical hyperconical taper · W→0 at bindu', 'spatial'];
+    }
+    return base;
+  }
   function intrinsicRank() {
     if (state.wMix * state.scales.w > 1e-4) return 4;
     if (state.zMix * state.scales.z > 1e-4) return 3;
@@ -384,6 +402,7 @@
     complexity: 'complex',
     spacingStyle: 'compact',
     zLiftStyle: 'hierarchy',
+    wLiftMode: 'uniform',
 
     projection: 'perspective',
     screenProjection: 'perspective',
@@ -447,6 +466,7 @@
       complexity: state.complexity,
       spacingStyle: state.spacingStyle,
       zLiftStyle: state.zLiftStyle,
+      wLiftMode: state.wLiftMode,
       dimension: state.dimension,
       projection: state.projection,
       screenProjection: state.screenProjection,
@@ -522,6 +542,9 @@
     if (['hierarchy', 'mirror'].includes(saved.zLiftStyle)) {
       state.zLiftStyle = saved.zLiftStyle;
     }
+    if (['uniform', 'hierarchical'].includes(saved.wLiftMode)) {
+      state.wLiftMode = saved.wLiftMode;
+    }
 
     const dimension = Number(saved.dimension);
     if ([2,3,4].includes(dimension)) {
@@ -587,13 +610,6 @@
       saved.moreFormsVisible === true
       && !restoredDockCollapsed;
 
-    if (
-      experimentalPresets.has(state.preset)
-      && !restoredDockExpanded
-    ) {
-      state.preset = 'square';
-    }
-
     state.queue = [];
     state.transition = null;
     state.transitionDirection = 0;
@@ -623,6 +639,12 @@
       button.classList.toggle(
         'is-active',
         button.dataset.zlift === state.zLiftStyle,
+      );
+    });
+    wLiftButtons.forEach((button) => {
+      button.classList.toggle(
+        'is-active',
+        button.dataset.wlift === state.wLiftMode,
       );
     });
     projectionButtons.forEach((button) => {
@@ -805,6 +827,14 @@
       + Math.round(rgb.r) + ' '
       + Math.round(rgb.g) + ' '
       + Math.round(rgb.b) + ')';
+  }
+
+  function rgbToHex(rgb) {
+    if (!rgb) return '#000000';
+    const r = clamp(Math.round(Number(rgb.r) || 0), 0, 255).toString(16).padStart(2, '0');
+    const g = clamp(Math.round(Number(rgb.g) || 0), 0, 255).toString(16).padStart(2, '0');
+    const b = clamp(Math.round(Number(rgb.b) || 0), 0, 255).toString(16).padStart(2, '0');
+    return '#' + r + g + b;
   }
 
   function mixRgb(a, b, t) {
@@ -1162,15 +1192,26 @@
     }
 
     if (meta.kind === 'symmetric') {
-      // Pure dimensional promotion is a centered Cartesian product.
-      // Intrinsically this is G3 × [-h/2,+h/2], so “Intrinsic W” is the
-      // same centered coordinate used by the mathematical construction.
       const hierarchy = clamp(
         liftMeta?.hierarchyT
           ?? ((z + 1.2) / 2.4),
         0,
         1,
       );
+      const isBindu = Boolean(
+        regionId && (regionId.includes('bindu') || (central && hierarchy >= 0.999)),
+      );
+      if (state.wLiftMode === 'hierarchical') {
+        const taper = isBindu ? 0.0 : Math.max(0.04, 1.0 - hierarchy * 0.88);
+        const extent = 0.48 * taper;
+        return {
+          center: 0,
+          half: extent * 0.5,
+          hierarchy,
+          polarity: 0,
+          kind: isBindu ? 'sacred-bindu-singularity' : 'hyperconical-taper',
+        };
+      }
       const extent = 0.48;
 
       return {
@@ -1631,10 +1672,6 @@
   function resetGeometry() {
     modules.length = 0;
     surfaceModules.length = 0;
-    planEdges.length = 0;
-    planFaces.length = 0;
-    planEdgeKeys.clear();
-    planFaceKeys.clear();
   }
 
   function symmetryCoord(value) {
@@ -6161,12 +6198,19 @@ const SRI_REFERENCE_CELL_ANCHORS = [
       || !modules.length
     ) return;
 
+    if (state.wLiftMode === 'hierarchical') return;
+
     const sources = modules.map(extractSymmetricPrismSource);
     if (sources.some((source) => !source)) {
       // Fall back to the original mesh rather than approximating a family
       // that stops being representable as vertical prism cells.
       return;
     }
+
+    // Guard against combinatorial explosions in polygon partitioning.
+    // If sources.length > 12 (e.g. hex with 24 rotated hexagons),
+    // pairwise polygon clipping takes 20+ seconds on the main thread.
+    if (sources.length > 12) return;
 
     const cells = partitionSymmetricFootprints(
       sources.map((source) => source.footprint),
@@ -6194,19 +6238,23 @@ const SRI_REFERENCE_CELL_ANCHORS = [
         [0, 0],
       ).map((value) => value / cell.length);
 
+      const cellSources = sources.filter((source) =>
+        pointInConvexPolygon(
+          centroid,
+          source.footprint,
+        )
+      );
+      if (!cellSources.length) continue;
+
       for (let level = 0; level < zLevels.length - 1; level += 1) {
         const bottom = zLevels[level];
         const top = zLevels[level + 1];
         if (top - bottom < 1e-7) continue;
 
         const middle = (bottom + top) * 0.5;
-        const covering = sources.filter((source) => (
+        const covering = cellSources.filter((source) => (
           middle > source.bottom + 1e-7
           && middle < source.top - 1e-7
-          && pointInConvexPolygon(
-            centroid,
-            source.footprint,
-          )
         ));
 
         if (!covering.length) continue;
@@ -6246,8 +6294,6 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     buildPlanForPreset();
     buildGeometryForCurrentChoice();
     normalizeSymmetricSurfaceComplex();
-    updateGeometryStats();
-    drawAllPreviews();
     updateGeometryStats();
   }
 
@@ -6354,8 +6400,10 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     }
 
     // Exact central perspective from a 4D camera on +W.
-    // The camera is outside every supported form, so no denominator clamp
-    // is needed; clamping would distort the projective geometry.
+    // Near-hyperplane clipping guard clamps w to cameraW - 0.25 (8.75),
+    // preventing division by zero, NaN coordinates, and antipodal coordinate inversion.
+    const wSafe = Math.min(p[3], 9 - 0.25);
+    p = [p[0], p[1], p[2], wSafe];
     const cameraW = 9;
     const factor = cameraW / (cameraW - p[3]);
 
@@ -6375,6 +6423,11 @@ const SRI_REFERENCE_CELL_ANCHORS = [
 
     if ((from === 2 && to === 3) || (from === 3 && to === 2)) {
       const forward = to > from;
+      if (state.screenProjection !== 'perspective') {
+        return forward
+          ? smoother(clamp((t - 0.04) / 0.96, 0, 1))
+          : 1 - smoother(clamp(t / 0.88, 0, 1));
+      }
 
       // Geometry separates first. Only once the new surfaces are legible does
       // the camera move into the ordinary 3D viewpoint. On collapse the order
@@ -6607,7 +6660,6 @@ const SRI_REFERENCE_CELL_ANCHORS = [
 
     if (edge.axis === 'w') return wReveal.edges;
     if (edge.axis === 'z') return zReveal.edges;
-    if (edge.wLayer === 1) return wReveal.shell;
     return 1;
   }
 
@@ -6736,7 +6788,7 @@ const SRI_REFERENCE_CELL_ANCHORS = [
         a[0] * b[1] - a[1] * b[0],
       ];
       const length = Math.hypot(cross[0], cross[1], cross[2]);
-      if (length > 1e-7) {
+      if (length > 1e-4) {
         normal = cross.map((value) => value / length);
         break;
       }
@@ -6942,6 +6994,9 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     }
 
     const collapseW = Boolean(options.collapseW);
+    const effectiveZ = Math.abs(state.scales.z * state.zMix);
+    const zCollapsed = effectiveZ < 1e-4;
+    const wScaleCollapsed = Math.abs(state.scales.w * state.wMix) < 1e-5;
 
     const groups = new Map();
 
@@ -6949,17 +7004,36 @@ const SRI_REFERENCE_CELL_ANCHORS = [
       const moduleAmount = moduleEmergence(module);
       if (moduleAmount <= 0.002) return;
 
+      if (zCollapsed && state.zLiftStyle === 'mirror' && PRESET_META[state.preset]?.kind !== 'architecture') {
+        let moduleMinZ = Infinity;
+        let moduleMaxZ = -Infinity;
+        for (const v of module.vertices) {
+          if (v[2] < moduleMinZ) moduleMinZ = v[2];
+          if (v[2] > moduleMaxZ) moduleMaxZ = v[2];
+        }
+        if (moduleMaxZ <= 1e-5 && moduleMinZ < -1e-5) return;
+      }
+
+      const wCollapsed = collapseW
+        || wScaleCollapsed
+        || Math.abs((module.wProfile?.half ?? 0.24) * state.scales.w * state.wMix) < 1e-5;
+
       module.edges.forEach((edge, edgeIndex) => {
         const visibility = edgeVisibility(edge) * moduleAmount;
         if (visibility <= 0.002) return;
 
-        if (collapseW && edge.axis === 'w') return;
+        if (wCollapsed && (edge.axis === 'w' || edge.wLayer === 1)) return;
+        if (zCollapsed && edge.axis === 'z') return;
 
         const a = [...module.vertices[edge.a]];
         const b = [...module.vertices[edge.b]];
-        if (collapseW) {
-          a[3] = 0;
-          b[3] = 0;
+        if (zCollapsed) {
+          a[2] = geometryStats.centerZ;
+          b[2] = geometryStats.centerZ;
+        }
+        if (wCollapsed) {
+          a[3] = geometryStats.centerW;
+          b[3] = geometryStats.centerW;
         }
         const line = intrinsicLineKey(a, b);
         if (!line) return;
@@ -7065,9 +7139,24 @@ const SRI_REFERENCE_CELL_ANCHORS = [
         : 'spatial|';
 
     return transitionGroup + face.indices
-      .map((index) => module.vertices[index]
-        .map(symmetryCoord)
-        .join(','))
+      .map((index) => module.vertices[index].map(symmetryCoord).join(','))
+      .sort()
+      .join('|');
+  }
+
+  function faceCollapsedZKey(module, face) {
+    const transitionGroup = state.wMix >= 0.999
+      ? ''
+      : module.hyperOnly
+        ? 'hyper|'
+        : 'spatial|';
+
+    return transitionGroup + face.indices
+      .map((index) => {
+        const v = module.vertices[index];
+        const coord = v.length > 3 ? [v[0], v[1], 0, v[3]] : [v[0], v[1], 0];
+        return coord.map(symmetryCoord).join(',');
+      })
       .sort()
       .join('|');
   }
@@ -7123,8 +7212,10 @@ const SRI_REFERENCE_CELL_ANCHORS = [
 
     const entries = [];
     const counts = new Map();
+    const effectiveZ = Math.abs(state.scales.z * state.zMix);
+    const zCollapsed = effectiveZ < 1e-4;
     const filledModules = (
-      state.zMix > 0.001
+      !zCollapsed
       && surfaceModules.length
     ) ? surfaceModules : modules;
 
@@ -7132,10 +7223,66 @@ const SRI_REFERENCE_CELL_ANCHORS = [
       const moduleAmount = moduleEmergence(module);
       if (moduleAmount <= 0.002) continue;
 
+      const wCollapsed = Math.abs(
+        (module.wProfile?.half ?? 0.24) * state.scales.w * state.wMix,
+      ) < 1e-5;
+
+      let moduleMinZ = Infinity;
+      let moduleMaxZ = -Infinity;
+      if (zCollapsed) {
+        for (const v of module.vertices) {
+          if (v[2] < moduleMinZ) moduleMinZ = v[2];
+          if (v[2] > moduleMaxZ) moduleMaxZ = v[2];
+        }
+        if (
+          state.zLiftStyle === 'mirror'
+          && PRESET_META[state.preset]?.kind !== 'architecture'
+          && moduleMaxZ <= 1e-5
+          && moduleMinZ < -1e-5
+        ) {
+          continue;
+        }
+      }
+
       for (const face of module.faces) {
         if (!hypercellFaceVisible(module, face, filledModules)) continue;
         const visibility = faceVisibility(face);
         if (visibility <= 0.002) continue;
+
+        if (wCollapsed) {
+          if (face.bridge || face.wLayer === -1) continue;
+        }
+
+        if (zCollapsed) {
+          // When Z is collapsed (effective prism height = 0), side walls degenerate to 0 height
+          if (face.axis === 'n' || face.axis === 'x' || face.axis === 'y') continue;
+
+          // Vertical bridge faces across Z collapse to zero-area quads
+          if (face.bridge) {
+            const i0 = face.indices[0];
+            const i1 = face.indices[1];
+            const v0 = module.vertices[i0];
+            const v1 = module.vertices[i1];
+            if (v0 && v1 && Math.hypot(v0[0] - v1[0], v0[1] - v1[1]) < 1e-5) continue;
+
+            // Retain only one set of horizontal bridge faces (at moduleMaxZ, matching top cap)
+            if (moduleMaxZ - moduleMinZ > 1e-4) {
+              let bridgeCanonicalZ = 0;
+              for (const idx of face.indices) bridgeCanonicalZ += module.vertices[idx][2];
+              bridgeCanonicalZ /= face.indices.length;
+              if (bridgeCanonicalZ <= moduleMinZ + 1e-4) continue;
+            }
+          }
+
+          // In Z-caps: top and bottom caps meet on the exact same plane.
+          // Retain only the top cap (+Z) to prevent coincident Z-fighting and normal oscillation.
+          if (face.axis === 'z' && moduleMaxZ - moduleMinZ > 1e-4) {
+            let faceCanonicalZ = 0;
+            for (const idx of face.indices) faceCanonicalZ += module.vertices[idx][2];
+            faceCanonicalZ /= face.indices.length;
+            if (faceCanonicalZ <= moduleMinZ + 1e-4) continue;
+          }
+        }
 
         const key = faceWorldKey(module, face);
         counts.set(key, (counts.get(key) || 0) + 1);
@@ -7143,11 +7290,34 @@ const SRI_REFERENCE_CELL_ANCHORS = [
       }
     }
 
-    const faceData = [];
-
+    let survivingEntries = [];
     for (const entry of entries) {
       if ((counts.get(entry.key) || 0) > 1) continue;
+      survivingEntries.push(entry);
+    }
 
+    if (zCollapsed) {
+      const bestByCollapsedKey = new Map();
+      for (const entry of survivingEntries) {
+        let faceCanonicalZ = 0;
+        for (const idx of entry.face.indices) {
+          faceCanonicalZ += entry.module.vertices[idx][2];
+        }
+        faceCanonicalZ /= entry.face.indices.length;
+        entry.faceCanonicalZ = faceCanonicalZ;
+
+        const collapsedKey = faceCollapsedZKey(entry.module, entry.face);
+        const prev = bestByCollapsedKey.get(collapsedKey);
+        if (!prev || faceCanonicalZ >= prev.faceCanonicalZ) {
+          bestByCollapsedKey.set(collapsedKey, entry);
+        }
+      }
+      survivingEntries = [...bestByCollapsedKey.values()];
+    }
+
+    const faceData = [];
+
+    for (const entry of survivingEntries) {
       const points = entry.face.indices
         .map((index) => projectModulePoint(
           entry.module,
@@ -7161,18 +7331,32 @@ const SRI_REFERENCE_CELL_ANCHORS = [
 
       const rgb = faceFillRgb(entry.face, entry.module, points);
 
+      let faceCanonicalZ = entry.faceCanonicalZ;
+      if (faceCanonicalZ === undefined) {
+        faceCanonicalZ = 0;
+        for (const idx of entry.face.indices) {
+          faceCanonicalZ += entry.module.vertices[idx][2];
+        }
+        faceCanonicalZ /= entry.face.indices.length;
+      }
+
+      const hierarchyBias = zCollapsed
+        ? (faceCanonicalZ * 0.003) + (entry.face.wLayer === 1 ? 0.0008 : entry.face.wLayer === -1 ? -0.0008 : 0)
+        : 0;
+
       const triangleIndices = triangulateProjectedPolygon(points);
       for (const indices of triangleIndices) {
         const tri = indices.map((index) => points[index]);
         const triData = [];
 
         for (const p of tri) {
-          const [x, y, z, w] = solidClipPosition(p.x, p.y, p.depth);
+          const [x, y, z, w] = solidClipPosition(p.x, p.y, p.depth, hierarchyBias);
 
           const vertexRgb = (
             (state.wDepthColor || state.insightMode === 'w-color')
             && state.wMix > 0.001
           ) ? wCoordinateRgbValue(p.w) : rgb;
+
           triData.push(
             x, y, z, w,
             vertexRgb.r / 255,
@@ -7265,7 +7449,15 @@ const SRI_REFERENCE_CELL_ANCHORS = [
         const moduleAmount = moduleEmergence(module);
         if (moduleAmount <= 0.002) return [];
 
-        return module.edges.map((edge) => ({
+        const wCollapsed = Math.abs(
+          (module.wProfile?.half ?? 0.24) * state.scales.w * state.wMix,
+        ) < 1e-5;
+
+        return module.edges.filter((edge) => {
+          if (zCollapsed && edge.axis === 'z') return false;
+          if (wCollapsed && (edge.axis === 'w' || edge.wLayer === 1)) return false;
+          return true;
+        }).map((edge) => ({
           a: module.vertices[edge.a],
           b: module.vertices[edge.b],
           edge,
@@ -7274,6 +7466,7 @@ const SRI_REFERENCE_CELL_ANCHORS = [
         })).filter((item) => item.visibility > 0.002);
       });
 
+    const edgeSeen = (zCollapsed || Math.abs(state.scales.w * state.wMix) < 1e-5) ? new Set() : null;
     for (const item of structuralEdges) {
       const a = projectToScreen(item.a);
       const b = projectToScreen(item.b);
@@ -7281,6 +7474,14 @@ const SRI_REFERENCE_CELL_ANCHORS = [
       const dy = b.y - a.y;
       const length = Math.hypot(dx, dy);
       if (length < 0.5) continue;
+
+      if (edgeSeen) {
+        const k0 = a.x.toFixed(1) + ',' + a.y.toFixed(1) + ',' + a.depth.toFixed(2);
+        const k1 = b.x.toFixed(1) + ',' + b.y.toFixed(1) + ',' + b.depth.toFixed(2);
+        const edgeKey = k0 < k1 ? k0 + '|' + k1 : k1 + '|' + k0;
+        if (edgeSeen.has(edgeKey)) continue;
+        edgeSeen.add(edgeKey);
+      }
 
       const ox = (-dy / length) * halfWidth;
       const oy = (dx / length) * halfWidth;
@@ -7335,9 +7536,12 @@ const SRI_REFERENCE_CELL_ANCHORS = [
   function drawFaces(alpha) {
     if (state.renderMode === 'wire' || alpha <= 0.001) return;
 
-    const rendered = [];
+    const entries = [];
+    const counts = new Map();
+    const effectiveZ = Math.abs(state.scales.z * state.zMix);
+    const zCollapsed = effectiveZ < 1e-4;
     const filledModules = (
-      state.zMix > 0.001
+      !zCollapsed
       && surfaceModules.length
     ) ? surfaceModules : modules;
 
@@ -7345,26 +7549,111 @@ const SRI_REFERENCE_CELL_ANCHORS = [
       const moduleAmount = moduleEmergence(module);
       if (moduleAmount <= 0.002) continue;
 
+      const wCollapsed = Math.abs(
+        (module.wProfile?.half ?? 0.24) * state.scales.w * state.wMix,
+      ) < 1e-5;
+
+      let moduleMinZ = Infinity;
+      let moduleMaxZ = -Infinity;
+      if (zCollapsed) {
+        for (const v of module.vertices) {
+          if (v[2] < moduleMinZ) moduleMinZ = v[2];
+          if (v[2] > moduleMaxZ) moduleMaxZ = v[2];
+        }
+        if (
+          state.zLiftStyle === 'mirror'
+          && PRESET_META[state.preset]?.kind !== 'architecture'
+          && moduleMaxZ <= 1e-5
+          && moduleMinZ < -1e-5
+        ) {
+          continue;
+        }
+      }
+
       for (const face of module.faces) {
         if (!hypercellFaceVisible(module, face, filledModules)) continue;
         const visibility = faceVisibility(face);
         if (visibility <= 0.002) continue;
 
-        const points = face.indices.map((index) => projectModulePoint(
-          module,
-          module.vertices[index],
-        ));
-        if (Math.abs(polygonArea2D(points)) < 0.45) continue;
+        if (wCollapsed) {
+          if (face.bridge || face.wLayer === -1) continue;
+        }
 
-        const depth = points.reduce((sum, p) => sum + p.depth, 0) / points.length;
-        rendered.push({
-          face,
-          module,
-          points,
-          depth,
-          visibility: visibility * moduleAmount,
-        });
+        if (zCollapsed) {
+          if (face.axis === 'n' || face.axis === 'x' || face.axis === 'y') continue;
+
+          if (face.bridge) {
+            const i0 = face.indices[0];
+            const i1 = face.indices[1];
+            const v0 = module.vertices[i0];
+            const v1 = module.vertices[i1];
+            if (v0 && v1 && Math.hypot(v0[0] - v1[0], v0[1] - v1[1]) < 1e-5) continue;
+
+            if (moduleMaxZ - moduleMinZ > 1e-4) {
+              let bridgeCanonicalZ = 0;
+              for (const idx of face.indices) bridgeCanonicalZ += module.vertices[idx][2];
+              bridgeCanonicalZ /= face.indices.length;
+              if (bridgeCanonicalZ <= moduleMinZ + 1e-4) continue;
+            }
+          }
+
+          if (face.axis === 'z' && moduleMaxZ - moduleMinZ > 1e-4) {
+            let faceCanonicalZ = 0;
+            for (const idx of face.indices) faceCanonicalZ += module.vertices[idx][2];
+            faceCanonicalZ /= face.indices.length;
+            if (faceCanonicalZ <= moduleMinZ + 1e-4) continue;
+          }
+        }
+
+        const key = faceWorldKey(module, face);
+        counts.set(key, (counts.get(key) || 0) + 1);
+        entries.push({ module, face, visibility: visibility * moduleAmount, key });
       }
+    }
+
+    let survivingEntries = entries.filter(
+      (entry) => (counts.get(entry.key) || 0) <= 1,
+    );
+
+    if (zCollapsed) {
+      const bestByCollapsedKey = new Map();
+      for (const entry of survivingEntries) {
+        let faceCanonicalZ = 0;
+        for (const idx of entry.face.indices) {
+          faceCanonicalZ += entry.module.vertices[idx][2];
+        }
+        faceCanonicalZ /= entry.face.indices.length;
+        entry.faceCanonicalZ = faceCanonicalZ;
+
+        const collapsedKey = faceCollapsedZKey(entry.module, entry.face);
+        const prev = bestByCollapsedKey.get(collapsedKey);
+        if (!prev || faceCanonicalZ >= prev.faceCanonicalZ) {
+          bestByCollapsedKey.set(collapsedKey, entry);
+        }
+      }
+      survivingEntries = [...bestByCollapsedKey.values()];
+    }
+
+    const rendered = [];
+    for (const entry of survivingEntries) {
+      const points = entry.face.indices.map((index) => projectModulePoint(
+        entry.module,
+        entry.module.vertices[index],
+      ));
+      if (Math.abs(polygonArea2D(points)) < 0.45) continue;
+
+      let faceCanonicalZ = entry.faceCanonicalZ ?? 0;
+      const hierarchyBias = zCollapsed
+        ? (faceCanonicalZ * 0.003) + (entry.face.wLayer === 1 ? 0.0008 : entry.face.wLayer === -1 ? -0.0008 : 0)
+        : 0;
+      const depth = points.reduce((sum, p) => sum + p.depth, 0) / points.length + hierarchyBias;
+      rendered.push({
+        face: entry.face,
+        module: entry.module,
+        points,
+        depth,
+        visibility: entry.visibility,
+      });
     }
 
     rendered.sort((a, b) => a.depth - b.depth);
@@ -7397,6 +7686,11 @@ const SRI_REFERENCE_CELL_ANCHORS = [
   function drawEdges(alpha) {
     if (state.renderMode === 'solid' || alpha <= 0.001) return;
 
+    const effectiveZ = Math.abs(state.scales.z * state.zMix);
+    const zCollapsed = effectiveZ < 1e-4;
+    const wScaleCollapsed = Math.abs(state.scales.w * state.wMix) < 1e-5;
+    const edgeSeen = (zCollapsed || wScaleCollapsed) ? new Set() : null;
+
     const normalized = uniqueStructuralEdgeSegments();
     const rendered = normalized
       ? normalized.map((item) => {
@@ -7415,7 +7709,15 @@ const SRI_REFERENCE_CELL_ANCHORS = [
         }).filter((item) => {
           const dx = item.b.x - item.a.x;
           const dy = item.b.y - item.a.y;
-          return dx * dx + dy * dy >= 0.25;
+          if (dx * dx + dy * dy < 0.25) return false;
+          if (edgeSeen) {
+            const k0 = item.a.x.toFixed(1) + ',' + item.a.y.toFixed(1) + ',' + item.a.depth.toFixed(2);
+            const k1 = item.b.x.toFixed(1) + ',' + item.b.y.toFixed(1) + ',' + item.b.depth.toFixed(2);
+            const edgeKey = k0 < k1 ? k0 + '|' + k1 : k1 + '|' + k0;
+            if (edgeSeen.has(edgeKey)) return false;
+            edgeSeen.add(edgeKey);
+          }
+          return true;
         })
       : [];
 
@@ -7424,7 +7726,13 @@ const SRI_REFERENCE_CELL_ANCHORS = [
         const moduleAmount = moduleEmergence(module);
         if (moduleAmount <= 0.002) continue;
 
+        const wCollapsed = wScaleCollapsed
+          || Math.abs((module.wProfile?.half ?? 0.24) * state.scales.w * state.wMix) < 1e-5;
+
         for (const edge of module.edges) {
+          if (zCollapsed && edge.axis === 'z') continue;
+          if (wCollapsed && (edge.axis === 'w' || edge.wLayer === 1)) continue;
+
           const visibility = edgeVisibility(edge) * moduleAmount;
           if (visibility <= 0.002) continue;
 
@@ -7433,6 +7741,14 @@ const SRI_REFERENCE_CELL_ANCHORS = [
           const dx = b.x - a.x;
           const dy = b.y - a.y;
           if (dx * dx + dy * dy < 0.25) continue;
+
+          if (edgeSeen) {
+            const k0 = a.x.toFixed(1) + ',' + a.y.toFixed(1) + ',' + a.depth.toFixed(2);
+            const k1 = b.x.toFixed(1) + ',' + b.y.toFixed(1) + ',' + b.depth.toFixed(2);
+            const edgeKey = k0 < k1 ? k0 + '|' + k1 : k1 + '|' + k0;
+            if (edgeSeen.has(edgeKey)) continue;
+            edgeSeen.add(edgeKey);
+          }
 
           rendered.push({
             edge,
@@ -7450,14 +7766,25 @@ const SRI_REFERENCE_CELL_ANCHORS = [
 
     rendered.sort((a, b) => a.depth - b.depth);
 
+    const hasWDepth = (state.wDepthColor || state.insightMode === 'w-color') && state.wMix > 0.001;
+
     for (const item of rendered) {
       const depth = clamp((item.depth + 1.6) / 3.5, 0, 1);
+      const avgW = (item.a.w !== undefined && item.b.w !== undefined)
+        ? (item.a.w + item.b.w) * 0.5
+        : 0;
+      const wBounds = transformedWBounds();
+      const wNorm = clamp((avgW - wBounds.min) / Math.max(1e-7, wBounds.max - wBounds.min), 0, 1);
+      const wDepthFactor = 0.85 + wNorm * 0.30;
 
       if (state.renderMode === 'solid-edges') {
+        const strokeColor = hasWDepth
+          ? rgbToHex(wCoordinateRgbValue(avgW))
+          : edgeStrokeColor(item.edge.axis);
         drawLine(
           item.a,
           item.b,
-          edgeStrokeColor(item.edge.axis),
+          strokeColor,
           1.28 + depth * 0.34,
           clamp(item.visibility, 0, 1),
         );
@@ -7468,13 +7795,17 @@ const SRI_REFERENCE_CELL_ANCHORS = [
         0.72
         + depth * 0.52
         + (item.edge.axis === 'w' ? 0.14 : 0);
+      const modulatedWidth = width * wDepthFactor;
       const lineAlpha = alpha
         * item.visibility
         * 0.82
-        * (0.55 + depth * 0.42);
+        * (0.55 + depth * 0.42)
+        * (0.80 + wNorm * 0.40);
 
       let color = axisColor(item.edge.axis);
-      if (state.colorMode === 'classic') {
+      if (hasWDepth) {
+        color = rgbToHex(wCoordinateRgbValue(avgW));
+      } else if (state.colorMode === 'classic') {
         const mx = (item.sourceA[0] + item.sourceB[0]) * 0.5;
         const my = (item.sourceA[1] + item.sourceB[1]) * 0.5;
         color = classicWireColor(
@@ -7488,7 +7819,7 @@ const SRI_REFERENCE_CELL_ANCHORS = [
         item.a,
         item.b,
         color,
-        width,
+        modulatedWidth,
         lineAlpha,
       );
     }
@@ -7529,8 +7860,9 @@ const SRI_REFERENCE_CELL_ANCHORS = [
   }
 
   function activeFilledModules() {
+    const effectiveZ = Math.abs(state.scales.z * state.zMix);
     return (
-      state.zMix > 0.001
+      effectiveZ >= 1e-4
       && surfaceModules.length
     ) ? surfaceModules : modules;
   }
@@ -7796,22 +8128,50 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     });
   }
 
+  function isSurvivingSourceZCap(vertices, face, minZ, maxZ) {
+    if (face.axis !== 'z') return false;
+    if (maxZ - minZ <= 1e-4) return true;
+    let canonicalZ = 0;
+    for (const idx of face.indices) canonicalZ += vertices[idx][2];
+    canonicalZ /= face.indices.length;
+    return canonicalZ > minZ + 1e-4;
+  }
+
   function hypercellEdgeSets(module) {
     const source = module.source3;
     if (!source?.faces?.length) return [];
     const n = source.vertices.length;
     const boundaryEdges = sourceBoundaryEdgePairs(source);
     const cells = [];
-    for (const layer of [0, 1]) {
+    const effectiveZ = Math.abs(state.scales.z * state.zMix);
+    const zCollapsed = effectiveZ < 1e-4;
+    const wCollapsed = Math.abs(
+      (module.wProfile?.half ?? 0.24) * state.scales.w * state.wMix,
+    ) < 1e-5;
+
+    let minZ = Infinity;
+    let maxZ = -Infinity;
+    if (zCollapsed) {
+      for (const v of source.vertices) {
+        if (v[2] < minZ) minZ = v[2];
+        if (v[2] > maxZ) maxZ = v[2];
+      }
+    }
+    const activeFaces = zCollapsed
+      ? source.faces.filter((face) => isSurvivingSourceZCap(source.vertices, face, minZ, maxZ))
+      : source.faces;
+
+    for (const layer of (wCollapsed ? [0] : [0, 1])) {
       const offset = layer * n;
       cells.push({
         kind: 'cap',
         vertexIndices: Array.from({ length: n }, (_, i) => i + offset),
         edgePairs: boundaryEdges.map(([a,b]) => [a+offset,b+offset]),
-        coplanarFaces: source.faces.map((face) => face.indices.map((i) => i + offset)),
+        coplanarFaces: activeFaces.map((face) => face.indices.map((i) => i + offset)),
       });
     }
-    for (const face of source.faces) {
+    if (wCollapsed) return cells;
+    for (const face of activeFaces) {
       const indices = face.indices;
       const edgePairs = [];
       for (let i = 0; i < indices.length; i += 1) {
@@ -7843,6 +8203,7 @@ const SRI_REFERENCE_CELL_ANCHORS = [
   }
 
   function renderSectionSurface(polygons, alpha, width, color) {
+    const zCollapsed = Math.abs(state.scales.z * state.zMix) < 1e-4;
     const counts = new Map();
     const entries = [];
     for (const polygon of polygons) {
@@ -7852,8 +8213,14 @@ const SRI_REFERENCE_CELL_ANCHORS = [
       entries.push({ polygon, key });
     }
     const rendered = [];
+    const seenCollapsed = zCollapsed ? new Set() : null;
     for (const entry of entries) {
-      if ((counts.get(entry.key)||0) !== 1) continue;
+      if (seenCollapsed) {
+        if (seenCollapsed.has(entry.key)) continue;
+        seenCollapsed.add(entry.key);
+      } else if ((counts.get(entry.key)||0) !== 1) {
+        continue;
+      }
       const points = entry.polygon.map((p) => projectTransformed4DToScreen(p));
       if (Math.abs(polygonArea2D(points)) < 0.2) continue;
       rendered.push({ points, depth: points.reduce((sum,p)=>sum+p.depth,0)/points.length });
@@ -7874,13 +8241,31 @@ const SRI_REFERENCE_CELL_ANCHORS = [
   function drawViewSpaceWSection(fraction, alpha, width, color) {
     const sectionModules = activeFilledModules();
     if (!sectionModules.length) return;
+    const zCollapsed = Math.abs(state.scales.z * state.zMix) < 1e-4;
     const bounds = transformedSectionWBounds(sectionModules);
     const targetW = bounds.min + (bounds.max - bounds.min) * fraction;
     const epsilon = Math.max(1e-7, (bounds.max-bounds.min)*1e-7);
     const polygons = [];
     for (const module of sectionModules) {
       if (!module.source3?.faces?.length) continue;
+      if (zCollapsed && state.zLiftStyle === 'mirror' && PRESET_META[state.preset]?.kind !== 'architecture') {
+        let minZ = Infinity;
+        let maxZ = -Infinity;
+        for (const v of module.vertices) {
+          if (v[2] < minZ) minZ = v[2];
+          if (v[2] > maxZ) maxZ = v[2];
+        }
+        if (maxZ <= 1e-5 && minZ < -1e-5) continue;
+      }
       const transformed = module.vertices.map((point) => transform4D(point, true));
+      let minW = Infinity;
+      let maxW = -Infinity;
+      for (const p of transformed) {
+        if (p[3] < minW) minW = p[3];
+        if (p[3] > maxW) maxW = p[3];
+      }
+      if (maxW - minW < 1e-5) continue;
+      if (targetW < minW - epsilon || targetW > maxW + epsilon) continue;
       for (const cell of hypercellEdgeSets(module)) {
         const cellVertices = cell.vertexIndices.map((index) => transformed[index]);
         const allOn = cellVertices.length && cellVertices.every((point) => Math.abs(point[3]-targetW)<=epsilon);
@@ -7899,6 +8284,7 @@ const SRI_REFERENCE_CELL_ANCHORS = [
 
   function drawIntrinsicWSection(fraction, alpha, width, color) {
     const sectionModules = activeFilledModules();
+    const zCollapsed = Math.abs(state.scales.z * state.zMix) < 1e-4;
     const bounds = globalIntrinsicWBounds(sectionModules);
     const targetW = bounds.min + (bounds.max - bounds.min) * fraction;
     const epsilon = Math.max(1e-7, (bounds.max-bounds.min)*1e-7);
@@ -7906,12 +8292,33 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     for (const module of sectionModules) {
       const source = module.source3;
       if (!source?.faces?.length) continue;
+      if (zCollapsed && state.zLiftStyle === 'mirror' && PRESET_META[state.preset]?.kind !== 'architecture') {
+        let minZ = Infinity;
+        let maxZ = -Infinity;
+        for (const v of module.vertices) {
+          if (v[2] < minZ) minZ = v[2];
+          if (v[2] > maxZ) maxZ = v[2];
+        }
+        if (maxZ <= 1e-5 && minZ < -1e-5) continue;
+      }
       const profile = module.wProfile;
       const low = profile ? profile.center-profile.half : Math.min(...module.vertices.map((p)=>p[3]));
       const high = profile ? profile.center+profile.half : Math.max(...module.vertices.map((p)=>p[3]));
+      if (high - low < 1e-5) continue;
       if (targetW < low-epsilon || targetW > high+epsilon) continue;
+      let minZ = Infinity;
+      let maxZ = -Infinity;
+      if (zCollapsed) {
+        for (const v of source.vertices) {
+          if (v[2] < minZ) minZ = v[2];
+          if (v[2] > maxZ) maxZ = v[2];
+        }
+      }
+      const activeFaces = zCollapsed
+        ? source.faces.filter((face) => isSurvivingSourceZCap(source.vertices, face, minZ, maxZ))
+        : source.faces;
       const transformed = source.vertices.map((p)=>transform4D([p[0],p[1],p[2],targetW], true));
-      for (const face of source.faces) polygons.push(face.indices.map((index)=>transformed[index]));
+      for (const face of activeFaces) polygons.push(face.indices.map((index)=>transformed[index]));
     }
     renderSectionSurface(polygons, alpha, width, color);
   }
@@ -7944,16 +8351,56 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     }
   }
 
+  function survivingModuleCapFaces(module, wLayer, zCollapsed) {
+    let minZ = Infinity;
+    let maxZ = -Infinity;
+    if (zCollapsed) {
+      for (const v of module.vertices) {
+        if (v[2] < minZ) minZ = v[2];
+        if (v[2] > maxZ) maxZ = v[2];
+      }
+    }
+    return module.faces.filter(
+      (face) => !face.bridge
+        && face.wLayer === wLayer
+        && (!zCollapsed || isSurvivingSourceZCap(module.vertices, face, minZ, maxZ)),
+    );
+  }
+
   function boundaryHypercells(filledModules = activeFilledModules()) {
     const cells = [];
+    const zCollapsed = Math.abs(state.scales.z * state.zMix) < 1e-4;
 
     filledModules.forEach((module, moduleIndex) => {
-      const minusFaces = module.faces.filter(
-        (face) => !face.bridge && face.wLayer === -1,
-      );
-      const plusFaces = module.faces.filter(
-        (face) => !face.bridge && face.wLayer === 1,
-      );
+      if (zCollapsed && state.zLiftStyle === 'mirror' && PRESET_META[state.preset]?.kind !== 'architecture') {
+        let minZ = Infinity;
+        let maxZ = -Infinity;
+        for (const v of module.vertices) {
+          if (v[2] < minZ) minZ = v[2];
+          if (v[2] > maxZ) maxZ = v[2];
+        }
+        if (maxZ <= 1e-5 && minZ < -1e-5) return;
+      }
+
+      const wCollapsed = Math.abs(
+        (module.wProfile?.half ?? 0.24) * state.scales.w * state.wMix,
+      ) < 1e-5;
+
+      const minusFaces = survivingModuleCapFaces(module, -1, zCollapsed);
+      const plusFaces = survivingModuleCapFaces(module, 1, zCollapsed);
+
+      if (wCollapsed) {
+        if (plusFaces.length) {
+          cells.push({
+            module,
+            moduleIndex,
+            kind: 'cap',
+            wLayer: 1,
+            label: 'W0 core',
+          });
+        }
+        return;
+      }
 
       if (minusFaces.length) {
         cells.push({
@@ -8026,12 +8473,9 @@ const SRI_REFERENCE_CELL_ANCHORS = [
       return !face.bridge && face.wLayer === cell.wLayer;
     }
 
-    const minusFaces = module.faces.filter(
-      (item) => !item.bridge && item.wLayer === -1,
-    );
-    const plusFaces = module.faces.filter(
-      (item) => !item.bridge && item.wLayer === 1,
-    );
+    const zCollapsed = Math.abs(state.scales.z * state.zMix) < 1e-4;
+    const minusFaces = survivingModuleCapFaces(module, -1, zCollapsed);
+    const plusFaces = survivingModuleCapFaces(module, 1, zCollapsed);
     const minus = minusFaces[cell.sideIndex];
     const plus = plusFaces[cell.sideIndex];
 
@@ -8106,7 +8550,26 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     referenceCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
     referenceCtx.clearRect(0, 0, cssWidth, cssHeight);
 
-    const edges = uniqueStructuralEdgeSegments({ collapseW: true });
+    const zCollapsed = Math.abs(state.scales.z * state.zMix) < 1e-4;
+    const edges = uniqueStructuralEdgeSegments({ collapseW: true })
+      ?? modules.flatMap((module) => {
+        const moduleAmount = moduleEmergence(module);
+        if (moduleAmount <= 0.002) return [];
+        return module.edges
+          .filter((edge) => (
+            edge.axis !== 'w'
+            && edge.wLayer !== 1
+            && !(zCollapsed && edge.axis === 'z')
+          ))
+          .map((edge) => ({
+            a: module.vertices[edge.a],
+            b: module.vertices[edge.b],
+            edge,
+            module,
+            visibility: edgeVisibility(edge) * moduleAmount,
+          }))
+          .filter((item) => item.visibility > 0.002);
+      });
     if (!edges?.length) return;
 
     const projected = edges.map((item) => ({
@@ -8402,6 +8865,8 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     ));
 
     const points = active.map((axis) => ({ axis, p: basisPoint(axis.vector) }));
+    points.sort((a, b) => a.p[2] - b.p[2]);
+
     let max = 0.01;
     for (const item of points) max = Math.max(max, Math.hypot(item.p[0], item.p[1]));
 
@@ -8412,6 +8877,20 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     basisCtx.lineCap = 'round';
 
     for (const item of points) {
+      const len = Math.hypot(item.p[0], item.p[1]);
+      if (len < 0.05 && item.axis.label === 'W') {
+        basisCtx.strokeStyle = item.axis.color;
+        basisCtx.lineWidth = 1.8;
+        basisCtx.globalAlpha = 0.9;
+        basisCtx.beginPath();
+        basisCtx.arc(ox, oy, 7.5, 0, TAU);
+        basisCtx.stroke();
+        basisCtx.fillStyle = item.axis.color;
+        basisCtx.font = '700 9px Inter, sans-serif';
+        basisCtx.fillText('W ⊙', ox + 9, oy - 7);
+        continue;
+      }
+
       const x = ox + item.p[0] * scale;
       const y = oy + item.p[1] * scale;
 
@@ -8777,6 +9256,8 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     hideHint();
   }
 
+  let pendingChoice = null;
+
   function completeStage() {
     state.dimension = state.transition.toDimension;
     state.zMix = state.transition.toZ;
@@ -8788,6 +9269,16 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     } else {
       state.requestedDimension = state.dimension;
       markSettingsDirty();
+      if (pendingChoice) {
+        const choice = pendingChoice;
+        pendingChoice = null;
+        rebuildFromChoice(
+          choice.buttons,
+          choice.button,
+          choice.stateKey,
+          choice.dataKey,
+        );
+      }
     }
   }
 
@@ -8897,7 +9388,7 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     }
 
     if (wDepthToggle) {
-      const wDepthEnabled = insightEnabled && state.renderMode !== 'wire';
+      const wDepthEnabled = insightEnabled;
       wDepthToggle.disabled = !wDepthEnabled;
       wDepthToggle.classList.toggle('is-active', state.wDepthColor);
       wDepthToggle.setAttribute(
@@ -8935,6 +9426,18 @@ const SRI_REFERENCE_CELL_ANCHORS = [
             : 'Single outer-to-inner hierarchy spanning the Z axis'
         )
         : 'Architecture keeps its intrinsic vertical orientation';
+    });
+
+    const wLiftEnabled = meta.kind !== 'architecture' && !locked;
+    wLiftButtons.forEach((button) => {
+      button.disabled = !wLiftEnabled;
+      button.title = wLiftEnabled
+        ? (
+          button.dataset.wlift === 'hierarchical'
+            ? 'Authentic hierarchical 4D transposition where W scales with concentric sacred hierarchy'
+            : 'Uniform Cartesian hyperprism G3 x [-w/2, +w/2]'
+        )
+        : 'Architecture keeps its intrinsic hyperprism extrusion';
     });
   }
 
@@ -8993,7 +9496,9 @@ const SRI_REFERENCE_CELL_ANCHORS = [
         dimensionStatus.textContent = meta.spatial;
       } else {
         const [, wKind] = currentWSemantics();
-        dimensionStatus.textContent = wKind === 'spatial' ? '4D spatial hyperprism' : '4D parameter embedding';
+        dimensionStatus.textContent = wKind === 'spatial'
+          ? (state.wLiftMode === 'hierarchical' ? '4D hierarchical hypercone' : '4D spatial hyperprism')
+          : '4D parameter embedding';
       }
     }
 
@@ -9012,6 +9517,7 @@ const SRI_REFERENCE_CELL_ANCHORS = [
   }
 
   function resetAll() {
+    pendingChoice = null;
     state.dimension = 2;
     state.requestedDimension = 2;
     state.queue = [];
@@ -9024,15 +9530,21 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     state.complexity = 'complex';
     state.spacingStyle = 'compact';
     state.zLiftStyle = 'hierarchy';
+    state.wLiftMode = 'uniform';
 
-    state.projection = 'perspective';
-    state.insightMode = 'standard';
-    state.wSlice = 0.5;
-    state.colorMode = 'classic';
-    state.renderMode = 'solid';
     state.projection = 'perspective';
     state.screenProjection = 'perspective';
     state.isometricView = false;
+    state.insightMode = 'standard';
+    state.wSlice = 0.5;
+    state.wSectionSpace = 'intrinsic';
+    state.wSliceSweep = false;
+    state.wSliceSweepDirection = 1;
+    state.wDepthColor = false;
+    state.hypercellMode = 'all';
+    state.hypercellIndex = 0;
+    state.colorMode = 'classic';
+    state.renderMode = 'solid';
 
     state.rotations = { xw: 0, yw: 0, zw: 0, xy: 0, xz: 0, yz: 0 };
     state.auto = { xw: false, yw: false, zw: false, xy: false, xz: false, yz: false };
@@ -9047,6 +9559,7 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     restoredDockExpanded = false;
     syncSettingsUI();
     buildActiveMandala();
+    schedulePreviewRedraw();
     updateUI();
 
     markSettingsDirty();
@@ -9065,7 +9578,11 @@ const SRI_REFERENCE_CELL_ANCHORS = [
       if (!state.auto[config.key] || effectiveDimension() < config.minDim) continue;
 
       let next = state.rotations[config.key] + dt * 28;
+      if (config.speed && config.speed !== 28) {
+        next = state.rotations[config.key] + dt * config.speed;
+      }
       if (next > 180) next -= 360;
+      if (next < -180) next += 360;
 
       state.rotations[config.key] = next;
       changed = true;
@@ -9184,7 +9701,13 @@ const SRI_REFERENCE_CELL_ANCHORS = [
   }
 
   function rebuildFromChoice(buttons, button, stateKey, dataKey) {
-    if (state.transition) return;
+    if (state.transition) {
+      pendingChoice = { buttons, button, stateKey, dataKey };
+      buttons.forEach((item) => {
+        item.classList.toggle('is-active', item === button);
+      });
+      return;
+    }
 
     state[stateKey] = button.dataset[dataKey];
     buttons.forEach((item) => {
@@ -9324,6 +9847,12 @@ const SRI_REFERENCE_CELL_ANCHORS = [
         'preset',
         'preset',
       );
+      if (
+        (state.dimension === 2 || state.requestedDimension === 2)
+        && geometricFormsDock?.classList.contains('is-expanded')
+      ) {
+        setMoreFormsVisible(false);
+      }
     });
   });
 
@@ -9361,6 +9890,18 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     });
   });
 
+  wLiftButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      if (button.disabled) return;
+      rebuildFromChoice(
+        wLiftButtons,
+        button,
+        'wLiftMode',
+        'wlift',
+      );
+    });
+  });
+
   resetAllButton.addEventListener('click', () => {
     resetAll();
     hideHint();
@@ -9376,18 +9917,6 @@ const SRI_REFERENCE_CELL_ANCHORS = [
       if (toggleGeometricForms) {
         toggleGeometricForms.title = 'Collapse geometric forms panel';
       }
-    }
-
-    if (!visible && experimentalPresets.has(state.preset)) {
-      state.preset = 'square';
-      presetButtons.forEach((button) => {
-        button.classList.toggle(
-          'is-active',
-          button.dataset.preset === state.preset,
-        );
-      });
-      buildActiveMandala();
-      updateUI();
     }
 
     geometricFormsDock.classList.toggle('is-expanded', visible);
@@ -9416,18 +9945,6 @@ const SRI_REFERENCE_CELL_ANCHORS = [
     if (collapsed) {
       geometricFormsDock.classList.remove('is-expanded');
       restoredDockExpanded = false;
-
-      if (experimentalPresets.has(state.preset)) {
-        state.preset = 'square';
-        presetButtons.forEach((button) => {
-          button.classList.toggle(
-            'is-active',
-            button.dataset.preset === state.preset,
-          );
-        });
-        buildActiveMandala();
-        updateUI();
-      }
     }
     toggleGeometricForms.setAttribute('aria-expanded', String(!collapsed));
     restoredDockCollapsed = collapsed;
@@ -9669,6 +10186,7 @@ const SRI_REFERENCE_CELL_ANCHORS = [
   restoreSettings();
   syncSettingsUI();
   buildActiveMandala();
+  drawAllPreviews();
   syncInteractionHint();
   syncMobilePanels();
   resize();
