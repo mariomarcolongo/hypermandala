@@ -10,7 +10,7 @@ authors:
     orcid: "https://orcid.org/0000-0003-2846-7115"
 abstract: >-
   Hypermandala is an experimental interactive visualization of mandalas, yantras and architecture-inspired geometric forms. It supports dimensional transitions, six-plane four-dimensional rotations, projections and cross-sections. Spatial hyperprism constructions are distinguished from explicitly labelled parameter embeddings. The project is a visualization tool, not evidence for historical or scientific claims about the depicted forms.
-license: AGPL-3.0
+license: AGPL-3.0-or-later
 repository-code: "https://github.com/mariomarcolongo/hypermandala"
 url: "https://hypermandala.mariomarcolongo.com/"
 keywords:

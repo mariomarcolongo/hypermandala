@@ -20,7 +20,7 @@ Use Zenodo's native GitHub integration for `mariomarcolongo/hypermandala`. It ar
 
 No versioned GitHub release existed when this guide was prepared. Select and validate an explicit baseline before publishing the first release. The live website may subsequently differ from that archived version.
 
-The citation uses the repository's existing AGPL-3.0 licence classification. Preserve its licence text and all reference and attribution information; do not infer a different licence grant.
+The citation uses the repository's AGPL-3.0-or-later licence classification. Zenodo reads this identifier into the release record. Preserve its licence text and all reference and attribution information; do not infer a different licence grant.
 
 ## Documentation
 
