@@ -417,7 +417,7 @@ The 2D geometric plan itself never changes when spacing changes.
 
 ## Web discovery
 
-The production site uses the canonical URL `https://hypermandala.mariomarcolongo.com/`, Open Graph / Twitter social cards, Schema.org `WebApplication` structured data, a crawlable About section, `robots.txt`, `sitemap.xml`, a favicon, and a dedicated 1200×630 social-preview image.
+The production site uses the canonical URL `https://hypermandala.mariomarcolongo.com/`, Open Graph / Twitter social cards, Schema.org `WebApplication` structured data, a crawlable About section, `robots.txt`, `sitemap.xml`, `llms.txt`, an IndexNow key file, a real 404 page, a favicon, and a dedicated 1200×630 social-preview image.
 
 ### Novelty wording
 

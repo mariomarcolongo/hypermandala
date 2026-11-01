@@ -1,0 +1,16 @@
+# Hypermandala
+
+> Interactive 4D mandala, yantra and geometry explorer. Geometric 2D plans unfold into intrinsic 3D forms and genuine 4D projections with rotation in all six coordinate planes.
+
+Hypermandala is a free, dependency-free Canvas visualization that runs in the browser. It is an experimental project by Mario Marcolongo. It does not claim to be the first 3D Sri Yantra visualization; earlier interactive and downloadable 3D Sri Yantra work exists.
+
+## Project
+
+- [Live explorer](https://hypermandala.mariomarcolongo.com/): the interactive application
+- [Source code](https://github.com/mariomarcolongo/hypermandala): repository, documentation and license
+- [Release 0.1.0 on Zenodo](https://doi.org/10.5281/zenodo.23391082): archived version to cite
+- [Project page](https://mariomarcolongo.com/work/hypermandala): the author's summary of the project
+
+## Optional
+
+- [Mario Marcolongo](https://mariomarcolongo.com/): author
